@@ -5,15 +5,15 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 INSTALL = HERE.parent
 M = [
-    ('phase_check_removed', 'roles.py', "    if phase != 'seed':\n        raise RoleRefusal('catalog_phase')\n", ''),
-    ('config_mode_check_removed', 'roles.py', "        if config.mode != 'seed':\n            raise RoleRefusal('catalog_config')\n", '        pass\n'),
+    ('phase_check_removed', 'roles.py', "    if phase not in ('seed', 'serve'):\n        raise RoleRefusal('catalog_phase')\n", "    pass\n"),
+    ('config_mode_check_removed', 'roles.py', "        if config.mode != phase:\n            raise RoleRefusal('catalog_config')\n", '        pass\n'),
     ('database_name_check_removed', 'roles.py', "    if db['name'] != db_name:\n        raise RoleRefusal('catalog_database')\n", ''),
-    ('session_login_check_removed', 'roles.py', "sess['login'] != logins['bootstrap'] or ", ''),
-    ('session_oid_check_removed', 'roles.py', " or sess['oid'] != roles['bootstrap']['oid']", ''),
+    ('session_login_check_removed', 'roles.py', "sess['login'] != logins[actor] or ", ''),
+    ('session_oid_check_removed', 'roles.py', " or sess['oid'] != roles[actor]['oid']", ''),
     ('session_database_check_removed', 'roles.py', " or sess['database_oid'] != db['oid']:", ':'),
     ('role_login_check_removed', 'roles.py', "any(roles[p]['login'] != logins[p] for p in A_PURPOSES) or ", ''),
     ('role_oid_uniqueness_removed', 'roles.py', " or len(set(oids)) != len(oids)", ''),
-    ('flags_check_removed', 'roles.py', "        if roles[p]['flags'] != {k: policy[p][k] for k in _FLAG_KEYS}:\n            raise RoleRefusal(f'catalog_flags:{p}')\n", "        pass\n"),
+    ('flags_check_removed', 'roles.py', "        if roles[p]['flags'] != expected_flags:\n            raise RoleRefusal(f'catalog_flags:{p}')\n", "        pass\n"),
     ('group_flags_check_removed', 'roles.py', " or any(groups[g]['flags'].values())", ''),
     ('group_memberships_check_removed', 'roles.py', " or groups[g]['memberships']:", ':'),
     ('membership_ignores_foreign_edges', 'roles.py', "if sorted((e['member'], e['oid'], e['set'], e['inherit'], e['admin']) for e in edges) != expected:", "if sorted((e['member'], e['oid'], e['set'], e['inherit'], e['admin']) for e in edges if e['member'] in {roles[p]['oid'] for p in A_PURPOSES}) != expected:"),
@@ -32,9 +32,32 @@ M = [
     ('package_misses_contract', 'package_closure.py', "'cortex_ship/install/runtime-operations-v1.json': CONTRACT.read_bytes()}", "'cortex_ship/install/runtime-operations-v1.json': b'{}'}"),
     ('package_falls_back_to_tree_path', 'roles.py', "if __name__.startswith('cortex_ship.'):", "if False:"),
     ('receipt_omits_digest', 'package_closure.py', "'source_roles_sha256': sha(files['cortex_ship/install/roles.py']),", "'source_roles_sha256': '0',"),
+    ('serve_session_is_bootstrap', 'roles.py', "actor = 'api_request' if serve else 'bootstrap'", "actor = 'bootstrap'"),
+    ('serve_finite_login_allowed', 'roles.py', "            expected_flags['login'] = policy[p]['lifetime'] == 'service'  # finite logins are closed by serve time\n", "            pass\n"),
+    ('serve_bindings_list_allowed', 'roles.py', "(obs['bindings'] is None if serve else type(obs['bindings']) is list)", "(obs['bindings'] is None or type(obs['bindings']) is list)"),
+    ('serve_installation_mismatch_allowed', 'roles.py', " or not svc['installation_matches']:", ":"),
+    ('serve_readiness_enum_unchecked', 'roles.py', "svc['enrollment_readiness'] not in SERVICE_READINESS or ", ""),
+    ('serve_config_mode_unchecked', 'roles.py', "        if config.mode != phase:\n", "        if False:\n"),
+    ('serve_service_block_not_required', 'roles.py', " + (('service',) if serve else ())", ""),
+    ('ledger_usage_to_public', 'roles.py', "f'GRANT USAGE ON SCHEMA core TO {api};'", "'GRANT USAGE ON SCHEMA core TO PUBLIC;'"),
+    ('ledger_select_to_request_group', 'roles.py', "f'GRANT SELECT ON core.schema_migrations TO {api};'", "'GRANT SELECT ON core.schema_migrations TO \"kaidera-runtime-core-request\";'"),
+    ('ledger_without_usage', 'roles.py', "f'GRANT USAGE ON SCHEMA core TO {api};', ", ""),
+    ('ledger_not_transactional', 'roles.py', "'BEGIN;', *steps, 'COMMIT;', ''", "*steps, ''"),
+    ('ledger_grants_probe_too', 'roles.py', "f'GRANT SELECT ON core.schema_migrations TO {api};']", "f'GRANT SELECT ON core.schema_migrations TO {api};', f'GRANT SELECT ON core.schema_migrations TO {_q(b.logins[\"probe\"])};']"),
+    ('pinned_key_one_character_off', 'install.sh', "PINNED_PUBKEY='RWQuhegMfku7e4Rl", "PINNED_PUBKEY='RWQuhegMfku7e4R1"),
+    ('pinned_key_id_dropped', 'install.sh', "# release key 7BBB4B7E0CE8852E", "# release key"),
+    ('provision_clear_step_removed', 'roles.py', "                    (f\"SELECT set_config('{PROVISION_SETTING}', '', true)\", None)]", "                    ]"),
+    ('provision_length_check_removed', 'roles.py', "  IF NOT (length(pw) >= {MIN_SECRET}) THEN RAISE EXCEPTION 'secret_missing_or_short:{login}' USING ERRCODE = '22023'; END IF;\\n\"\n", "\"\n"),
+    ('provision_secret_bound_to_wrong_purpose', 'roles.py', "(f\"SELECT set_config('{PROVISION_SETTING}', %s, true)\", p),", "(f\"SELECT set_config('{PROVISION_SETTING}', %s, true)\", 'probe'),"),
+    ('provision_order_not_finite_first', 'roles.py', "for p in ('migrator', 'installer_enrollment', 'api_request', 'probe'):\n            login", "for p in ('probe', 'api_request', 'installer_enrollment', 'migrator'):\n            login"),
+    ('provision_close_without_ack', 'roles.py', "    if phase == 'close':\n        if seed_ack is not True:\n            raise RoleRefusal('seed_not_acknowledged')\n", "    if phase == 'close':\n"),
+    ('provision_unknown_phase_accepted', 'roles.py', "    raise RoleRefusal('provision_phase')", "    return []"),
+    ('script_wrapper_changed', 'roles.py', "return '\\n'.join(['\\\\set ON_ERROR_STOP on', 'BEGIN;', *steps, 'COMMIT;', ''])", "return '\\n'.join(['\\\\set ON_ERROR_STOP on', 'BEGIN;', 'SET LOCAL x.y = 1;', *steps, 'COMMIT;', ''])"),
+    ('post_steps_drop_audit', 'roles.py', "+ ['\\n'.join(audit)]", ""),
+    ('close_steps_skip_terminate', 'roles.py', "                f\"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '{login}' AND pid <> pg_backend_pid();\"]", "                ]"),
 ]
 def run(tree):
-    r = subprocess.run([sys.executable, '-m', 'unittest', 'test_catalog', 'test_package'], cwd=tree / 'tests', capture_output=True, text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1'))
+    r = subprocess.run([sys.executable, '-m', 'unittest', 'test_catalog', 'test_package', 'test_provision_steps'], cwd=tree / 'tests', capture_output=True, text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1'))
     fails = [l.split(' (')[0] for l in r.stderr.splitlines() if l.startswith(('FAIL:', 'ERROR:'))]
     return r.returncode, fails, (r.stderr.strip().splitlines() or [''])[-1]
 def main():

@@ -124,35 +124,49 @@ def render_pre(b):
     return '\n'.join(out + ['COMMIT;', ''])
 
 
-def render_post(b):
+def _post_steps(b):
     wanted = [(b.logins[p], g) for p in A_PURPOSES for g in b.policy[p]['memberships']]
     if any(g not in GROUPS for _, g in wanted):
         raise RoleRefusal('roles_contract_invalid')
     ours = list(b.logins.values()) + list(GROUPS)
     names = ', '.join(f"'{x}'" for x in ours)
     pairs = ', '.join(f"('{m}', '{g}')" for m, g in wanted) or "('', '')"
-    out = ['\\set ON_ERROR_STOP on', 'BEGIN;']
-    out += [f'GRANT "{g}" TO "{m}" WITH INHERIT FALSE, SET TRUE, ADMIN FALSE;' for m, g in wanted]
-    out += ['DO $$ DECLARE bad text; BEGIN',
-            "  SELECT string_agg(m.rolname || ' > ' || g.rolname, ', ') INTO bad FROM pg_auth_members a",
-            '    JOIN pg_roles m ON m.oid = a.member JOIN pg_roles g ON g.oid = a.roleid',
-            f'    WHERE (m.rolname IN ({names}) OR g.rolname IN ({names})) AND (m.rolname, g.rolname) NOT IN (VALUES {pairs});',
-            "  IF bad IS NOT NULL THEN RAISE EXCEPTION 'unexpected role membership: %', bad USING ERRCODE = '42501'; END IF;",
-            'END $$;', 'COMMIT;', '']
-    return '\n'.join(out)
+    audit = ['DO $$ DECLARE bad text; BEGIN',
+             "  SELECT string_agg(m.rolname || ' > ' || g.rolname, ', ') INTO bad FROM pg_auth_members a",
+             '    JOIN pg_roles m ON m.oid = a.member JOIN pg_roles g ON g.oid = a.roleid',
+             f'    WHERE (m.rolname IN ({names}) OR g.rolname IN ({names})) AND (m.rolname, g.rolname) NOT IN (VALUES {pairs});',
+             "  IF bad IS NOT NULL THEN RAISE EXCEPTION 'unexpected role membership: %', bad USING ERRCODE = '42501'; END IF;",
+             'END $$;']
+    return [f'GRANT "{g}" TO "{m}" WITH INHERIT FALSE, SET TRUE, ADMIN FALSE;' for m, g in wanted] + ['\n'.join(audit)]
+
+
+def _script(steps):
+    return '\n'.join(['\\set ON_ERROR_STOP on', 'BEGIN;', *steps, 'COMMIT;', ''])
+
+
+def render_post(b):
+    return _script(_post_steps(b))
+
+
+def _close_steps(b):
+    finite = [p for p in ('installer_enrollment', 'migrator', 'bootstrap') if b.policy[p]['lifetime'] != 'service']
+    out = []
+    for p in finite:
+        login = b.logins[p]
+        out += [f"DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{login}') THEN ALTER ROLE {_q(login)} NOLOGIN; END IF; END $$;",
+                f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '{login}' AND pid <> pg_backend_pid();"]
+    return out
 
 
 def render_close(b, seed_ack):
     if seed_ack is not True:
         raise RoleRefusal('seed_not_acknowledged')
-    finite = [p for p in ('installer_enrollment', 'migrator', 'bootstrap') if b.policy[p]['lifetime'] != 'service']
-    out = ['\\set ON_ERROR_STOP on', 'BEGIN;']
-    for p in finite:
-        login = b.logins[p]
-        out += [f"DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{login}') THEN ALTER ROLE {_q(login)} NOLOGIN; END IF; END $$;",
-                f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '{login}' AND pid <> pg_backend_pid();"]
-    out += ['COMMIT;', '']
-    return '\n'.join(out)
+    return _script(_close_steps(b))
+
+
+def _ledger_steps(b):
+    api = _q(b.logins['api_request'])
+    return [f'GRANT USAGE ON SCHEMA core TO {api};', f'GRANT SELECT ON core.schema_migrations TO {api};']
 
 
 def render_ledger_grant(b):
@@ -160,8 +174,37 @@ def render_ledger_grant(b):
     Run in the post phase AFTER the migrations (the table exists then). A real PostgreSQL proof showed the table SELECT alone is DENIED (the login has no schema USAGE, its group
     membership is NOINHERIT), so the schema USAGE is granted too: the smallest addition; it exposes only core.schema_migrations and the PUBLIC trigger function core.refuse_update.
     Never to PUBLIC, the request group, probe or a finite login; no business-data privilege."""
-    api = _q(b.logins['api_request'])
-    return '\n'.join(['\\set ON_ERROR_STOP on', 'BEGIN;', f'GRANT USAGE ON SCHEMA core TO {api};', f'GRANT SELECT ON core.schema_migrations TO {api};', 'COMMIT;', ''])
+    return _script(_ledger_steps(b))
+
+
+PROVISION_SETTING = 'cortex.provision_pw'
+
+
+def provision_steps(b, phase, *, seed_ack=False):
+    """The fixed provisioning SQL as ordered [(sql, secret_purpose | None)] for the encrypted-custody executor (Core's open_bootstrap_resources(...).transaction('bootstrap')): the
+    executor runs them on its one owned transaction and passes the named purpose's plaintext (custody.resolve) as the single %s parameter. A secret is only ever a BOUND parameter taken
+    into a transaction-local setting, then cleared; it is never statement text, a file, argv or a shell read. 'pre' (finite logins first), 'post', 'ledger', 'close' (needs the seed ack)."""
+    if phase == 'pre':
+        out = [("SET LOCAL log_statement = 'none'", None), ("SET LOCAL log_min_error_statement = 'panic'", None)]
+        for p in ('migrator', 'installer_enrollment', 'api_request', 'probe'):
+            login = b.logins[p]
+            out += [(f"SELECT set_config('{PROVISION_SETTING}', %s, true)", p),
+                    (f"DO $$ DECLARE pw text := current_setting('{PROVISION_SETTING}'); BEGIN\n"
+                     f"  IF NOT (length(pw) >= {MIN_SECRET}) THEN RAISE EXCEPTION 'secret_missing_or_short:{login}' USING ERRCODE = '22023'; END IF;\n"
+                     f"  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{login}') THEN EXECUTE format('CREATE ROLE %I', '{login}'); END IF;\n"
+                     f"  EXECUTE format('ALTER ROLE %I {_flags(b.policy[p])} PASSWORD %L', '{login}', pw);\n"
+                     "END $$;", None),
+                    (f"SELECT set_config('{PROVISION_SETTING}', '', true)", None)]
+        return out
+    if phase == 'post':
+        return [(s, None) for s in _post_steps(b)]
+    if phase == 'ledger':
+        return [(s, None) for s in _ledger_steps(b)]
+    if phase == 'close':
+        if seed_ack is not True:
+            raise RoleRefusal('seed_not_acknowledged')
+        return [(s, None) for s in _close_steps(b)]
+    raise RoleRefusal('provision_phase')
 
 
 # ---- J06: the SOLE role-catalog policy validator. Cox's read-only observer (runtime/catalog.py) returns the raw observation; this admits or refuses it. ----
