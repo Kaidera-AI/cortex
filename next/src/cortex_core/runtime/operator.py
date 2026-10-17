@@ -87,6 +87,9 @@ def dispatch_operator_command(argv):
     if command=='client':
         _client(values)
         return 0
+    if command=='status':
+        from .status import read_status
+        return read_status(read_config_file(values['--config'],mode='status'))
     if command=='serve':
         import asyncio
         from .lifecycle import serve_runtime

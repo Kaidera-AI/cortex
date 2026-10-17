@@ -49,6 +49,11 @@ DAY2_SPEC=[
  ('src/cortex_core/runtime/lifecycle.py',"if self._bound is None or self._shutdown_deadline is not None:","if self._bound is None:",'runtime','test_lifecycle.LifecycleTests.test_shutdown_stops_http_admission_before_probe_auth_or_write'),
  ('src/cortex_core/runtime/resources.py',"if self._shutdown_deadline is not None:raise Refusal('resources_draining')","if False:raise Refusal('resources_draining')",'runtime','test_lifecycle.LifecycleTests.test_already_admitted_handler_cannot_open_sql_after_shutdown'),
  ('src/cortex_core/runtime/operator.py',"if command=='serve':","if False:",'runtime','test_lifecycle.LifecycleTests.test_operator_serve_calls_actual_fixed_composition_with_same_config_and_descriptors'),
+ ('src/cortex_core/runtime/status.py',"or value['component']!='cortex' or value['installation_id']!=installation_id","or value['component']!='cortex'",'runtime','test_status_binding.StatusBindingTests.test_wrong_install_duplicate_extra_and_inconsistent_state_refuse'),
+ ('src/cortex_core/runtime/status.py',"'enrollment_required':(200,'ok',1)","'enrollment_required':(200,'ok',0)",'runtime','test_status_binding.StatusBindingTests.test_real_enrollment_and_unavailable_states_are_not_fabricated_ready'),
+ ('src/cortex_core/runtime/status.py',"httpx.Client(trust_env=False","httpx.Client(trust_env=True",'runtime','test_status_binding.StatusBindingTests.test_one_fixed_configured_loopback_get_has_no_auth_proxy_or_env_defaults'),
+ ('src/cortex_core/runtime/status.py',"with _driver_deadline(deadline):","if True:",'runtime','test_status_binding.StatusBindingTests.test_original_deadline_bounds_synchronous_stream_and_hides_transport_details'),
+ ('src/cortex_core/runtime/operator.py',"if command=='status':","if False:",'runtime','test_status_binding.StatusBindingTests.test_operator_status_uses_same_config_without_unlock_or_custody'),
 ]
 
 
