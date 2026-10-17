@@ -45,3 +45,11 @@ authority: only Cox's own observer feeds it. `package_closure.py --out DIR` stag
 `cortex_ship/install/` plus `cortex_ship/receipt.json` (digests); standard library only, so the closure is identical for linux/amd64 and linux/arm64; the
 packaged module reads only its packaged contract (no tree fallback). Wiring the staged tree into the API image (recipes/api) is the next source step; the image
 rebuild and per-arch smoke stay a separate, heavy-run gate. Controls: `tests/mutate_catalog.py` (26 mutants).
+
+## Installer caller (provision.py; J06)
+`provision.run_phase(config, custody=, deadline=, phase=, seed_ack=False)` is the only caller of `roles.provision_steps`. It is not a second executor: it opens Core's
+`open_bootstrap_resources(config, custody=, deadline=)` (config.mode must be `seed`), runs the phase's steps on `.transaction('bootstrap')` (ONE transaction, rolled back on any error), and
+resolves each step's secret with `custody.resolve(purpose)` at the moment the step runs, passing it as the single bound parameter (never statement text, file, env, argv or shell).
+Refusals before any resource opens: `provision_phase`, `provision_config`, `ledger_not_accepted`, `seed_not_acknowledged`; `provision_secret` (empty/NUL/non-UTF-8) before binding.
+`provision.provision_sequence(config, custody=, deadline=, migrate=, seed=)`: pre -> `migrate()` (Core's unchanged command) -> post -> [ledger grant: PENDING, `LEDGER_ACCEPTED=False` until Kai's
+consult fb3b7996 is decided] -> `seed()` (Finn's durable seed; must return exactly `True`) -> close. Not proved: the real Core opener/TLS/encrypted custody run, and the `bootstrap` login's own creation.

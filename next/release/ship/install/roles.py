@@ -99,6 +99,27 @@ def bind(configs, roles=None):
     return Binding(policy, logins, secrets, root)
 
 
+def bind_logins(logins, vault_root):
+    """The five NON-secret option-A logins of the published seed config (BootstrapConfig.role_logins) bound with the SAME name rules as `bind`; secrets stay in the encrypted
+    custody and are resolved by purpose at execution, so no secret path exists here."""
+    if type(logins) is not dict or not isinstance(vault_root, str):
+        raise RoleRefusal('role_config_incomplete:' + ','.join(A_PURPOSES))
+    missing = [p for p in A_PURPOSES if p not in logins]
+    if missing:
+        raise RoleRefusal('role_config_incomplete:' + ','.join(missing))
+    out = {}
+    for purpose in A_PURPOSES:
+        login = logins[purpose]
+        if type(login) is not str or login in GROUPS or (purpose == 'installer_enrollment') != (login == INSTALLER_LOGIN):
+            raise RoleRefusal(f'role_name_conflict:{purpose}')
+        if not login or _BAD_PATH & set(login):
+            raise RoleRefusal(f'role_name_unsafe:{purpose}')
+        out[purpose] = login
+    if len(set(out.values())) != len(out):
+        raise RoleRefusal('role_config_collision:login')
+    return Binding(load_roles(), out, {}, vault_root)
+
+
 def _q(name):
     return '"' + name + '"'
 
