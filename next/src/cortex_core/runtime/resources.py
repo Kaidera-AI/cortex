@@ -104,13 +104,13 @@ def _connect(config, custody, purpose, deadline):
 
 
 class _Resources:
-    __slots__ = ('_config','_custody','_deadline','_connections','_closed','_in_transaction','_tainted')
+    __slots__ = ('_config','_custody','_deadline','_connections','_closed','_in_transaction','_tainted','_shutdown_deadline')
 
     def __init__(self, config, custody, deadline, connections, *, token):
         if token is not _BIRTH:
             raise Refusal('resources_unbound')
         for key,value in (('_config',config),('_custody',custody),('_deadline',deadline),
-                          ('_connections',MappingProxyType(connections)),('_closed',False),('_in_transaction',False),('_tainted',False)):
+                          ('_connections',MappingProxyType(connections)),('_closed',False),('_in_transaction',False),('_tainted',False),('_shutdown_deadline',None)):
             object.__setattr__(self,key,value)
 
     def __setattr__(self,name,value):
@@ -201,6 +201,14 @@ class SeedResources(_FiniteResources):
 class CoreResources(_FiniteResources):
     __slots__ = ()
 
+    def begin_shutdown(self,deadline):
+        try:
+            if remaining_seconds(deadline)>self._config.limits['shutdown_seconds']:
+                raise Refusal('resources_shutdown')
+        except Refusal:raise Refusal('resources_shutdown') from None
+        current=self._shutdown_deadline
+        object.__setattr__(self,'_shutdown_deadline',deadline if current is None else min(current,deadline))
+
     def observe_service_catalog(self):
         from .catalog import observe_service
         return observe_service(self)
@@ -277,11 +285,12 @@ def current_seed_resources(config, deadline):
     return current
 
 
-def _close(connections):
+def _close(connections,*,deadline=None):
+    if deadline is None:deadline=time.monotonic()+1
     failed = False
     for connection in reversed(list(connections.values())):
         try:
-            with private_driver_logs():connection.close()
+            with private_driver_logs(),_driver_deadline(deadline):connection.close()
         except Exception:
             failed = True
     return failed
@@ -319,7 +328,9 @@ def _open(config, *, custody, deadline, mode):
     finally:
         if token is not None:_SEED.reset(token)
         if carrier is not None:object.__setattr__(carrier,'_closed',True)
-        cleanup_failed = _close(connections)
+        cleanup_deadline=carrier._shutdown_deadline if carrier is not None else None
+        if cleanup_deadline is None:cleanup_deadline=time.monotonic()+config.limits['shutdown_seconds']
+        cleanup_failed = _close(connections,deadline=cleanup_deadline)
         if cleanup_failed and not failed:
             raise Refusal('resources_cleanup')
 
