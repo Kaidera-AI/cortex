@@ -13,7 +13,7 @@
   "kind": "inventory",
   "invariant": "ledger native home is required and bounded",
   "mutation": {
-    "before": "installer ledger (nine exact methods; native PostgreSQL)",
+    "before": "installer ledger (eleven exact methods; native PostgreSQL)",
     "after": "installer ledger (unqualified renamed step)"
   }
 }
