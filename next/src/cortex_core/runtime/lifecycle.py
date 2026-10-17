@@ -10,7 +10,7 @@ import uvicorn
 from cortex_core.api.c11a import _packet,_respond
 from .bootstrap_config import BootstrapConfig
 from .custody import open_custody
-from .resources import open_core_resources
+from .resources import ShutdownBudget,open_core_resources
 from .services import bind_core_services
 from .signed_member import Refusal
 
@@ -19,17 +19,16 @@ class RuntimeApp:
     def __init__(self,config,*,unlock_fd,key_id):
         if type(config) is not BootstrapConfig or config.mode!='serve':raise Refusal('resources_mode')
         self.config=config;self._unlock_fd=unlock_fd;self._key_id=key_id
-        self.resources=None;self._bound=None;self._stack=None;self._shutdown_deadline=None
+        self.resources=None;self._bound=None;self._stack=None;self._shutdown=ShutdownBudget(config)
         self.started=False;self.closed=False;self.failure=None;self._used=False
         self._router=Router(default=self._http,lifespan=self._lifespan)
 
+    @property
+    def _shutdown_deadline(self):return self._shutdown.deadline
+
     def begin_shutdown(self,*,deadline=None):
         if self._shutdown_deadline is None:
-            now=time.monotonic();cap=now+self.config.limits['shutdown_seconds']
-            if deadline is not None:
-                if type(deadline) not in (int,float) or not now<deadline<=cap:raise Refusal('resources_shutdown')
-                cap=deadline
-            self._shutdown_deadline=cap
+            now=time.monotonic();cap=self._shutdown.begin(deadline)
             if self.resources is not None:self.resources.begin_shutdown(cap)
             # An in-progress synchronous SQL call already owns this process timer.
             # Shorten it at the first termination signal; never install a competing
@@ -56,7 +55,7 @@ class RuntimeApp:
             deadline=time.monotonic()+self.config.limits['request_seconds']
             vault=self._stack.enter_context(open_custody(self.config,unlock_fd=self._unlock_fd,key_id=self._key_id))
             if self._shutdown_deadline is not None:raise Refusal('runtime_draining')
-            owned=self._stack.enter_context(open_core_resources(self.config,custody=vault,deadline=deadline))
+            owned=self._stack.enter_context(open_core_resources(self.config,custody=vault,deadline=deadline,_shutdown=self._shutdown))
             self.resources=owned;bound=bind_core_services(owned);bound.start()
             if self._shutdown_deadline is not None:raise Refusal('runtime_draining')
             self._bound=bound;self.started=True

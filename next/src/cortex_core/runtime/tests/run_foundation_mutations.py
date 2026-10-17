@@ -53,7 +53,9 @@ DAY2_SPEC=[
  ('src/cortex_core/runtime/status.py',"'enrollment_required':(200,'ok',1)","'enrollment_required':(200,'ok',0)",'runtime','test_status_binding.StatusBindingTests.test_real_enrollment_and_unavailable_states_are_not_fabricated_ready'),
  ('src/cortex_core/runtime/status.py',"httpx.Client(trust_env=False","httpx.Client(trust_env=True",'runtime','test_status_binding.StatusBindingTests.test_one_fixed_configured_loopback_get_has_no_auth_proxy_or_env_defaults'),
  ('src/cortex_core/runtime/status.py',"with _driver_deadline(deadline):","if True:",'runtime','test_status_binding.StatusBindingTests.test_original_deadline_bounds_synchronous_stream_and_hides_transport_details'),
- ('src/cortex_core/runtime/operator.py',"if command=='status':","if False:",'runtime','test_status_binding.StatusBindingTests.test_operator_status_uses_same_config_without_unlock_or_custody'),
+ ('src/cortex_core/runtime/operator.py',"if command=='status':","if False:",'runtime','test_status_binding.StatusBindingTests.test_operator_status_main_exposes_real_diagnostic_exit_without_custody'),
+ ('src/cortex_core/runtime/resources.py',"if _shutdown is not None and _shutdown.deadline is not None:\n            cleanup_deadline=", "if False:\n            cleanup_deadline=",'runtime','test_lifecycle.LifecycleTests.test_signal_during_partial_open_cannot_renew_cleanup_budget'),
+ ('src/cortex_core/runtime/lifecycle.py',"custody=vault,deadline=deadline,_shutdown=self._shutdown", "custody=vault,deadline=deadline,_shutdown=None",'runtime','test_lifecycle.LifecycleTests.test_signal_during_first_open_stops_second_connection_and_startup_sql'),
 ]
 
 
