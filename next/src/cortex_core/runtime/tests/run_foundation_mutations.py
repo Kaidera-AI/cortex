@@ -44,6 +44,11 @@ DAY2_SPEC=[
  ('src/cortex_core/runtime/catalog.py',"admitted=validate_catalog(resources._config,observation,phase='seed')","admitted=observation",'runtime','test_catalog_binding.CatalogBindingTests.test_actual_owner_schema_snapshot_and_fixed_validator_are_one_closed_path'),
  ('src/cortex_core/runtime/catalog.py',"if check_schema_ready(connection) is not True:raise ValueError","if False:raise ValueError",'runtime','test_catalog_binding.CatalogBindingTests.test_actual_owner_schema_snapshot_and_fixed_validator_are_one_closed_path'),
  ('src/cortex_core/runtime/catalog.py',"    resources.check_deadline()\n    return admitted","    return admitted",'runtime','test_catalog_binding.CatalogBindingTests.test_original_deadline_is_checked_after_the_sole_policy_returns'),
+ ('src/cortex_core/runtime/lifecycle.py','bound=bind_core_services(owned);bound.start()','bound=bind_core_services(owned)','runtime','test_lifecycle.LifecycleTests.test_schema_failure_never_admits_and_closes_partial_owner_without_secret_trace'),
+ ('src/cortex_core/runtime/resources.py',"with private_driver_logs(),_driver_deadline(deadline):connection.close()","with private_driver_logs():connection.close()",'runtime','test_lifecycle.LifecycleTests.test_cleanup_deadline_is_absolute_no_renewal_and_unresolved_is_failure'),
+ ('src/cortex_core/runtime/lifecycle.py',"if self._bound is None or self._shutdown_deadline is not None:","if self._bound is None:",'runtime','test_lifecycle.LifecycleTests.test_shutdown_stops_http_admission_before_probe_auth_or_write'),
+ ('src/cortex_core/runtime/resources.py',"if self._shutdown_deadline is not None:raise Refusal('resources_draining')","if False:raise Refusal('resources_draining')",'runtime','test_lifecycle.LifecycleTests.test_already_admitted_handler_cannot_open_sql_after_shutdown'),
+ ('src/cortex_core/runtime/operator.py',"if command=='serve':","if False:",'runtime','test_lifecycle.LifecycleTests.test_operator_serve_calls_actual_fixed_composition_with_same_config_and_descriptors'),
 ]
 
 

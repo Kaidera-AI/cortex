@@ -221,6 +221,7 @@ class CoreResources(_FiniteResources):
         transaction/savepoint, executor, reconnect, or automatic write retry.
         """
         self._live()
+        if self._shutdown_deadline is not None:raise Refusal('resources_draining')
         if purpose not in _CORE_PURPOSES:raise Refusal('resources_purpose')
         if remaining_seconds(deadline)>min(10,self._config.limits['request_seconds']):
             raise Refusal('resources_deadline')
