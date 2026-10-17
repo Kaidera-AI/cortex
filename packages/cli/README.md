@@ -32,19 +32,31 @@ curl. Bob still owns wrapper/service cancellation propagation.
 Responses are bounded to 1MiB and decoded once as unambiguous UTF-8 JSON.
 Malformed responses and transport failures emit one typed JSON refusal on stderr.
 
-The following HTTP join is PROPOSED and remains OPEN pending Cox's accepted
-wire/source receipt: public `/health` must report `component=cortex`,
+The HTTP design is accepted in `J06-http-composition-v1.md`: public `/health`
+must report `component=cortex`,
 `status=ready` and the projected installation UUID before Bearer transmission;
 successful mutations must contain `receipt` with canonical nonzero UUID
 `record_id,event_id`, positive integer `revision`, and lower-case SHA256
 `payload_sha256`. Legacy 2xx memory responses without that receipt refuse.
-Core error objects preserve `code,capability?,state?,reason?,retryable` on stderr
-with exit 22. The caller key selector is likewise published for reconciliation.
-A release-binding field and actual Core/Bob/Nix installed composition still need
-qualification; synthetic response fixtures do not supply it.
+Core error objects preserve `code,capability?,state?,reason?,retryable,message?`
+on stderr with exit 22. The optional public message must be a string of at most
+256 UTF-8 bytes; arbitrary error fields still refuse. This preserves the existing
+gateway's fixed unauthenticated 401 packet. Actual runtime health and committed
+response binding remain Cox's source dependency. The seven-field protocol has
+no release field; installed and signed release qualification require their own
+receipts.
+
+`test_transport_composition.py` joins the published Core encrypted custody and
+actual `runtime.operator config client` subprocess to this helper through an
+inherited anonymous pipe. Its public fixture stages a committed encrypted record
+without SQL enrollment; its HTTP recorder is synthetic loopback. The 401 packet
+alone comes from the existing gateway `_error_status`. These controls demonstrate
+the source composition and never grant SQL, installed, native or release credit.
 
 Run source controls with `python3 -B -m unittest discover -s packages/cli/tests
--p 'test_transport_*.py' -v`. Existing paused CLI sources are retained; this
+-p 'test_transport_*.py' -v` with the composed Core source and its pinned crypto
+dependency available. Bind PATH to the same interpreter directory so the helper
+subprocess uses that actual runtime too. Existing paused CLI sources are retained; this
 slice does not claim their complete A command-surface integration.
 
 LEAN: one Core config/custody authority, one private transient projection, one

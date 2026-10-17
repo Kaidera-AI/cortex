@@ -19,4 +19,15 @@
 - Framing/custody interface: Cox's accepted
   `review/cortex/design/J06-interface-v1.md`, SHA256
   `25f208b916fa71f7c42be52399c0a92b1be1b2241d412427ab395712893d6d49`.
-  The proposed health/receipt wire is separately OPEN, not implied by that hash.
+  The HTTP design is separately accepted in `J06-http-composition-v1.md`;
+  runtime health/committed-response source and installed qualification remain
+  separate gates. Optional public messages reuse the existing gateway error
+  packet, bounded to 256 UTF-8 bytes.
+- Rework source-composition dependency: Cox origin
+  `99f696acf654d57890fe389cb09c815072a625fa`, exported directly from Git without
+  peer worktree edits. Actual `runtime.custody` and `runtime.operator` are used
+  by the helper's new tests with public fixture bytes and cryptography 50.0.0.
+  The fixture stages COMMITTED without SQL; it grants no enrollment authority.
+  Both parent and helper are bound to Python 3.13.7 or 3.14.0 in these runs.
+  The cryptography dependency belongs to Core; the helper still uses stdlib
+  plus curl only. No new production dependency or copied validator is added.
