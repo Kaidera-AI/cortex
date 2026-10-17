@@ -16,7 +16,6 @@ HERE = Path(__file__).resolve().parent
 INSTALL = HERE.parent
 NEXT = HERE.parents[3]
 WRITER = INSTALL / 'sign/write_release.py'
-VERIFY = INSTALL / 'sign/verify.sh'
 INSTALL_SH = INSTALL / 'install.sh'
 ARCHIVES = {a: [f'cortex-core-linux-{a}.oci.tar', f'cortex-api-linux-{a}.oci.tar'] for a in ('arm64', 'amd64')}
 IDENTITY = {'release_id': 'test-release-001', 'release_lineage': 'cortex-v2', 'release_sequence': 1, 'api_contract': 'cortex.api.v1',
@@ -55,7 +54,7 @@ class Release:
             for n in names:
                 (self.dir / n).write_bytes(os.urandom(64) + n.encode())
         (self.dir / 'runtime-operations-v1.json').write_bytes((NEXT / 'contracts/runtime/runtime-operations-v1.json').read_bytes())
-        for n, src in (('install.sh', INSTALL_SH), ('verify.sh', VERIFY)):
+        for n, src in (('install.sh', INSTALL_SH),):
             (self.dir / n).write_bytes(src.read_bytes() if src.is_file() else b'#!/bin/sh\n')
         for n, data in (extra or {}).items():
             (self.dir / n).write_bytes(data)
@@ -72,8 +71,7 @@ class Release:
         return sh(['minisign', '-S', '-s', str(sec), '-m', str(self.dir / 'release.json'), str(self.dir / 'SHA256SUMS')])
 
     def verify(self, pub=None, arch='arm64'):
-        return sh(['sh', str(VERIFY), str(self.dir), '--trust-key-file', str(pub or self.pub), '--platform', f'linux-{arch}'],
-                  env=dict(os.environ, VERIFY_SOURCED=''))
+        return sh(['sh', str(INSTALL_SH), '--verify-only', '--release-dir', str(self.dir), '--trust-key-file', str(pub or self.pub), '--platform', f'linux-{arch}'])
 
     def cleanup(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -297,6 +295,48 @@ class InstallSpine(unittest.TestCase):
         self.assertTrue(INSTALL_SH.is_file(), 'next/release/ship/install/install.sh')
         self.assertLessEqual(len(INSTALL_SH.read_text().splitlines()), 400)
         self.assertEqual(sh(['sh', '-n', str(INSTALL_SH)]).returncode, 0)
+
+
+class SelectedHelperAuthority(InstallSpine):
+    """HALE-A2-NIX-SIGN-001: the release folder is untrusted until the signature is authenticated, so NO file selected from it may execute first. The stock installer (the
+    already trusted bootstrap) is the one verification authority; an inert marker write proves execution, a stub podman proves effects. Inert only: no real engine, key or install."""
+    EVIL = '#!/bin/sh\nprintf x >> "$MARKER"\nverify_release() { return 0; }\n'
+
+    def run_stock(self, release_dir, *extra, pub=None, pinned=False):
+        marker = self.r.tmp / 'marker'
+        env = dict(os.environ, PATH=f'{self.bin}:{os.environ["PATH"]}', STUB_LOG=str(self.log), MARKER=str(marker))
+        res = sh(['sh', str(INSTALL_SH), '--release-dir', str(release_dir), '--vault', str(self.vault), '--project', 'demo', '--prefix', str(self.prefix),
+                  *([] if pinned else ['--trust-key-file', str(pub or self.r.pub)]), '--platform', 'linux-arm64', *extra], env=env)
+        return res, marker
+
+    def test_a_substituted_release_helper_never_runs_and_an_unsigned_release_is_still_refused_with_no_effects(self):
+        (self.r.dir / 'SHA256SUMS.minisig').unlink()
+        (self.r.dir / 'verify.sh').write_text(self.EVIL)
+        res, marker = self.run_stock(self.r.dir)
+        self.assertFalse(marker.exists(), 'release-selected code executed before authentication')
+        self.assertEqual((res.returncode, reason(res)), (2, 'release_signature_missing'))
+        self.assertEqual(self.effects(), [])
+        self.assertFalse(self.prefix.exists())
+
+    def test_a_substituted_helper_beside_a_correctly_signed_release_is_never_executed_either(self):
+        (self.r.dir / 'verify.sh').write_text(self.EVIL)
+        res, marker = self.run_stock(self.r.dir, '--only', 'load')
+        self.assertFalse(marker.exists())
+        self.assertEqual(res.returncode, 0, res.stderr)
+
+    def test_a_forged_helper_cannot_turn_a_wrongly_signed_release_into_an_install(self):
+        (self.r.dir / 'verify.sh').write_text(self.EVIL)
+        res, marker = self.run_stock(self.r.dir, pub=self.r.pub2)
+        self.assertFalse(marker.exists())
+        self.assertEqual((res.returncode, reason(res)), (2, 'release_signature_invalid'))
+        self.assertEqual(self.effects(), [])
+
+    def test_the_trusted_valid_release_still_installs_without_any_helper_file_in_it(self):
+        (self.r.dir / 'verify.sh').unlink(missing_ok=True)
+        res, marker = self.run_stock(self.r.dir, '--only', 'load')
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertFalse(marker.exists())
+        self.assertEqual(len([c for c in self.effects() if c.startswith('load')]), 2)
 
 
 if __name__ == '__main__':
