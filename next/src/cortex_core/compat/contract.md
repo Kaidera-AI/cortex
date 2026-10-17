@@ -851,6 +851,22 @@ in Cox's commissioned new-head round; the author cannot self-close it.
     "runtime_implementation_pin": null,
     "fixture_as_live_credit": false,
     "ai": "off; .005 deferred; no provider/model defaults or calls"
+  },
+  "versioned_cli": {
+    "ruling": {"file": "2026-10-17_cox_a-day2-versioned-cli-ruling-v1.md", "sha256": "11d7ebce3a3f0ebac0ae4f3b85eb5a0a6a5c0e2190a712269ac6231a64ebf1a5", "authority": "Kai Option A accepted by Cox", "scope": "SPEC only"},
+    "supersedes_helper_paths": ["day2.transport.owner_path", "accepted_j06_v1.projection.helper"],
+    "home": "next/modules/cli-v2",
+    "helper": "next/modules/cli-v2/_cortex_api.sh",
+    "transport_tests": ["next/modules/cli-v2/tests/test_transport_admission.py", "next/modules/cli-v2/tests/test_transport_composition.py", "next/modules/cli-v2/tests/test_transport_processes.py", "next/modules/cli-v2/tests/test_transport_projection.py", "next/modules/cli-v2/tests/test_transport_results.py"],
+    "module_docs": ["next/modules/cli-v2/README.md", "next/modules/cli-v2/UPSTREAM.md"],
+    "commands": {"cortex-v2-boot": {"source": "next/modules/cli-v2/cortex-v2-boot", "capability": "boot"}, "cortex-v2-log": {"source": "next/modules/cli-v2/cortex-v2-log", "capability": "log"}, "cortex-v2-search": {"source": "next/modules/cli-v2/cortex-v2-search", "capability": "search"}},
+    "new_API_capability_from_rename": false,
+    "v1": {"baseline": "7a1078213ac2497d6219e7778c7866001f97f30b", "manifest": "tests/v1_baseline.json", "manifest_sha256": "5b11c1c0e3dd5f3b22d39db7359ac1cb1e9f06d3dda1a57fd08736b3db594445", "helper_sha256": "d78ad0c87ffdf286c69b2485d3224186decc81b37608a4ae92fe40806d84f636", "preserve": "every manifest path, name, mode and exact baseline bytes", "live_contract_tests": "retained unchanged; Mike owns actual v1 regression admission/execution"},
+    "transport": {"helper_owner": "finn", "launcher_owner": "bob", "order": ["projector", "wait/reap", "exec same reader FD"], "readers": 1, "private_projection": "same accepted seven NUL-terminated fields then EOF", "new_HTTP_config_token_parser": false, "v1_authority_fallback": false, "secret_argv_env_file": false},
+    "capability_guard": "existing accepted mapping and typed unshipped refusals; no capability from rename",
+    "provider_calls": 0,
+    "live_effects": {"installed": 0, "PATH": 0, "v1_service_DB": 0},
+    "acceptance": {"old_head_inherited": false, "author_self_merge": false, "Mike": "v1 regression plus v2 RUN and exact composed inventory/CI", "Cox": "decides ONE bounded final exact-head Hale review", "fixtures_as_installed": false}
   }
 }
 ```
@@ -928,3 +944,24 @@ Mike's published RUN entry AND exact composed inventory, followed by ONE
 Cox-commissioned Hale exact-final-head review, remain separate open receipts.
 The public API, SQL/migrations, runtime modules and CI manifest are unchanged by
 this spec slice. AI remains off; .005 and provider/model defaults/calls deferred.
+
+
+## Versioned CLI amendment — Kai Option A, 17 October 2026
+
+`versioned_cli` controls helper path/entry naming over historical sections,
+including accepted_j06_v1.projection.helper; the accepted private wire and
+capability semantics remain in force. Finn moves the one helper, its five tests
+and docs to next/modules/cli-v2 and supplies cortex-v2-boot/log/search adapters.
+Bob's sole launcher/install owner uses ONLY those names and this source home,
+retaining projector -> wait/reap -> exec the SAME reader FD. No new reader,
+HTTP/config/token parser, v1 authority fallback or secret transport is admitted.
+A command rename supplies no API capability: existing boot/log/search mapping
+and provider/unshipped typed refusals still govern the versioned entries.
+The frozen v1 baseline manifest records every packages/cli and packages/api/tests
+blob path, mode and SHA256 (183 files); restore the helper exactly and keep the
+other v1 paths/names/bytes unchanged. Byte conformance is distinct from running
+live v1 contracts. Mike admits/runs actual v1 regressions and v2 tests and the
+exact composed inventory/CI; source fixtures supply no installed credit.
+Prior proposals, returned notes and reviews remain history. No changed-head
+acceptance is inherited; Cox decides any ONE bounded final Hale review. This
+SPEC changes no installed PATH, v1 service/DB or other owner's runtime source.

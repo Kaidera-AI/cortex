@@ -38,3 +38,11 @@ admission remains stdlib-only. Historical env/file wire and plaintext host clien
 proposals are not accepted fallbacks. Runtime/source/CI/installed acceptance is
 separate: Mike's RUN/composed inventory, actual resources/native/FD joins and
 ONE Cox-commissioned Hale exact-final-head review remain open in this receipt.
+
+Kai Option A adds `versioned_cli`: one helper/test/docs home at next/modules/cli-v2
+and cortex-v2-boot/log/search entries. This controls historical helper paths only;
+accepted private framing and API semantics persist. tests/v1_baseline.json freezes
+all183 baseline packages/cli and packages/api/tests paths/modes/bytes. The suite
+checks actual checkout preservation; live v1 regressions and v2 RUN/composed CI
+remain Mike-owned. Finn moves/adapts, Bob names launch/install; this SPEC does not
+implement their source or inherit old-head review/installed acceptance.

@@ -62,3 +62,13 @@ assertions, retaining every earlier map value, source pin/proposal and the 23
 existing test bodies. cryptography==50.0.0 is the accepted Cox/Nix runtime
 closure obligation; this spec installs, imports and vendors none of it. No
 external service, parser, transport, store or runtime authority is introduced.
+
+Versioned amendment: Cox/Kai ruling SHA256
+11d7ebce3a3f0ebac0ae4f3b85eb5a0a6a5c0e2190a712269ac6231a64ebf1a5.
+The readonly tests/v1_baseline.json fixture is extracted from the existing MIT
+Cortex main7a1078213ac2497d6219e7778c7866001f97f30b Git blobs: all packages/cli
+and packages/api/tests files, with path/mode/blob/SHA256. It copies no runtime
+code and is never a runtime registry. The helper baseline hash is
+d78ad0c87ffdf286c69b2485d3224186decc81b37608a4ae92fe40806d84f636.
+Changes: append versioned command/path mapping and source-byte assertions; retain
+all historical fields and36 body methods. No new dependency or code donor.
