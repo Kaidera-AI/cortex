@@ -207,4 +207,109 @@ class ResourceTests(unittest.TestCase):
             self.assertLess(time.monotonic()-started,2.75)
 
 
+class CatalogConnection(DriverConnection):
+    def __init__(self,name,events,rows):super().__init__(name,events);self.rows=rows;self.queries=[]
+    @contextmanager
+    def transaction(self):
+        self.events.append('begin:'+self.name)
+        try:yield
+        except BaseException:self.events.append('rollback:'+self.name);raise
+        else:self.events.append('commit:'+self.name)
+    def execute(self,sql,params=None):
+        self.queries.append((str(sql),params));self.events.append('sql:'+str(sql).splitlines()[0])
+        if 'set_config' in str(sql):return SimpleNamespace(fetchone=lambda:(None,None))
+        for key,rows in self.rows.items():
+            if key in str(sql):return SimpleNamespace(fetchall=lambda:rows,fetchone=lambda:rows[0] if rows else None)
+        if str(sql).startswith('SET TRANSACTION'):return SimpleNamespace()
+        raise RuntimeError('unexpected SQL public-test-password')
+
+
+class CatalogTests(unittest.TestCase):
+    setUp=ResourceTests.setUp
+    vault=ResourceTests.vault
+    def require_source(self):
+        self.assertTrue(resources is not None and hasattr(resources.SeedResources,'observe_catalog')
+            and hasattr(resources.SeedResources,'transaction'),'actual catalog/transaction source missing')
+    def driver(self,**kw):
+        c=CatalogConnection(kw['user'],self.events,self.rows);self.calls.append(c);return c
+    def data(self):
+        names=list(self.config.role_logins.values())+['kaidera-runtime-core-request','kaidera-runtime-core-verifier']
+        return {'FROM pg_catalog.pg_database': [('cortex',42,43)],
+            'FROM pg_catalog.pg_stat_activity': [('actual-session',900,42)],
+            'FROM pg_catalog.pg_roles':[(name,100+i,True,False,False,False,False,False,False) for i,name in enumerate(names)],
+            'FROM pg_catalog.pg_auth_members':[(102,105,True,False,False),(999,102,False,False,True)],
+            'FROM auth.runtime_login_bindings':[(102,names[2],'api_request',self.config.installation_id,True,1,
+                '10000000-0000-0000-0000-000000000010',42,43,None)],
+            'FROM pg_catalog.pg_namespace':[('schema','auth','auth',102),('relation','core','records',43)]}
+    @contextmanager
+    def opened(self):
+        self.rows=self.data()
+        with self.vault() as v,patch.object(resources,'_driver_connect',side_effect=self.driver):
+            with resources.open_seed_resources(self.config,custody=v,deadline=self.deadline) as r:yield r
+    def test_actual_catalog_is_detached_raw_observation_not_synthesized_authority(self):
+        self.require_source()
+        with self.opened() as r:
+            observed=r.observe_catalog();self.assertEqual(set(observed),{'database','session','roles','groups','memberships','bindings','protected_owners'})
+            self.assertEqual(observed['session'],{'login':'actual-session','oid':900,'database_oid':42})
+            self.assertEqual(observed['database'],{'name':'cortex','oid':42,'owner_oid':43})
+            self.assertEqual(observed['roles']['api_request']['oid'],102)
+            self.assertNotIn('revision',observed['roles']['bootstrap'])
+            self.assertEqual(observed['bindings'][0]['revision'],1)
+            observed['roles']['api_request']['login']='changed'
+            self.assertEqual(r.observe_catalog()['roles']['api_request']['login'],self.config.role_logins['api_request'])
+    def test_incident_memberships_and_ownership_are_retained_for_sole_validator(self):
+        self.require_source()
+        with self.opened() as r:
+            o=r.observe_catalog();self.assertIn({'member':999,'oid':102,'set':False,'inherit':False,'admin':True},o['memberships'])
+            self.assertIn({'kind':'schema','schema':'auth','name':'auth','owner_oid':102},o['protected_owners'])
+            self.assertEqual(o['roles']['api_request']['memberships'],[{'oid':105,'set':True,'inherit':False,'admin':False}])
+            self.assertEqual(set(o['groups']),{'kaidera-runtime-core-request','kaidera-runtime-core-verifier'})
+    def test_observer_uses_one_readonly_snapshot_and_bound_identity_parameters(self):
+        self.require_source()
+        with self.opened() as r:
+            r.observe_catalog();c=self.calls[0]
+            self.assertEqual(self.events.count('begin:cortex_bootstrap'),1)
+            self.assertEqual(self.events.count('commit:cortex_bootstrap'),1)
+            self.assertTrue(any('REPEATABLE READ READ ONLY' in s for s,p in c.queries))
+            bind=[(s,p) for s,p in c.queries if 'FROM auth.runtime_login_bindings' in s][0]
+            self.assertIn(' OR ',bind[0]);self.assertIn(self.config.installation_id,bind[1])
+            self.assertFalse(any('INSERT ' in s or 'UPDATE ' in s or 'DELETE ' in s for s,p in c.queries))
+            self.assertFalse(any(c.queries for c in self.calls[1:]))
+    def test_malformed_or_failed_catalog_refuses_privately_with_rollback(self):
+        self.require_source()
+        with self.opened() as r:
+            self.rows['FROM pg_catalog.pg_database']=[]
+            with self.assertRaisesRegex(ValueError,'catalog_unavailable') as e:r.observe_catalog()
+            self.assertNotIn('public-test-password',str(e.exception));self.assertIn('rollback:cortex_bootstrap',self.events)
+    def test_each_transaction_refreshes_timeout_from_same_deadline(self):
+        self.require_source()
+        with self.opened() as r:
+            now=time.monotonic()
+            with patch.object(resources.time,'monotonic',return_value=now):
+                with r.transaction('installer_enrollment') as c:self.assertIs(c,r.installer_enrollment)
+            with patch.object(resources.time,'monotonic',return_value=now+5):
+                with r.transaction('installer_enrollment'):pass
+            budgets=[int(p[0]) for s,p in self.calls[1].queries if 'set_config' in s]
+            self.assertEqual(len(budgets),2);self.assertGreater(budgets[0],budgets[1]+4000)
+    def test_unadmitted_nested_and_closed_transactions_refuse_before_sql(self):
+        self.require_source()
+        with self.opened() as r:
+            with self.assertRaisesRegex(ValueError,'resources_purpose'):
+                with r.transaction('migrator'):pass
+            with r.transaction('bootstrap'):
+                with self.assertRaisesRegex(ValueError,'resources_transaction'):
+                    with r.transaction('bootstrap'):pass
+        with self.assertRaisesRegex(ValueError,'resources_closed'):
+            with r.transaction('bootstrap'):pass
+    def test_blocking_sql_cannot_extend_original_absolute_seed_deadline(self):
+        self.require_source()
+        with self.opened() as r:
+            object.__setattr__(r,'_deadline',time.monotonic()+0.15)
+            started=time.monotonic()
+            with self.assertRaisesRegex(ValueError,'resources_deadline'):
+                with r.transaction('bootstrap'):time.sleep(1)
+            self.assertLess(time.monotonic()-started,0.7)
+            self.assertIn('rollback:cortex_bootstrap',self.events)
+
+
 if __name__=='__main__':unittest.main()
