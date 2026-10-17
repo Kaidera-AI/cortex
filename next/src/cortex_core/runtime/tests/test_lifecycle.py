@@ -224,5 +224,49 @@ class LifecycleTests(unittest.TestCase):
                 self.assertFalse(app.started);self.assertIsNotNone(app.failure)
             asyncio.run(check())
 
+    def test_sigterm_at_carrier_transfer_stops_next_sql_under_first_cap(self):
+        self.require_source()
+        # Stock ExitStack has acquired the actual carrier, but RuntimeApp has
+        # not published it yet. SQL/policy and a blocked close are doubles;
+        # SIGTERM, descriptor ownership, timers and the lifespan are actual.
+        for blocked_close in (False,True):
+            self.calls.clear();self.events.clear()
+            with self.subTest(blocked_close=blocked_close),self.app() as app:
+                observed={};enter=lifecycle.ExitStack.enter_context
+                previous=signal.getsignal(signal.SIGTERM)
+                def terminate(signum,frame):
+                    observed['cap']=app.begin_shutdown(deadline=time.monotonic()+0.12)
+                def transfer(stack,context):
+                    owned=enter(stack,context)
+                    if type(owned) is resources.CoreResources:
+                        self.assertIsNone(app.resources)
+                        observed['carrier']=owned
+                        if blocked_close:self.calls[-1].close=lambda:time.sleep(0.5)
+                        observed['began']=time.monotonic()
+                        os.kill(os.getpid(),signal.SIGTERM)
+                        self.assertEqual(sum(len(c.queries) for c in self.calls),0)
+                    return owned
+                async def check():
+                    with patch.object(lifecycle.ExitStack,'enter_context',transfer):
+                        incoming,outgoing,task,message=await self.start(app)
+                        with self.assertRaises(ValueError):await task
+                    self.assertEqual(message['type'],'lifespan.startup.failed')
+                    self.assertEqual(sum(len(c.queries) for c in self.calls),0,
+                        'startup SQL continued after SIGTERM at carrier transfer')
+                    self.assertEqual(observed['carrier']._shutdown_deadline,observed['cap'])
+                    self.assertEqual(app.begin_shutdown(),observed['cap'])
+                    self.assertLess(time.monotonic()-observed['began'],0.4,
+                        'carrier cleanup renewed the first shutdown cap')
+                    self.assertFalse(app.started);self.assertTrue(app.closed)
+                    if blocked_close:
+                        self.assertEqual(app.failure,'runtime_cleanup')
+                        self.assertNotIn('close:cortex_probe',self.events)
+                    else:
+                        self.assertEqual(app.failure,'runtime_lifespan')
+                        self.assertEqual(self.events[-2:],['close:cortex_probe','close:cortex_api_request'])
+                signal.signal(signal.SIGTERM,terminate)
+                try:asyncio.run(check())
+                finally:signal.signal(signal.SIGTERM,previous)
+
 
 if __name__=='__main__':unittest.main()
