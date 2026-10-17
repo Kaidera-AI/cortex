@@ -18,7 +18,7 @@ ARG TARGETARCH
 COPY next/src/ /opt/cortex/next/src/
 COPY next/schema/ /opt/cortex/next/schema/
 COPY next/contracts/ /opt/cortex/next/contracts/
-# J06 sole role-catalog validator: the SAME module and policy contract, fixed namespace cortex_ship.install.roles (implicit namespace package, no markers needed)
+# J06 sole role-catalog validator: the SAME module and policy contract, in the fixed import namespace (implicit namespace package, no markers needed)
 COPY next/release/ship/install/roles.py /opt/cortex/next/src/cortex_ship/install/roles.py
 COPY next/contracts/runtime/runtime-operations-v1.json /opt/cortex/next/src/cortex_ship/install/runtime-operations-v1.json
 RUN --mount=type=bind,source=.,target=/in,ro,relabel=shared \
