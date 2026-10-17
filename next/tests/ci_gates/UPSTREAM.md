@@ -54,3 +54,5 @@ SQL-keyword negative in the actual resource test is pinned assertion DATA under
 the existing exact-site classification and whole-file binding. No product source
 or historical migration bytes are changed by Mike. All author-composed results
 remain separate from Hale review, hosted-history and installed acceptance.
+
+The exact published Finn seed driver contains two SQL-looking regex/denied-keyword DATA strings. Existing per-site writer classifications pin their exact file/owner/verb/ordinal/statement bytes and the complete test-file hash. They confer no SQL or installed authority. Independent controls refuse changed regex bytes, renamed owners and an added real execute call even when the whole-file pin is renewed.

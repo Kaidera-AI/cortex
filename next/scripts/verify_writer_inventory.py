@@ -64,6 +64,7 @@ EXEMPT_SYMBOL_FILES = {
 # as the complete site identity. Any source or site drift requires new review.
 REVIEWED_WRITER_SOURCE_SHA256 = {
     'src/cortex_core/runtime/tests/test_resources.py': 'e9dd67ebda1a36b7ffd64010a0c5460668def8d60933395b5f6da1daed0db156',
+    'src/cortex_core/schema/tests/test_seed.py': 'f517ff830af89fa040bf433bf1ce22ea33fae7272042daf377a96d2aebc2bda5',
     'schema/coordination/008-c09-external-v2.sql': '9147e294732af2aada64c75f0ff794cb2cd409ed754afa316bdc72755bb9db11',
     "src/cortex_core/auth.py": "b045ce44b1b944b6d84bcc87a62f97f110a4a73db7b648f2cfc35d848b0d9049",
     "schema/auth/005-first-identity.sql": "22964015953d66eebcd31cf2a0b10deaef2e00029c1390673afd3cff4ae6d09d",
@@ -78,6 +79,8 @@ REVIEWED_WRITER_SOURCE_SHA256 = {
 
 
 REVIEWED_WRITER_CLASSES = {
+    ('src/cortex_core/schema/tests/test_seed.py', '_SeedConnection.execute', 'INSERT', '<unqualified>:<dynamic_or_unsupported>', 0, '3b71213c1851775909097cd24575b58407cb4d907d6021780f317693a7f76dfd'): 'Day2_seed_driver_test_REGEX_DATA; no_SQL_execution_or_installed_credit',
+    ('src/cortex_core/schema/tests/test_seed.py', '_SeedConnection.execute', 'UPDATE', '<unqualified>:<dynamic_or_unsupported>', 0, '2937013f2181810606b2a799b05bda2849f3e369a20982a4138f0e0a55984ce4'): 'Day2_seed_driver_test_denied_keywords_DATA; no_SQL_execution_or_installed_credit',
     ('src/cortex_core/runtime/tests/test_resources.py', 'CatalogTests.test_observer_uses_one_readonly_snapshot_and_bound_identity_parameters', 'UPDATE', '<unqualified>:<dynamic_or_unsupported>', 0, '6cb78ab1c6bdad2815633292caac2d1fc296f0b416b8b64e867f4563d4d6b1ae'): 'Day2_catalog_test_assertion_DATA; fixed_SQL_keyword_negative; no_SQL_execution',
     ('schema/coordination/008-c09-external-v2.sql', 'coordination.c07_record', 'INSERT', 'coordination.vector_applied_heads', 0, '20df52164a58822d5f5fdc62798b15912878bd92e61b0a01229041a1c4877a62'): 'C09_external_v2_private_receipt_bookkeeping; SOURCE_ADMITTED_21; Core_durability_requires_native_receipts; capability_UNAVAILABLE',
     ('schema/coordination/008-c09-external-v2.sql', 'coordination.c09_bind', 'INSERT', 'coordination.vector_bindings', 0, '3229a056b109ec96b75c4715a2847cb982711c8571ccf4f73e7ee4422bf135d2'): 'C09_external_v2_private_receipt_bookkeeping; SOURCE_ADMITTED_21; Core_durability_requires_native_receipts; capability_UNAVAILABLE',

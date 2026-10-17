@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "source": "next/contracts/core-writer-inventory.json",
-  "source_sha256": "ad93fb3086b46f97731996f22fb5fccaac2533ee6a1333cb3888d9299d183acf",
+  "source_sha256": "f550f14125d0baf0626e8b97d1da886206b1bab30177376c54fbe724f37c98d5",
   "tests": {
     "next/tests/outbox_inventory/test_source_recognition.py": "fc5d2d1a84701d6d12074075d0e81326eb79b0d84e1d1f448587bcba4e84ec72"
   },

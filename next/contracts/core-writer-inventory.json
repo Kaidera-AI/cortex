@@ -1357,6 +1357,24 @@
       "ordinal": 0,
       "statement_sha256": "6cb78ab1c6bdad2815633292caac2d1fc296f0b416b8b64e867f4563d4d6b1ae",
       "classification": "Day2_catalog_test_assertion_DATA; fixed_SQL_keyword_negative; no_SQL_execution"
+    },
+    {
+      "file": "src/cortex_core/schema/tests/test_seed.py",
+      "owner": "_SeedConnection.execute",
+      "verb": "INSERT",
+      "table": "<unqualified>:<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "3b71213c1851775909097cd24575b58407cb4d907d6021780f317693a7f76dfd",
+      "classification": "Day2_seed_driver_test_REGEX_DATA; no_SQL_execution_or_installed_credit"
+    },
+    {
+      "file": "src/cortex_core/schema/tests/test_seed.py",
+      "owner": "_SeedConnection.execute",
+      "verb": "UPDATE",
+      "table": "<unqualified>:<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "2937013f2181810606b2a799b05bda2849f3e369a20982a4138f0e0a55984ce4",
+      "classification": "Day2_seed_driver_test_denied_keywords_DATA; no_SQL_execution_or_installed_credit"
     }
   ]
 }

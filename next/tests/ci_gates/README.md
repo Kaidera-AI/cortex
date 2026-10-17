@@ -55,3 +55,5 @@ unbuilt, counted as a BODY kill or accepted as installed proof. The transport
 family outside next/ is inventoried explicitly; unrelated retained CLI history
 suites keep their existing homes. Symlinks, missing, stale and duplicate entries
 refuse, and ordinary RUN cannot migrate into loopback as a coverage reduction.
+
+The exact published Finn seed driver contains two SQL-looking regex/denied-keyword DATA strings. Existing per-site writer classifications pin their exact file/owner/verb/ordinal/statement bytes and the complete test-file hash. They confer no SQL or installed authority. Independent controls refuse changed regex bytes, renamed owners and an added real execute call even when the whole-file pin is renewed.

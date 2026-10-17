@@ -94,6 +94,7 @@
     "next/tests/outbox_inventory/test_reflected_writers.py",
     "next/tests/outbox_inventory/test_reflection_aliases.py",
     "next/tests/outbox_inventory/test_reflection_name_aliases.py",
+    "next/tests/outbox_inventory/test_seed_fixture_recognition.py",
     "next/tests/outbox_inventory/test_source_recognition.py",
     "next/tests/pg_b2_draft/test_b2_recovery_join.py",
     "next/tests/pg_b2_draft/test_hale_driver_free.py",
