@@ -156,8 +156,8 @@ class LockMatchesReceipt(unittest.TestCase):
 
     def test_licence_obligations_are_written_down_per_distribution(self):
         text = (HERE.parent / 'UPSTREAM.md').read_text().lower()
-        for name in read_lock('arm64'):
-            self.assertIn(name, text, f'UPSTREAM.md must record {name}')
+        for name, (version, _) in read_lock('arm64').items():
+            self.assertIn(f'| {name} {version}', text, f'UPSTREAM.md needs a table row for {name} {version}')
 
 
 if __name__ == '__main__':
