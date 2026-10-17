@@ -15,3 +15,9 @@ to a database, admit a package, or start a server. Installer custody and signed
 packaging remain separate gates. No external source was downloaded or forked.
 
 The existing MIT LICENSE at repository root applies; preserve it in packaging.
+
+Review correction: classify canonical private IP literals before DNS labels;
+reject alternate numeric IP and ambiguous double-leading-slash vault spellings.
+The causal helper reuses the shared AssertionResult/report/classifier, executing
+the same exact node healthy, mutant and restored; it admits no skipped, setup,
+undeclared-failure or missing-code-witness result. No new outcome parser.

@@ -108,7 +108,8 @@ def validate_bootstrap(value, *, mode):
         raise Refusal('config_projects')
     root = value['vault_root']
     if (type(root) is not str or not 1 <= len(root.encode('utf-8')) <= 4096
-            or root == '/' or not root.startswith('/') or str(PurePosixPath(root)) != root
+            or root == '/' or not root.startswith('/') or root.startswith('//')
+            or str(PurePosixPath(root)) != root
             or '..' in PurePosixPath(root).parts):
         raise Refusal('config_vault')
     bind = _listener(value['bind'], loopback=False)
@@ -116,13 +117,17 @@ def validate_bootstrap(value, *, mode):
     client = value['client']; _shape(client, {'credential_ref'}); _reference(client['credential_ref'])
     database = value['database']; _shape(database, {'host', 'port', 'name', 'tls'})
     host = database['host']
-    if type(host) is not str or len(host) > 253 or re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.:-]*', host) is None:
+    if type(host) is not str or not 1 <= len(host) <= 253:
         raise Refusal('config_database')
     try:
         address = ipaddress.ip_address(host)
     except ValueError:
-        if any(re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?', label) is None
-               for label in host.split('.')):
+        # Legacy inet_aton spellings must not acquire DNS-name admission after
+        # the canonical IP parser refuses them. No DNS or connection probe.
+        labels = host.split('.')
+        if (all(re.fullmatch(r'(?:0[xX][0-9a-fA-F]+|[0-9]+)', label) for label in labels)
+                or any(re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?', label) is None
+                       for label in labels)):
             raise Refusal('config_database') from None
     else:
         networks = map(ipaddress.ip_network, ('127.0.0.0/8', '::1/128', '10.0.0.0/8',
