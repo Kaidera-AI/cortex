@@ -115,6 +115,19 @@ class NativeHome(unittest.TestCase):
         self.assertEqual(rows[0]['evidence'], evidence())
         self.assertIn('installer-roles', rows[0]['reason'])
 
+    def test_dead_cluster_command_cannot_justify_exclusion_after_repin(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for relative in (SUITE, '.github/scripts/pytest_pg_worker.py'):
+                path = root / relative; path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes((ROOT / relative).read_bytes())
+            path = root / SUITE; original = path.read_text()
+            anchor = "        subprocess.run([self.bin / 'initdb'"
+            self.assertEqual(original.count(anchor), 1)
+            path.write_text(original.replace(anchor, "        if False:\n    " + anchor))
+            ast.parse(path.read_text())
+            self.assertFalse(offline.fixture_evidence(root, SUITE, evidence(root)))
+
     def test_hosted_native_step_is_required_and_bounded(self):
         source = PROFILE.read_text()
         self.assertIn('installer roles (nine exact methods; native PostgreSQL)', source)
