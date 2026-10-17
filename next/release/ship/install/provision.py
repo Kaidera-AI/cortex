@@ -1,7 +1,7 @@
 """ship/install provision (J06 installer caller): runs roles.provision_steps inside ONE actual Core bootstrap transaction, the sole executor. It is a thin caller, not a second resource
 executor: Core's open_bootstrap_resources(config, custody=, deadline=) opens the bounded resource context, its `.transaction('bootstrap')` owns the one transaction, and every secret is resolved from
 the encrypted custody (`custody.resolve(purpose)`) at the moment its step runs and passed as the single BOUND parameter. Nothing here reads a file, an environment variable, a process or a shell.
-Order (provision_sequence): pre -> Core migrate (the caller's `migrate`, unchanged) -> post -> [ledger grant, PENDING until accepted] -> Finn's durable seed acknowledgement (`seed`, must return True)
+Order (provision_sequence): pre -> Core migrate (the caller's `migrate`, unchanged) -> post -> ledger grant (API login only) -> Finn's durable seed acknowledgement (`seed`, must return True)
 -> close. Any refusal or error stops the sequence; nothing is retried and no credential is defaulted."""
 import importlib
 
@@ -10,7 +10,7 @@ try:
 except ImportError:
     import roles as R
 
-LEDGER_ACCEPTED = False  # the schema-USAGE grant is Kai's open consult (fb3b7996-9bb8-4b6b-bfdb-dc7050e501c0): never inferred, never run until this is deliberately set True with that decision
+LEDGER_ACCEPTED = True  # Kai approved Option A (consult fb3b7996-9bb8-4b6b-bfdb-dc7050e501c0 resolved, relayed in Cox's rework5): ONLY the exact configured API login gains core USAGE + SELECT on core.schema_migrations; the flag stays as a deliberate guard
 PHASES = ('pre', 'post', 'ledger', 'close')
 
 
@@ -58,8 +58,7 @@ def provision_sequence(config, *, custody, deadline, migrate, seed):
     run_phase(config, custody=custody, deadline=deadline, phase='pre')
     migrate()
     run_phase(config, custody=custody, deadline=deadline, phase='post')
-    if LEDGER_ACCEPTED:
-        run_phase(config, custody=custody, deadline=deadline, phase='ledger')
+    run_phase(config, custody=custody, deadline=deadline, phase='ledger')  # never skipped: a guard turned off refuses here, before seed and close
     if seed() is not True:
         raise R.RoleRefusal('seed_not_acknowledged')
     run_phase(config, custody=custody, deadline=deadline, phase='close', seed_ack=True)

@@ -163,10 +163,6 @@ class LockMatchesReceipt(unittest.TestCase):
             self.assertIn(f'| {name} {version}', text, f'UPSTREAM.md needs a table row for {name} {version}')
 
 
-def compile_at_of(lines):
-    return next(i for i, l in enumerate(lines) if 'compileall' in l)
-
-
 class ClosureWiring(unittest.TestCase):
     """J06: the sole catalog validator ships INSIDE the API image closure as cortex_ship.install.roles (same module bytes, same contract), on both arches."""
     ROLES = 'COPY next/release/ship/install/roles.py /opt/cortex/next/src/cortex_ship/install/roles.py'
@@ -180,12 +176,12 @@ class ClosureWiring(unittest.TestCase):
         lines = self.lines()
         self.assertIn(self.ROLES, lines)
         self.assertIn(self.PROVISION, lines)
-        self.assertLess(src, lines.index(self.PROVISION))
-        self.assertLess(lines.index(self.PROVISION), compile_at_of(lines))
         self.assertIn(self.CONTRACT, lines)
         src = lines.index('COPY next/src/ /opt/cortex/next/src/')
         compile_at = next(i for i, l in enumerate(lines) if 'compileall' in l)
         self.assertLess(src, lines.index(self.ROLES))
+        self.assertLess(src, lines.index(self.PROVISION))
+        self.assertLess(lines.index(self.PROVISION), compile_at)
         self.assertLess(lines.index(self.CONTRACT), compile_at)
 
     def test_the_copied_sources_exist_in_the_build_context_and_nothing_else_is_staged_into_cortex_ship(self):

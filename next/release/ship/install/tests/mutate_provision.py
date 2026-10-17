@@ -6,11 +6,16 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SRC = HERE.parent / 'provision.py'
+LED = "    run_phase(config, custody=custody, deadline=deadline, phase='ledger')  # never skipped: a guard turned off refuses here, before seed and close\n"
 MUTANTS = [
     ('secret_into_statement_text', "connection.execute(sql, (_secret(custody, purpose),))", "connection.execute(sql % _secret(custody, purpose))"),
     ('secret_resolved_eagerly_outside_txn', "with resources.transaction('bootstrap') as connection:", "[_secret(custody, p) for _, p in steps if p]\n        with resources.transaction('bootstrap') as connection:"),
     ('wrong_transaction_purpose', "resources.transaction('bootstrap')", "resources.transaction('migrator')"),
-    ('ledger_runs_while_pending', "LEDGER_ACCEPTED = False", "LEDGER_ACCEPTED = True"),
+    ('ledger_flag_default_off', "LEDGER_ACCEPTED = True  #", "LEDGER_ACCEPTED = False  #"),
+    ('ledger_skipped_in_sequence', LED, ''),
+    ('ledger_skipped_when_flag_off', LED, '    if LEDGER_ACCEPTED:\n    ' + LED.lstrip()),
+    ('ledger_moved_after_seed', LED + "    if seed() is not True:\n        raise R.RoleRefusal('seed_not_acknowledged')\n", "    if seed() is not True:\n        raise R.RoleRefusal('seed_not_acknowledged')\n" + LED),
+    ('ledger_for_wrong_phase_name', "phase='ledger')  # never", "phase='post')  # never"),
     ('close_without_seed_true', "if seed() is not True:", "if seed() is None:"),
     ('seed_checked_after_close', "    if seed() is not True:\n        raise R.RoleRefusal('seed_not_acknowledged')\n    run_phase(config, custody=custody, deadline=deadline, phase='close', seed_ack=True)",
      "    run_phase(config, custody=custody, deadline=deadline, phase='close', seed_ack=True)\n    if seed() is not True:\n        raise R.RoleRefusal('seed_not_acknowledged')"),

@@ -20,6 +20,7 @@ COPY next/schema/ /opt/cortex/next/schema/
 COPY next/contracts/ /opt/cortex/next/contracts/
 # J06 sole role-catalog validator: the SAME module and policy contract, in the fixed import namespace (implicit namespace package, no markers needed)
 COPY next/release/ship/install/roles.py /opt/cortex/next/src/cortex_ship/install/roles.py
+COPY next/release/ship/install/provision.py /opt/cortex/next/src/cortex_ship/install/provision.py
 COPY next/contracts/runtime/runtime-operations-v1.json /opt/cortex/next/src/cortex_ship/install/runtime-operations-v1.json
 RUN --mount=type=bind,source=.,target=/in,ro,relabel=shared \
     cd /in && sha256sum -c next/release/recipes/api/apk-assets.linux-${TARGETARCH}.sha256 \
