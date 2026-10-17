@@ -189,16 +189,23 @@ class RunPhase(Base):
             self.assertEqual(e.exception.reason, 'provision_secret')
             self.assertTrue(all(x[2] is None for x in self.executes()))
 
-    def test_the_ledger_phase_is_explicitly_pending_until_it_is_accepted(self):
-        self.assertIs(self.P.LEDGER_ACCEPTED, False)
+    def test_the_ledger_phase_is_accepted_by_kai_and_still_guarded_by_the_flag(self):
+        self.assertIs(self.P.LEDGER_ACCEPTED, True)  # Kai approval (Cox rework5): API-login-only USAGE + ledger SELECT, resolves consult fb3b7996
+        self.run_phase('ledger')
+        sqls = [e[1] for e in self.executes()]
+        self.assertTrue(any('schema_migrations' in s for s in sqls))
+        self.assertTrue(all(self.custody_login_only(s) for s in sqls))
+        self.log.clear()
+        self.addCleanup(setattr, self.P, 'LEDGER_ACCEPTED', self.P.LEDGER_ACCEPTED)
+        self.P.LEDGER_ACCEPTED = False
         with self.assertRaises(R.RoleRefusal) as e:
             self.run_phase('ledger')
         self.assertEqual(e.exception.reason, 'ledger_not_accepted')
         self.assertEqual(self.log, [])
-        self.P.LEDGER_ACCEPTED = True
-        self.addCleanup(setattr, self.P, 'LEDGER_ACCEPTED', False)
-        self.run_phase('ledger')
-        self.assertTrue(any('schema_migrations' in e[1] for e in self.executes()))
+
+    def custody_login_only(self, sql):
+        api = LOGINS['api_request']
+        return sql.count('"') == 2 and f'"{api}"' in sql and 'PUBLIC' not in sql and REQUEST_GROUP not in sql and LOGINS['probe'] not in sql
 
     def test_the_module_reads_no_environment_file_process_or_shell(self):
         text = (HERE.parent / 'provision.py').read_text()
@@ -215,7 +222,7 @@ class Sequence(Base):
         self.P.provision_sequence(seed_config(), custody=self.custody, deadline=9.0, migrate=m, seed=s, **kw)
         return order
 
-    def test_pre_then_migrate_then_post_then_seed_then_close_with_the_ledger_skipped_while_pending(self):
+    def test_pre_then_migrate_then_post_then_ledger_then_seed_then_close(self):
         calls = []
         orig = self.P.run_phase
 
@@ -225,7 +232,32 @@ class Sequence(Base):
         self.P.run_phase = spy
         self.addCleanup(setattr, self.P, 'run_phase', orig)
         self.seq(migrate=lambda: calls.append('migrate'), seed=lambda: calls.append('seed') or True)
-        self.assertEqual(calls, ['pre', 'migrate', 'post', 'seed', 'close'])
+        self.assertEqual(calls, ['pre', 'migrate', 'post', 'ledger', 'seed', 'close'])
+
+    def test_a_failing_ledger_step_prevents_seed_and_close(self):
+        seeded = []
+        orig = self.P.run_phase
+
+        def failing(config, **kw):
+            if kw['phase'] == 'ledger':
+                raise RuntimeError('ledger step failed')
+            return orig(config, **kw)
+        self.P.run_phase = failing
+        self.addCleanup(setattr, self.P, 'run_phase', orig)
+        with self.assertRaises(RuntimeError):
+            self.seq(seed=lambda: seeded.append(1) or True)
+        self.assertEqual(seeded, [])
+        self.assertEqual(sum(1 for x in self.log if x[0] == 'begin'), 2)  # pre and post only: close never began
+
+    def test_a_flag_turned_off_is_a_loud_refusal_after_post_never_a_silent_omission(self):
+        seeded = []
+        self.addCleanup(setattr, self.P, 'LEDGER_ACCEPTED', self.P.LEDGER_ACCEPTED)
+        self.P.LEDGER_ACCEPTED = False
+        with self.assertRaises(R.RoleRefusal) as e:
+            self.seq(seed=lambda: seeded.append(1) or True)
+        self.assertEqual(e.exception.reason, 'ledger_not_accepted')
+        self.assertEqual(seeded, [])
+        self.assertEqual(sum(1 for x in self.log if x[0] == 'begin'), 2)
 
     def test_a_seed_that_does_not_return_true_never_reaches_close(self):
         for bad in (False, None, 1, 'yes'):
@@ -233,7 +265,7 @@ class Sequence(Base):
             with self.assertRaises(R.RoleRefusal) as e:
                 self.seq(seed=lambda b=bad: b)
             self.assertEqual(e.exception.reason, 'seed_not_acknowledged')
-            self.assertEqual(sum(1 for x in self.log if x[0] == 'begin'), 2)  # pre and post only
+            self.assertEqual(sum(1 for x in self.log if x[0] == 'begin'), 3)  # pre, post and ledger only: close never began
 
     def test_a_failing_migration_stops_before_post_seed_and_close(self):
         def boom():
@@ -244,15 +276,8 @@ class Sequence(Base):
 
     def test_every_phase_opens_its_own_resource_context_with_the_same_config_custody_and_deadline(self):
         self.seq()
-        self.assertEqual(len(self.opened), 3)
-        self.assertTrue(all(o[1] is self.custody and o[2] == 9.0 for o in self.opened))
-
-    def test_the_pending_ledger_runs_only_when_explicitly_accepted(self):
-        self.P.LEDGER_ACCEPTED = True
-        self.addCleanup(setattr, self.P, 'LEDGER_ACCEPTED', False)
-        self.seq()
         self.assertEqual(len(self.opened), 4)
-        self.assertTrue(any('schema_migrations' in e[1] for e in self.executes()))
+        self.assertTrue(all(o[1] is self.custody and o[2] == 9.0 for o in self.opened))
 
 
 if __name__ == '__main__':

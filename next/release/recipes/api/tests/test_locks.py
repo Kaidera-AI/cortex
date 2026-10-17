@@ -163,9 +163,14 @@ class LockMatchesReceipt(unittest.TestCase):
             self.assertIn(f'| {name} {version}', text, f'UPSTREAM.md needs a table row for {name} {version}')
 
 
+def compile_at_of(lines):
+    return next(i for i, l in enumerate(lines) if 'compileall' in l)
+
+
 class ClosureWiring(unittest.TestCase):
     """J06: the sole catalog validator ships INSIDE the API image closure as cortex_ship.install.roles (same module bytes, same contract), on both arches."""
     ROLES = 'COPY next/release/ship/install/roles.py /opt/cortex/next/src/cortex_ship/install/roles.py'
+    PROVISION = 'COPY next/release/ship/install/provision.py /opt/cortex/next/src/cortex_ship/install/provision.py'
     CONTRACT = 'COPY next/contracts/runtime/runtime-operations-v1.json /opt/cortex/next/src/cortex_ship/install/runtime-operations-v1.json'
 
     def lines(self):
@@ -174,6 +179,9 @@ class ClosureWiring(unittest.TestCase):
     def test_the_containerfile_copies_the_one_module_and_its_contract_into_the_fixed_namespace_before_bytecode_compilation(self):
         lines = self.lines()
         self.assertIn(self.ROLES, lines)
+        self.assertIn(self.PROVISION, lines)
+        self.assertLess(src, lines.index(self.PROVISION))
+        self.assertLess(lines.index(self.PROVISION), compile_at_of(lines))
         self.assertIn(self.CONTRACT, lines)
         src = lines.index('COPY next/src/ /opt/cortex/next/src/')
         compile_at = next(i for i, l in enumerate(lines) if 'compileall' in l)
@@ -182,8 +190,9 @@ class ClosureWiring(unittest.TestCase):
 
     def test_the_copied_sources_exist_in_the_build_context_and_nothing_else_is_staged_into_cortex_ship(self):
         self.assertTrue((NEXT / 'release/ship/install/roles.py').is_file())
+        self.assertTrue((NEXT / 'release/ship/install/provision.py').is_file())
         self.assertTrue((NEXT / 'contracts/runtime/runtime-operations-v1.json').is_file())
-        extra = [l for l in self.lines() if 'cortex_ship' in l and l not in (self.ROLES, self.CONTRACT)]
+        extra = [l for l in self.lines() if 'cortex_ship' in l and l not in (self.ROLES, self.PROVISION, self.CONTRACT)]
         self.assertEqual(extra, [])
 
     def test_a_tree_laid_out_exactly_like_the_copy_lines_imports_without_package_markers(self):
@@ -192,8 +201,9 @@ class ClosureWiring(unittest.TestCase):
         dest = root / 'cortex_ship/install'
         dest.mkdir(parents=True)
         shutil.copy(NEXT / 'release/ship/install/roles.py', dest / 'roles.py')
+        shutil.copy(NEXT / 'release/ship/install/provision.py', dest / 'provision.py')
         shutil.copy(NEXT / 'contracts/runtime/runtime-operations-v1.json', dest / 'runtime-operations-v1.json')
-        code = "import sys; sys.path.insert(0, sys.argv[1])\nfrom cortex_ship.install.roles import validate_catalog, load_roles; print(len(load_roles()))\n"
+        code = "import sys; sys.path.insert(0, sys.argv[1])\nfrom cortex_ship.install.roles import validate_catalog, load_roles; from cortex_ship.install import provision; print(len(load_roles()))\n"
         r = subprocess.run([sys.executable, '-I', '-c', code, str(root)], capture_output=True, text=True)
         self.assertEqual((r.returncode, r.stdout.strip()), (0, '5'), r.stderr)
 

@@ -30,9 +30,10 @@ class Package(unittest.TestCase):
 
     def test_the_staged_files_are_the_same_bytes_and_nothing_else(self):
         staged = sorted(str(p.relative_to(self.out)) for p in self.out.rglob('*') if p.is_file())
-        self.assertEqual(staged, ['cortex_ship/__init__.py', 'cortex_ship/install/__init__.py', 'cortex_ship/install/roles.py',
-                                  'cortex_ship/install/runtime-operations-v1.json', 'cortex_ship/receipt.json'])
+        self.assertEqual(staged, ['cortex_ship/__init__.py', 'cortex_ship/install/__init__.py', 'cortex_ship/install/provision.py',
+                                  'cortex_ship/install/roles.py', 'cortex_ship/install/runtime-operations-v1.json', 'cortex_ship/receipt.json'])
         self.assertEqual(sha(self.out / 'cortex_ship/install/roles.py'), sha(INSTALL / 'roles.py'))
+        self.assertEqual(sha(self.out / 'cortex_ship/install/provision.py'), sha(INSTALL / 'provision.py'))
         self.assertEqual(sha(self.out / 'cortex_ship/install/runtime-operations-v1.json'), sha(NEXT / 'contracts/runtime/runtime-operations-v1.json'))
 
     def test_the_receipt_binds_every_staged_file_by_digest(self):
@@ -41,7 +42,8 @@ class Package(unittest.TestCase):
         listed = {f['path']: f['sha256'] for f in receipt['files']}
         for rel, digest in listed.items():
             self.assertEqual(sha(self.out / rel), digest, rel)
-        self.assertEqual(sorted(listed), ['cortex_ship/__init__.py', 'cortex_ship/install/__init__.py', 'cortex_ship/install/roles.py', 'cortex_ship/install/runtime-operations-v1.json'])
+        self.assertEqual(sorted(listed), ['cortex_ship/__init__.py', 'cortex_ship/install/__init__.py', 'cortex_ship/install/provision.py', 'cortex_ship/install/roles.py', 'cortex_ship/install/runtime-operations-v1.json'])
+        self.assertEqual(receipt['source_provision_sha256'], sha(INSTALL / 'provision.py'))
         self.assertEqual(receipt['source_roles_sha256'], sha(INSTALL / 'roles.py'))
         self.assertEqual(receipt['platform_independent'], True)
 
@@ -55,6 +57,15 @@ class Package(unittest.TestCase):
         self.assertTrue(got['callable'])
         self.assertEqual(got['five'], ['bootstrap', 'migrator', 'api_request', 'probe', 'installer_enrollment'])
         self.assertEqual(Path(got['contract']).resolve(), (self.out / 'cortex_ship/install/runtime-operations-v1.json').resolve())
+
+    def test_the_packaged_caller_imports_beside_the_validator_and_refuses_cleanly_where_core_is_absent(self):
+        code = ("import sys; sys.path.insert(0, sys.argv[1])\n"
+                "from cortex_ship.install import provision as P\n"
+                "from cortex_ship.install import roles as R\n"
+                "assert P.R is R\n"
+                "try:\n    P._open(None, custody=None, deadline=1.0)\nexcept R.RoleRefusal as e:\n    print(e.reason)\n")
+        r = subprocess.run([sys.executable, '-I', '-c', code, str(self.out)], capture_output=True, text=True)
+        self.assertEqual((r.returncode, r.stdout.strip()), (0, 'provision_core_missing'), r.stderr)
 
     def test_the_module_needs_only_the_standard_library_so_both_targets_get_the_same_closure(self):
         tree = ast.parse((INSTALL / 'roles.py').read_text())
