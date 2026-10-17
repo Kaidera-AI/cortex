@@ -88,3 +88,42 @@ exact-head review. The old `credentials` reader remains an unbound foundation
 interface; Option A must not use it as an encrypted credential fallback. Pure
 config admission remains stdlib; encrypted client projection needs the
 qualified installed Core cryptography closure.
+
+## Day-2 fixed resource and client source
+
+`resources.open_seed_resources(config, *, custody, deadline)` opens bootstrap,
+installer_enrollment and api_request connections through the fixed psycopg
+connector. `open_core_resources` opens only api_request/probe for serve. Both
+require the actual custody adapter under the SAME config object and an absolute
+monotonic deadline. They retain verify-full, bound connect/statement options,
+recheck the private public-certificate bytes, and close every partial open in
+reverse order. Driver details are suppressed through the existing privacy
+boundary. Nonempty PG-prefixed environment settings refuse before connection;
+configuration is explicit. No pool or public connection/crypto injector exists.
+
+Synchronous connect uses a scoped POSIX main-thread deadline timer to bound
+blocking DNS/driver work. An existing process timer or non-main-thread caller
+refuses; this code does not take another timer's ownership. Timer/handler are
+restored on every exit. Only time remaining on the original deadline is used;
+an undersized connect budget refuses. Per-statement/transaction deadline
+refresh is a further actual seed/catalog join, not permission to reuse an old
+statement timeout after the original deadline. Driver-double tests prove source
+composition and real timer behavior, not actual PostgreSQL/TLS admission.
+
+The seed context privately binds `SeedResources`; the fixed accessor
+`current_seed_resources(config, deadline)` requires SAME config identity,
+original deadline, exact carrier type and live context. It resets on every
+exit. The actual nonsecret catalog/sole Nix validator/revision join remains OPEN
+until its separate agreed source receipt. These connections alone never grant
+seed, enrollment, listener or installed readiness.
+
+`python -m cortex_core.runtime.operator config client --config FILE
+--unlock-fd N --key-id ID --projection-fd M [--project NAME]` is implemented.
+It reads the ONE config and committed encrypted record, then writes exactly the
+seven J06-v1 UTF-8 NUL-terminated fields in one bounded pipe write. It owns the
+explicit writable anonymous output descriptor and closes it for EOF on every
+admitted exit; unlock is borrowed/duplicated. No secret reaches stdout/stderr,
+argv, environment, network or a plaintext temporary file. Missing, unsafe,
+wrong-key, uncommitted, malformed or unconfigured input yields one sanitized
+typed JSON refusal. Other operator effects remain explicitly unbound at this
+partial dependency publication; no placeholder permits them.
