@@ -533,7 +533,7 @@ class DurableSeedTests(unittest.TestCase):
                 elif kind == 'incoming-member':
                     c.db.foreign_edge = True
                 else:
-                    c.db.database_owner = 999
+                    c.db.database_owner = c.db.role_oids['api_request']
                 self.refuse(lambda:self.invoke(seed, c))
                 self.assertEqual(c.db.writes(), [])
                 self.assertIsNone(self.material(c))
