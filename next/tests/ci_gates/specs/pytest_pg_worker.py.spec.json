@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": ".github/scripts/pytest_pg_worker.py",
+  "source_sha256": "4861427689ff4f4d46ac48442e6521d230dd6bd438045a4f708e7bf785766929",
+  "tests": {
+    "next/tests/ci_gates/tests/test_native_home.py": "19c7ae6cfcd3973f89182672c87806dd66dcc5446269b66accce851e2e1e7c2f"
+  },
+  "expected_nodes": [
+    "test_native_home.NativeHome.test_exact_nine_phase_receipt"
+  ],
+  "kind": "tool",
+  "invariant": "native phase admission rejects nonzero process exit",
+  "mutation": {
+    "before": "and gate.receipt_valid(packet, process_exit)",
+    "after": "and gate.receipt_valid(packet, 0)"
+  }
+}

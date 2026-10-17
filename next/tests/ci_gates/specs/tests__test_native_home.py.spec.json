@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/ci_gates/tests/test_native_home.py",
+  "source_sha256": "19c7ae6cfcd3973f89182672c87806dd66dcc5446269b66accce851e2e1e7c2f",
+  "tests": {
+    "next/tests/ci_gates/tests/test_native_home.py": "19c7ae6cfcd3973f89182672c87806dd66dcc5446269b66accce851e2e1e7c2f"
+  },
+  "expected_nodes": [
+    "test_native_home.NativeHome.test_exact_nine_phase_receipt"
+  ],
+  "kind": "oracle-fixture",
+  "invariant": "healthy exact native receipt defeats an inverted oracle assertion",
+  "mutation": {
+    "before": "self.assertTrue(check(packet(), 0, evidence()['sha256'], dict(ok=True, errors=[], residual=[])))",
+    "after": "self.assertFalse(check(packet(), 0, evidence()['sha256'], dict(ok=True, errors=[], residual=[])))"
+  }
+}

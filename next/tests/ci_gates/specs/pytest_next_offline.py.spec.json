@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": ".github/scripts/pytest_next_offline.py",
+  "source_sha256": "479855ccfc879b70216f8c82a266753ea3a1953d85989b7377a0fbfa14983d2d",
+  "tests": {
+    "next/tests/ci_gates/tests/test_native_home.py": "19c7ae6cfcd3973f89182672c87806dd66dcc5446269b66accce851e2e1e7c2f"
+  },
+  "expected_nodes": [
+    "test_native_home.NativeHome.test_dead_cluster_command_cannot_justify_exclusion_after_repin"
+  ],
+  "kind": "tool",
+  "invariant": "repinning dead cluster commands cannot justify exclusion",
+  "mutation": {
+    "before": "and direct_command(anchor,'initdb')",
+    "after": "and True"
+  }
+}

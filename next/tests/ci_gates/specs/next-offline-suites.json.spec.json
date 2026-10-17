@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "source": ".github/next-offline-suites.json",
-  "source_sha256": "c097c91cfc3747851510d009700f1ece27584d29babc63d9bb313e8049fdf07d",
+  "source_sha256": "79fea296c30c8246cf79dd5ae61194614d0e8c34e35b4edf29e62390ce208622",
   "tests": {
-    "next/tests/ci_gates/tests/test_receipt.py": "d20160b2ebbad908ff91eed8b3fbd4a9d388bedf47982b51f7f210512ba4b722"
+    "next/tests/ci_gates/tests/test_receipt.py": "17e74514c01da72583d049be43daf5bb5f11a7d20c9c58d1f2c278c240381ec7"
   },
   "expected_nodes": [
     "test_receipt.SharedAdmission.test_day2_required_suites_are_RUN"
