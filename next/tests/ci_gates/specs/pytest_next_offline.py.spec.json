@@ -3,10 +3,12 @@
   "source": ".github/scripts/pytest_next_offline.py",
   "source_sha256": "9c772f66cbc6c22cd7c26fee3e96f0514ed1cbdeabb00744f32d72acb3727b1e",
   "tests": {
-    "next/tests/ci_gates/tests/test_loopback_home.py": "d6d1f706d5c2bb1fdac03036fdbefa1b9c136e9dcdfecdd5c88620a1ab7b5acb"
+    "next/tests/ci_gates/tests/test_loopback_home.py": "d6d1f706d5c2bb1fdac03036fdbefa1b9c136e9dcdfecdd5c88620a1ab7b5acb",
+    "next/tests/ci_gates/tests/test_native_home.py": "19c7ae6cfcd3973f89182672c87806dd66dcc5446269b66accce851e2e1e7c2f"
   },
   "expected_nodes": [
-    "test_loopback_home.LoopbackHome.test_new_transport_file_cannot_disappear_from_inventory"
+    "test_loopback_home.LoopbackHome.test_new_transport_file_cannot_disappear_from_inventory",
+    "test_native_home.NativeHome.test_native_fixture_witness_is_pinned_and_semantic"
   ],
   "kind": "tool",
   "invariant": "new helper transport suites cannot disappear from complete inventory",

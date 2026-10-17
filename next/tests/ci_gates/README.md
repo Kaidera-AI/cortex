@@ -43,7 +43,7 @@ receipt controls are unit evidence only; the hosted native packet is still requi
 
 Day-2 admission continuation: the three actual Core runtime suites are ordinary
 RUN, alongside the Nix signature/spine suite and all earlier admissions. Finn's
-five `packages/cli/tests/test_transport*.py` suites and the actual seed negative
+five `packages/cli/tests/test_transport*.py` suites and the actual seed contract
 suite have an explicit `loopback` home in the same inventory. The existing runner
 `--loopback` uses the unchanged strict per-file worker and phase classifier, an
 isolated Linux network namespace with only `lo`, no-new-privileges, the same
