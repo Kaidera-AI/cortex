@@ -258,5 +258,150 @@ class Day2PublishedConformance(unittest.TestCase):
             'inventory_is_suite_or_installed_pass': False, 'hosted_acceptance_inherited': False})
 
 
+
+def accepted_v1(case):
+    m = field_map(case)
+    case.assertIn('accepted_j06_v1', m, 'accepted superseding J06 v1 obligations missing')
+    return m['accepted_j06_v1']
+
+
+class AcceptedJ06V1Conformance(unittest.TestCase):
+    """Accepted design obligations only; no runtime/source/installed admission."""
+
+    def test_controlling_acceptance_preserves_historical_proposals(self):
+        a = accepted_v1(self)
+        self.assertEqual(a['authority'], {'interface': 'J06-interface-v1.md',
+            'sha256': '25f208b916fa71f7c42be52399c0a92b1be1b2241d412427ab395712893d6d49',
+            'disposition': 'ACCEPT_FOR_BOUNDED_SOURCE_WITH_INTERFACE_RESOLUTIONS',
+            'controls_over_conflicting_proposals': True, 'historical_section': 'day2',
+            'source_accepted': False, 'installed_accepted': False})
+
+    def test_metadata_never_grants_purpose_authority(self):
+        a = accepted_v1(self)
+        self.assertEqual(a['config_metadata'], {'immutable_all_modes': ['source_sha256', 'role_logins', 'client_ref'],
+            'source_sha256': 'SHA256 of full canonical decoded config',
+            'role_logins': 'read-only five-purpose nonsecret login map',
+            'client_ref': 'nonsecret metadata retained in ALL modes',
+            'resolve_guard': 'mode and purpose checked BEFORE filesystem access',
+            'metadata_grants_credential_access': False, 'combined_login_reference_uniqueness': True})
+
+    def test_explicit_unlock_and_no_replacement_key(self):
+        a = accepted_v1(self)
+        self.assertEqual(a['unlock'], {'crypto': 'cryptography==50.0.0 AESGCM', 'key_bytes': 32,
+            'key_terminator': 'EOF', 'key_id': 'explicit', 'read_max_bytes': 33, 'absolute_seconds': 1,
+            'fd0': 'explicit selection AND validated anonymous pipe', 'fd1_fd2': 'refuse',
+            'private_regular_fd': 'owned/private/single-link/read-only validation',
+            'recovery': 'same operator-held key or refuse', 'fallbacks': []})
+
+    def test_one_encrypted_record_and_authenticated_identity(self):
+        a = accepted_v1(self)
+        self.assertEqual(a['record'], {'reference': 'existing client.credential_ref',
+            'second_seed_intent_file': False, 'states': ['prepared', 'committed'],
+            'aad': ['schema', 'installation_id', 'tenant_id', 'project_id', 'reference', 'purpose',
+                    'key_id', 'clear authenticated generation'],
+            'physical_path_is_identity': False, 'offline_malicious_rollback_proof': False})
+
+    def test_closed_seed_payload_has_no_secret_in_intent_or_receipt(self):
+        a = accepted_v1(self)
+        self.assertEqual(a['payload'], {'schema': 'cortex.seed-custody.v1',
+            'closed_fields': ['schema', 'intent', 'credential', 'state', 'receipt'],
+            'credential': 'strict base64 of private Bearer bytes INSIDE encryption',
+            'receipt_before_commit': None, 'secret_in_intent_result_log_receipt': False})
+
+    def test_readonly_creation_then_durable_prepared_before_writes(self):
+        a = accepted_v1(self)
+        self.assertEqual(a['seed_order'], ['bounded authoritative read-only empty-state observation',
+            'durable encrypted prepared before ANY SQL writes', 'bootstrap anchors/bindings transaction',
+            'actual kaidera-runtime-core-installer login calls auth.first_identity',
+            'api_request confirms current readiness', 'durable encrypted committed checkpoint', 'finite close/serve'])
+        self.assertEqual(a['seed_refusals'], {'missing_custody_existing_or_partial_sql': 'refuse; no replacement',
+            'ambiguous_commit': 'replay/reconcile same intent and credential; never assume rollback',
+            'db_filesystem_atomicity': False, 'local_lock_replaces_sql_guards': False})
+
+    def test_fixed_adapter_and_seed_material_lifetime(self):
+        a = accepted_v1(self)
+        self.assertEqual(a['adapter'], {'import': 'cortex_core.runtime.custody',
+            'open': 'open_custody(config, *, unlock_fd, key_id)',
+            'seed_record': 'seed mode only; owned stable nonblocking lock',
+            'methods': ['load()', 'create(intent=..., credential=...)', 'commit(receipt=...)'],
+            'load_none': 'absent leaf ONLY', 'create': 'absent only',
+            'commit': 'retain intent/credential; verify loaded identity/digest/generation; generation+1',
+            'same_committed_receipt': 'idempotent no-write', 'changed_receipt': 'refuse',
+            'durability_unknown': 'stop SQL/closure; later reload and reconcile',
+            'material': 'frozen/repr-suppressed; defensive intent/receipt copies; private credential',
+            'after_close': 'refuse', 'unlink_live_lock': False, 'public_injectable_authority': False})
+
+    def test_operator_resources_bind_actual_type_identity_deadline(self):
+        a = accepted_v1(self)
+        self.assertEqual(a['resources'], {'open': 'runtime.resources.open_seed_resources(config, *, custody, deadline)',
+            'connections': ['bootstrap', 'installer_enrollment', 'api_request'],
+            'connector': 'actual psycopg; verify-full and admitted root certificate',
+            'accessor': 'current_seed_resources(config, deadline)',
+            'requires': ['SAME config object', 'SAME absolute monotonic deadline', 'live context',
+                         'actual fixed SeedResources type'],
+            'carrier': 'private context variable; actual carrier.custody',
+            'cleanup': 'partial-open cleanup; reverse close; reset context on every exit',
+            'public_seed': 'seed_runtime_bindings(config, operation_key, deadline)',
+            'serve_only': ['api_request', 'probe'], 'driver_exception_text': False,
+            'unit_doubles_grant_production_authority': False})
+
+    def test_exact_operator_argv_and_explicit_projection_pipe(self):
+        a = accepted_v1(self)
+        self.assertEqual(a['projection']['argv'], ['python', '-m', 'cortex_core.runtime.operator',
+            'config', 'client', '--config', 'FILE', '--unlock-fd', 'N', '--key-id', 'ID',
+            '--projection-fd', 'M', '[--project NAME]'])
+        self.assertEqual(a['projection']['output_fd'], 'explicit owned anonymous pipe; no tty/regular file/default stdout')
+        self.assertEqual(a['projection']['selection'], 'ONE admitted config map; default selected project UUID')
+        self.assertEqual(a['projection']['prefix_before_full_validation'], False)
+
+    def test_seven_nul_terminated_fields_and_eof(self):
+        a = accepted_v1(self)
+        self.assertEqual(a['projection']['fields'], ['cortex.client.v1', 'admitted loopback URL',
+            'installation UUID', 'selected project UUID', 'admitted project name',
+            'committed client credential', 'integer total request seconds'])
+        self.assertEqual(a['projection']['framing'], 'exactly seven UTF-8 fields, EACH NUL-terminated, then EOF')
+        self.assertEqual(a['projection']['reject_in_every_field'], ['NUL', 'CR', 'LF'])
+        self.assertEqual(a['projection']['request_seconds'], 'min(config.request_seconds, 10)')
+        self.assertEqual(a['projection']['helper'], 'packages/cli/_cortex_api.sh; fixed framing only; no config/decryption')
+
+    def test_exact_credential_and_committed_receipt_schema(self):
+        a = accepted_v1(self)
+        self.assertEqual(a['credential'], {'format': '64 lower-case ASCII hex',
+            'entropy_bytes': 32, 'generate': 'once', 'sha256_input': 'raw ASCII Bearer bytes',
+            'base64_is_storage_encoding_only': True})
+        self.assertEqual(a['intent']['fields'], ['operation_key', 'installation_id', 'tenant_id', 'project_id',
+            'principal_id', 'credential_id', 'client_ref', 'schema_prefix_sha256', 'credential_sha256',
+            'database', 'roles'])
+        self.assertEqual(a['intent']['operation_key_bound'], 'nonempty; <=256 UTF-8 characters and <=1024 bytes')
+        self.assertEqual(a['intent']['database_fields'], ['name', 'oid', 'owner_oid'])
+        self.assertEqual(a['intent']['role_fields'], ['login', 'oid', 'revision', 'flags', 'memberships'])
+        self.assertEqual(a['receipt']['fields'], ['installation_id', 'tenant_id', 'project_id', 'principal_id',
+            'credential_id', 'operation_key', 'credential_sha256', 'intent_sha256'])
+        self.assertEqual(a['receipt']['intent_sha256'], 'SHA256 of Core canonical JSON bytes of intent')
+        self.assertEqual(a['receipt']['readiness_is_reusable_authority'], False)
+        self.assertEqual(a['receipt']['retry'], 'reconcile exact SQL receipt, actual purpose identity and CURRENT readiness')
+
+    def test_installed_crypto_closure_and_no_plaintext_client_fallback(self):
+        a = accepted_v1(self)
+        self.assertEqual(a['closure'], {'pure_config_render': 'stdlib only',
+            'encrypted_projection': 'actual installed Core cryptography closure; Nix qualifies BOTH targets',
+            'ad_hoc_install_bootstrap': False,
+            'bob_transfer': 'actual private FD transfer and minimal selected record mount; no whole-vault/finite-role serve mount',
+            'old_env_or_credential_file_wire_fallback': False, 'plaintext_host_client_fallback': False,
+            'secret_in_argv_env_temp_log': False,
+            'missing_uncommitted_unsafe_custody': 'typed refusal before networking',
+            'failure_output': 'one sanitized typed JSON line; no driver/OS details'})
+
+    def test_design_acceptance_does_not_close_source_ci_or_installed_gates(self):
+        a = accepted_v1(self)
+        self.assertEqual(a['open_proofs'], ['exact published Cox resources source before Finn integration',
+            'Nix executable/native cryptography closure', 'Bob actual private FD/mount transfer',
+            'Mike published RUN addition AND exact composed inventory', 'Cox commissions ONE Hale exact-final-head review',
+            'paired native/installed proof'])
+        self.assertEqual(a['runtime_implementation_pin'], None)
+        self.assertEqual(a['fixture_as_live_credit'], False)
+        self.assertEqual(a['ai'], 'off; .005 deferred; no provider/model defaults or calls')
+
+
 if __name__ == '__main__':
     unittest.main()
