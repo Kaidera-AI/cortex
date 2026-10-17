@@ -113,8 +113,11 @@ def test_rung_feature_db_and_api_only(inputs):
     assert inventory["serve"]["containers"] == ["core", "api"]
     images = {step["image"] for step in plan["steps"] if "image" in step}
     assert images <= {CORE_IMAGE, API_IMAGE}
+    # Host paths are installer inputs, not run inventory: mask the fixture root before scanning.
+    fixture_root = str(inputs["config"].parent.resolve())
     for name in ("cortex-v2.pod.yaml", "bootstrap.plan.json", "inventory.json"):
-        text = (inputs["out"] / name).read_text()
+        text = (inputs["out"] / name).read_text().replace(fixture_root, "<fixture>")
+        assert fixture_root not in text
         assert FORBIDDEN.search(text) is None, (name, FORBIDDEN.search(text))
 
 
