@@ -3,13 +3,14 @@ import hashlib
 import importlib.util
 import json
 import os
+import sys
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[4]
 spec=importlib.util.spec_from_file_location('packaged_policy_offline',ROOT/'.github/scripts/pytest_next_offline.py')
-offline=importlib.util.module_from_spec(spec);spec.loader.exec_module(offline)
+offline=importlib.util.module_from_spec(spec);sys.modules[spec.name]=offline;spec.loader.exec_module(offline)
 class PackagedPolicy(unittest.TestCase):
     def stage(self,destination):
         function=getattr(offline,'stage_ship_closure',None)
