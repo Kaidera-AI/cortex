@@ -421,7 +421,7 @@ def inventory(root, manifest, base_manifest=None):
                 or path == 'next/src/cortex_core/schema/tests/test_seed_operator.py'
                 or path in {'next/modules/cli-v2/tests/'+name for name in (
                     'test_transport_admission.py','test_transport_composition.py','test_transport_processes.py',
-                    'test_transport_projection.py','test_transport_results.py','test_namespace.py','test_health_join.py')}
+                    'test_transport_projection.py','test_transport_results.py','test_namespace.py','test_health_join.py','test_health_contract.py')}
                 or path.startswith('packages/cli/tests/test_transport'))) if key == 'loopback' else (
                     isinstance(path, str) and path.startswith('next/'))
             if (not allowed
