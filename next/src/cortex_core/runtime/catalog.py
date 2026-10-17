@@ -14,8 +14,20 @@ def observe(resources):
     # No public snapshot/connection argument is used by the production accessor.
     from .resources import current_seed_resources
     current_seed_resources(resources._config,resources._deadline)
+    return _observe(resources,service=False)
+
+
+def observe_service(resources):
+    from .resources import CoreResources
+    if type(resources) is not CoreResources:raise Refusal('resources_unbound')
+    resources.check_deadline()
+    return _observe(resources,service=True)
+
+
+def _observe(resources,*,service):
     try:
-        with resources.transaction('bootstrap',_read_only=True) as connection:
+        purpose='api_request' if service else 'bootstrap'
+        with resources.transaction(purpose,_read_only=True,_repeatable=not service) as connection:
             databases=_rows(connection,'''SELECT datname,oid::bigint,datdba::bigint
                 FROM pg_catalog.pg_database WHERE datname=current_database()''')
             sessions=_rows(connection,'''SELECT session_user,usesysid::bigint,datid::bigint
@@ -45,26 +57,39 @@ def observe(resources):
                 for role in by_name.values():
                     if edge['member']==role['oid']:
                         role['memberships'].append({key:edge[key] for key in ('oid','set','inherit','admin')})
-            binding_rows=_rows(connection,'''SELECT role_oid::bigint,role_name::text,
+            bindings=None
+            if not service:
+                binding_rows=_rows(connection,'''SELECT role_oid::bigint,role_name::text,
                 logical_role,installation_id::text,active,revision,operation_id::text,
                 database_oid::bigint,database_owner_oid::bigint,embedding_job_kind
                 FROM auth.runtime_login_bindings
                 WHERE installation_id=%s::uuid OR role_oid=ANY(%s::oid[])
                     OR role_name=ANY(%s::name[]) ORDER BY role_oid''',
                 (resources._config.installation_id,oids,list(resources.role_logins.values())))
-            keys=('role_oid','role_name','logical_role','installation_id','active','revision',
-                'operation_id','database_oid','database_owner_oid','embedding_job_kind')
-            bindings=[dict(zip(keys,row,strict=True)) for row in binding_rows]
+                keys=('role_oid','role_name','logical_role','installation_id','active','revision',
+                    'operation_id','database_oid','database_owner_oid','embedding_job_kind')
+                bindings=[dict(zip(keys,row,strict=True)) for row in binding_rows]
             owners=_rows(connection,'''SELECT 'schema',nspname,nspname,nspowner::bigint
                 FROM pg_catalog.pg_namespace WHERE nspname=ANY(%s)
                 UNION ALL SELECT 'relation',n.nspname,c.relname,c.relowner::bigint
                 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
                 WHERE n.nspname=ANY(%s) ORDER BY 1,2,3''',(list(_SCHEMAS),list(_SCHEMAS)))
             protected=[dict(zip(('kind','schema','name','owner_oid'),row,strict=True)) for row in owners]
-            return dict(database=database,session=session,
+            observation=dict(database=database,session=session,
                 roles={purpose:by_name[login] for purpose,login in resources.role_logins.items() if login in by_name},
                 groups={name:by_name[name] for name in _GROUPS if name in by_name},
                 memberships=memberships,bindings=bindings,protected_owners=protected)
+            if service:
+                connection.execute('SET LOCAL ROLE "kaidera-runtime-core-request"')
+                installation=_rows(connection,'SELECT auth.runtime_request_installation(%s::uuid)',
+                    (resources._config.installation_id,))
+                enrollment=_rows(connection,'SELECT auth.enrollment_readiness(%s::uuid)::text',
+                    (resources._config.installation_id,))
+                if (len(installation)!=1 or len(installation[0])!=1 or type(installation[0][0]) is not bool
+                        or len(enrollment)!=1 or len(enrollment[0])!=1
+                        or enrollment[0][0] not in ('ready','enrollment_required','unavailable')):raise ValueError
+                observation['service']=dict(installation_matches=installation[0][0],enrollment_readiness=enrollment[0][0])
+            return observation
     except Refusal as error:
         if error.reason in ('resources_deadline','resources_closed','resources_unbound'):raise
         raise Refusal('catalog_unavailable') from None

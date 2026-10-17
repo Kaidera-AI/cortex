@@ -35,6 +35,7 @@ DAY2_SPEC=[
  ('src/cortex_core/runtime/operator.py',"if command=='migrate':",'if False:','runtime','test_operator.MigrationOperatorTests.test_actual_dispatch_uses_one_config_one_finite_login_and_existing_engine'),
  ('src/cortex_core/runtime/resources.py',"'bootstrap':('bootstrap',)","'bootstrap':_SEED_PURPOSES",'runtime','test_resources.BootstrapResourceTests.test_only_bootstrap_opens_before_other_roles_exist_and_no_seed_context'),
  ('src/cortex_core/runtime/operator.py',"result=seed_runtime_bindings(config,key,deadline)","result={}",'runtime','test_operator.SeedOperatorTests.test_fixed_seed_call_same_config_context_then_closed_committed_public_receipt'),
+ ('src/cortex_core/runtime/catalog.py',"installation_matches=installation[0][0]","installation_matches=True",'runtime','test_resources.ServiceCatalogTests.test_false_or_not_enrolled_is_raw_evidence_and_never_synthesized_ready'),
 ]
 
 

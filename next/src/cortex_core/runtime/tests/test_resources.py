@@ -287,7 +287,7 @@ class CatalogConnection(DriverConnection):
         if 'set_config' in str(sql):return SimpleNamespace(fetchone=lambda:(None,None))
         for key,rows in self.rows.items():
             if key in str(sql):return SimpleNamespace(fetchall=lambda:rows,fetchone=lambda:rows[0] if rows else None)
-        if str(sql).startswith('SET TRANSACTION'):return SimpleNamespace()
+        if str(sql).startswith(('SET TRANSACTION','SET LOCAL ROLE')):return SimpleNamespace()
         raise RuntimeError('unexpected SQL public-test-password')
 
 

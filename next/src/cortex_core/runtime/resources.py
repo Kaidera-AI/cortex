@@ -145,7 +145,7 @@ class _FiniteResources(_Resources):
     __slots__ = ()
 
     @contextmanager
-    def transaction(self,purpose,*,_read_only=False):
+    def transaction(self,purpose,*,_read_only=False,_repeatable=True):
         self.check_deadline()
         if type(self) is SeedResources:current_seed_resources(self._config,self._deadline)
         if purpose not in self._connections:raise Refusal('resources_purpose')
@@ -156,7 +156,8 @@ class _FiniteResources(_Resources):
             with private_driver_logs(),_driver_deadline(self._deadline):
                 with connection.transaction():
                     if _read_only:
-                        connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
+                        connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY'
+                            if _repeatable else 'SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ ONLY')
                     milliseconds=str(max(1,math.floor(self.check_deadline()*1000)))
                     connection.execute("SELECT pg_catalog.set_config('statement_timeout',%s,true), "
                         "pg_catalog.set_config('lock_timeout',%s,true)",(milliseconds,milliseconds))
@@ -190,8 +191,12 @@ class SeedResources(_FiniteResources):
     def installer_enrollment(self):return self._connections['installer_enrollment']
 
 
-class CoreResources(_Resources):
+class CoreResources(_FiniteResources):
     __slots__ = ()
+
+    def observe_service_catalog(self):
+        from .catalog import observe_service
+        return observe_service(self)
 
 
 class MigrationResources(_Resources):
