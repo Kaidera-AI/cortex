@@ -245,7 +245,7 @@ class RolesInDatabase(unittest.TestCase):
         self.c.psql(R.render_post(self.b))
         self.assertEqual((self.c.rows(FLAGS), self.c.rows(MEMBERS)), before)
 
-    def test_6_close_closes_only_the_finite_logins_bootstrap_last(self):
+    def test_6_close_closes_only_the_finite_logins(self):
         self.c.psql(R.render_close(self.b, True))
         got = {r[0]: r for r in self.c.rows(FLAGS)}
         for p in FINITE:
