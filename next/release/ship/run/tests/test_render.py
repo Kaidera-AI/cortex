@@ -224,7 +224,7 @@ def test_serve_mounts_only_request_and_probe(inputs):
         f"{target(inputs, REFS['probe'])}:{target(inputs, REFS['probe'])}:ro",
         f"{target(inputs, CA_REF)}:{target(inputs, CA_REF)}:ro"])
     assert option(api, "--tmpfs") == ["/tmp"] + private_parents(inputs)
-    assert not [a for step in serve["podman"] for a in step if a.startswith("--secret")]
+    assert not [a for step in serve["podman"] for a in step if str(a).startswith("--secret")]
     assert serve["secrets"] == inventory["serve"]["secrets"] == sorted(MODE_PURPOSES["serve"])
     assert inventory["serve"]["secrets"] == ["api_request", "probe"]
 
@@ -252,7 +252,7 @@ def test_only_loopback_publish(inputs):
     assert publish == ["127.0.0.1:18601:8000"]
     assert option(serve["podman"][0], "--publish") == publish
     for argv in serve["podman"]:
-        assert not [a for a in argv if a.startswith("--network") and "host" in a]
+        assert not [a for a in argv if str(a).startswith("--network") and "host" in str(a)]
         assert "-p" not in argv
 
 
@@ -309,7 +309,7 @@ def test_bootstrap_projections_follow_core_refs(inputs):
     assert option(seed, "--tmpfs") == private_parents(inputs, records=False)
     for argv in (migrate, seed):
         assert "--preserve-fds=1" in argv
-        assert not [a for a in argv if a.startswith("--secret")]
+        assert not [a for a in argv if str(a).startswith("--secret")]
     assert secret_flags(steps["core-init"]) == [
         "--secret=cortex-v2-pg_boot,type=mount,target=/run/cortex/bootstrap/initdb-password,mode=0400"]
     for name in OUTPUTS:
