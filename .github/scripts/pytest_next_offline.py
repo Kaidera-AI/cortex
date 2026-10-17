@@ -189,15 +189,20 @@ def fixture_evidence(root, suite, evidence, nodeid=None):
         actual={suite+'::'+cls.name+'::'+method.name for cls in tree.body if isinstance(cls,ast.ClassDef)
             for method in cls.body if isinstance(method,ast.FunctionDef) and method.name.startswith('test_')}
         if suite_name!=native or len(expected)!=9 or actual!=expected:return False
-        init=ast.unparse(anchor)
         psql=symbol(tree,'Cluster.psql');stop=symbol(tree,'Cluster.stop')
-        # Require the real lazy tool discovery and subprocess-backed cluster/query/stop.
-        return ("self.bin = pg_bin()" in init and "self.bin / 'initdb'" in init
-            and "self.bin / 'pg_ctl'" in init and 'subprocess.run' in init
-            and psql is not None and "self.bin / 'psql'" in ast.unparse(psql)
-            and stop is not None and "self.bin / 'pg_ctl'" in ast.unparse(stop)
-            and not any(isinstance(n,ast.Call) and ast.unparse(n.func)=='pg_bin'
-                for n in tree.body)
+        def direct_command(function,tool):
+            if not isinstance(function,ast.FunctionDef):return False
+            return any(isinstance(n,(ast.Expr,ast.Assign)) and isinstance(n.value,ast.Call)
+                and ast.unparse(n.value.func)=='subprocess.run' and n.value.args
+                and isinstance(n.value.args[0],ast.List) and n.value.args[0].elts
+                and ast.unparse(n.value.args[0].elts[0])=="self.bin / "+repr(tool)
+                for n in function.body)
+        # Require unconditional commands, not strings or dead calls below a branch.
+        return (any(isinstance(n,ast.Assign) and ast.unparse(n)=="self.bin = pg_bin()" for n in anchor.body)
+            and direct_command(anchor,'initdb') and direct_command(anchor,'pg_ctl')
+            and direct_command(psql,'psql') and direct_command(stop,'pg_ctl')
+            and not any(isinstance(call,ast.Call) and ast.unparse(call.func)=='pg_bin'
+                for n in tree.body if not isinstance(n,(ast.FunctionDef,ast.ClassDef)) for call in ast.walk(n))
             and not any(isinstance(n,ast.Call) and ast.unparse(n.func) in
                 ('unittest.skip','unittest.skipIf','unittest.skipUnless','pytest.skip') for n in ast.walk(tree)))
     if evidence['kind']=='unbuilt_unit':
