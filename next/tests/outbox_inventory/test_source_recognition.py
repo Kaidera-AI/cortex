@@ -40,12 +40,7 @@ class SourceRecognition(unittest.TestCase):
                              ("connection.execute(sql,parameters)","connection.execute(other_sql,parameters)"),
                              ("databases=_rows(connection,", "databases=untrusted(connection,")):
             source=self.changed(file,before,after)
-            tree=ast.parse(source)
-            module_pin=hashlib.sha256(source.encode()).hexdigest()
-            pins=dict(self.checker.KNOWN_INPUT_AST_SHA256)
-            for fn in tree.body:
-                if isinstance(fn,ast.FunctionDef):pins[(file,fn.name)]=self.checker.normalized_function_digest(fn)
-            with patch.dict(self.checker.KNOWN_INPUT_FILE_SHA256,{file:module_pin}),patch.dict(self.checker.KNOWN_INPUT_AST_SHA256,pins):
+            with self.renew_all(file,source):
                 self.assertTrue(self.unresolved(file,source),before)
         for extra in ('\n_rows = untrusted\n','\nrows_alias = _rows\n'):
             self.assertTrue(self.unresolved(file,self.source(file)+extra))
