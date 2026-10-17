@@ -1,8 +1,10 @@
 """Pinned RC0 wire contract; reuse R01 decoding, never a second declaration ABI."""
+from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
-
-from jsonschema import Draft202012Validator
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from jsonschema import Draft202012Validator
 
 from cortex_core.release.codec import decode_json, sha256
 from .signed_member import Refusal
@@ -53,6 +55,7 @@ def load_contracts(*, operations_raw: bytes | None = None) -> RuntimeContracts:
     The optional operation bytes support an explicit transport, not policy:
     byte-for-byte pinning applies equally to both sources. No schema URL fetches.
     """
+    from jsonschema import Draft202012Validator
     root = Path(__file__).resolve().parents[3] / 'contracts/runtime'
     values = {}; sizes = {}
     for name, digest in RC0_SHA256.items():

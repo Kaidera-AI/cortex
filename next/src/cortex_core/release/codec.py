@@ -6,11 +6,6 @@ import re
 import unicodedata
 from pathlib import Path
 
-from jsonschema import Draft202012Validator
-from jsonschema.exceptions import ValidationError
-from jsonschema.validators import extend
-
-
 def _byte_length(validator, maximum, value, schema):
     if isinstance(value, str) and len(value.encode('utf-8')) > maximum:
         yield ValidationError('UTF-8 byte bound exceeded')
@@ -43,7 +38,25 @@ def _contains(validator, contains, value, schema):
     yield from Draft202012Validator.VALIDATORS['contains'](validator,contains,candidates,schema)
 
 
-WireValidator = extend(Draft202012Validator, {'maxLength': _byte_length,'uniqueItems':_unique_items,'contains':_contains})
+def _validator_class():
+    # Host config projection reuses this decoder on effect-checked stdlib Python.
+    # Schema consumers still use exactly the same jsonschema implementation.
+    global Draft202012Validator, ValidationError
+    from jsonschema import Draft202012Validator
+    from jsonschema.exceptions import ValidationError
+    from jsonschema.validators import extend
+    value = globals().get('WireValidator')
+    if value is None:
+        value = extend(Draft202012Validator, {'maxLength': _byte_length,
+                       'uniqueItems': _unique_items, 'contains': _contains})
+        globals()['WireValidator'] = value
+    return value
+
+
+def __getattr__(name):
+    if name == 'WireValidator':
+        return _validator_class()
+    raise AttributeError(name)
 
 
 def sha256(raw):
@@ -111,7 +124,7 @@ def decode_json(raw, limit, *, canonical=True, text_payload=False):
 def schema_validate(value, name):
     path = Path(__file__).resolve().parents[3] / 'contracts' / 'release' / name
     schema = json.loads(path.read_bytes())
-    errors = WireValidator(schema).iter_errors(value)
+    errors = _validator_class()(schema).iter_errors(value)
     error = next(errors, None)
     if error:
         raise ValueError('schema_violation:' + '/'.join(map(str, error.absolute_path)))
