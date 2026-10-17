@@ -39,6 +39,24 @@ jobs:
           mkdir -p "${{ runner.temp }}/next-offline-receipts"
           "${{ runner.temp }}/next-offline-venv/bin/python" -m pip freeze --all \
             > "${{ runner.temp }}/next-offline-receipts/dependencies.txt"
+      - name: pinned source-signing tool
+        run: |
+          set -euo pipefail
+          # Keep /usr/bin tool-free for the suite's explicit missing-tool case.
+          ! PATH=/usr/bin:/bin command -v minisign
+          mkdir -p "${{ runner.temp }}/next-offline-tools/bin" "${{ runner.temp }}/next-offline-receipts"
+          archive="${{ runner.temp }}/minisign-0.12-linux.tar.gz"
+          curl --fail --location --silent --show-error --max-time 60 \
+            https://github.com/jedisct1/minisign/releases/download/0.12/minisign-0.12-linux.tar.gz --output "$archive"
+          printf '%s  %s\n' 9a599b48ba6eb7b1e80f12f36b94ceca7c00b7a5173c95c3efc88d9822957e73 "$archive" \
+            | shasum -a 256 --check --strict | tee "${{ runner.temp }}/next-offline-receipts/minisign-archive.txt"
+          tar -xzf "$archive" -C "${{ runner.temp }}/next-offline-tools/bin" --strip-components=2 minisign-linux/x86_64/minisign
+          chmod 755 "${{ runner.temp }}/next-offline-tools/bin/minisign"
+          version="$("${{ runner.temp }}/next-offline-tools/bin/minisign" -v)"
+          test "$version" = 'minisign 0.12'
+          printf '%s\n' "$version" > "${{ runner.temp }}/next-offline-receipts/minisign-version.txt"
+          shasum -a 256 "${{ runner.temp }}/next-offline-tools/bin/minisign" \
+            > "${{ runner.temp }}/next-offline-receipts/minisign-binary.txt"
       - name: frozen inventory and outcome oracles
         env:
           CORTEX_NEXT_ORACLE_OUTPUT: ${{ runner.temp }}/next-offline-receipts/strictness-controls
@@ -51,7 +69,7 @@ jobs:
             -p WorkingDirectory="$GITHUB_WORKSPACE" \
             -p PrivateNetwork=yes -p RestrictAddressFamilies=AF_UNIX -p NoNewPrivileges=yes \
             -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
-            /usr/bin/env PATH="${{ runner.temp }}/next-offline-venv/bin:/usr/bin:/bin" \
+            /usr/bin/env PATH="${{ runner.temp }}/next-offline-tools/bin:${{ runner.temp }}/next-offline-venv/bin:/usr/bin:/bin" \
             "${{ runner.temp }}/next-offline-venv/bin/python" -B \
             .github/scripts/pytest_next_offline.py --base-ref "${{ github.event.pull_request.base.sha || github.event.before }}" \
             --output "${{ runner.temp }}/next-offline-receipts"

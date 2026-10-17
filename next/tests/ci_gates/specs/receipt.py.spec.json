@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
   "source": "next/tests/ci_gates/receipt.py",
-  "source_sha256": "ffaa433ef01750b18f3436477733c5a22961451fcabecd6c4763eac904f3655e",
+  "source_sha256": "6e16b6e84d120f2a1c6aa2d8a7283fd8f830192b7b5a32550eae36352b7031e4",
   "tests": {
-    "next/tests/ci_gates/tests/test_receipt.py": "17e74514c01da72583d049be43daf5bb5f11a7d20c9c58d1f2c278c240381ec7"
+    "next/tests/ci_gates/tests/test_receipt.py": "6a65b9717e728c95cc14aaef994e900ea8e27f89ccc216a0d88ae0cb0ca45bdb"
   },
   "expected_nodes": [
-    "test_receipt.Receipt.test_real_git_composition_not_pr_head"
+    "test_receipt.Receipt.test_changed_source_inventory_includes_admission_data"
   ],
   "kind": "tool",
-  "invariant": "receipts bind actual composition, not the PR head",
+  "invariant": "causal inventory includes offline workflow changes",
   "mutation": {
-    "before": "row.get(\"source_commit\") == expected[\"composition\"]",
-    "after": "True"
+    "before": "\".github/workflows/ci.yml\", \".github/workflows/next-offline.yml\"",
+    "after": "\".github/workflows/ci.yml\""
   }
 }

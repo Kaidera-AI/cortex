@@ -199,7 +199,9 @@
     "next/src/cortex_core/compat/tests/test_contract.py",
     "next/release/recipes/api/tests/test_locks.py",
     "next/release/ship/install/tests/test_roles.py",
-    "next/tests/ci_gates/tests/test_native_home.py"
+    "next/tests/ci_gates/tests/test_native_home.py",
+    "next/release/ship/install/tests/test_sign.py",
+    "next/tests/ci_gates/tests/test_sign_home.py"
   ],
   "excluded": [
     {

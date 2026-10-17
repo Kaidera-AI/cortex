@@ -369,7 +369,7 @@ def changed_sources(root, base):
     return subprocess.check_output(["git", "-C", str(root), "diff", "--name-only",
         base, "HEAD", "--", "*.py", "next/tests/floor/profile.json",
         ".github/next-offline-suites.json", "next/contracts/core-writer-inventory.json",
-        ".github/workflows/ci.yml"],
+        ".github/workflows/ci.yml", ".github/workflows/next-offline.yml"],
         text=True).splitlines()
 
 
