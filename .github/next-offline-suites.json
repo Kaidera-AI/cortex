@@ -1,6 +1,8 @@
 {
   "run": [
     "next/docs/runtime/rc0/test_oracle.py",
+    "next/release/recipes/api/tests/test_locks.py",
+    "next/release/ship/install/tests/test_roles.py",
     "next/tests/artifact/test_c03_receipts.py",
     "next/tests/artifact/test_legacy_map.py",
     "next/tests/auth/test_auth_mutation_receipts.py",
