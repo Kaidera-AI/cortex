@@ -40,3 +40,18 @@ The nine source-pinned role methods have their own exact setup/call/teardown gat
 180-second worker ceiling and private cluster scratch. Missing tools, skips,
 deselection, phase errors, source drift and failed cleanup refuse. Synthetic
 receipt controls are unit evidence only; the hosted native packet is still required.
+
+Day-2 admission continuation: the three actual Core runtime suites are ordinary
+RUN, alongside the Nix signature/spine suite and all earlier admissions. Finn's
+five `packages/cli/tests/test_transport*.py` suites and the actual seed negative
+suite have an explicit `loopback` home in the same inventory. The existing runner
+`--loopback` uses the unchanged strict per-file worker and phase classifier, an
+isolated Linux network namespace with only `lo`, no-new-privileges, the same
+resource limits, both required Python versions and the unchanged180s file cap.
+The required workflow step still runs after an earlier failure and uploads all
+receipts. It grants source-contract credit only. A missing seed module remains
+an executed ModuleNotFoundError and a RED gate; it is never skipped, declared
+unbuilt, counted as a BODY kill or accepted as installed proof. The transport
+family outside next/ is inventoried explicitly; unrelated retained CLI history
+suites keep their existing homes. Symlinks, missing, stale and duplicate entries
+refuse, and ordinary RUN cannot migrate into loopback as a coverage reduction.

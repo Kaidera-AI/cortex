@@ -73,6 +73,19 @@ jobs:
             "${{ runner.temp }}/next-offline-venv/bin/python" -B \
             .github/scripts/pytest_next_offline.py --base-ref "${{ github.event.pull_request.base.sha || github.event.before }}" \
             --output "${{ runner.temp }}/next-offline-receipts"
+      - name: required helper and seed source loopback home
+        if: ${{ !cancelled() }}
+        run: |
+          sudo systemd-run --wait --pipe --collect \
+            -p User="$(id -un)" -p Group="$(id -gn)" \
+            -p WorkingDirectory="$GITHUB_WORKSPACE" \
+            -p PrivateNetwork=yes -p 'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6' -p NoNewPrivileges=yes \
+            -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
+            /usr/bin/env PATH="${{ runner.temp }}/next-offline-venv/bin:/usr/bin:/bin" \
+            "${{ runner.temp }}/next-offline-venv/bin/python" -B \
+            .github/scripts/pytest_next_offline.py --loopback \
+            --base-ref "${{ github.event.pull_request.base.sha || github.event.before }}" \
+            --output "${{ runner.temp }}/next-loopback-receipts"
       - name: portable source fixture cleanup receipt
         if: always()
         run: |
@@ -88,6 +101,8 @@ jobs:
         if: always()
         with:
           name: next-offline-receipts-${{ matrix.python }}
-          path: ${{ runner.temp }}/next-offline-receipts/*
+          path: |
+            ${{ runner.temp }}/next-offline-receipts/*
+            ${{ runner.temp }}/next-loopback-receipts/*
           if-no-files-found: error
           retention-days: 7

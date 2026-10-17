@@ -3,7 +3,7 @@
   "source": "next/tests/ci_gates/receipt.py",
   "source_sha256": "6e16b6e84d120f2a1c6aa2d8a7283fd8f830192b7b5a32550eae36352b7031e4",
   "tests": {
-    "next/tests/ci_gates/tests/test_receipt.py": "6a65b9717e728c95cc14aaef994e900ea8e27f89ccc216a0d88ae0cb0ca45bdb"
+    "next/tests/ci_gates/tests/test_receipt.py": "3b557694d133b2d785e42a105d06a03952fc23cfffeecfb967b292dd346e05b8"
   },
   "expected_nodes": [
     "test_receipt.Receipt.test_changed_source_inventory_includes_admission_data"

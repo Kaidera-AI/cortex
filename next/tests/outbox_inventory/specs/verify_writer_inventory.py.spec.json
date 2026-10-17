@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
   "source": "next/scripts/verify_writer_inventory.py",
-  "source_sha256": "7f2a27a37e244076ea0177726b5f5e9b3a47faf26be1cca79fa1caec98dd5aca",
+  "source_sha256": "cca3be8cd5280522abe3a78b3ac881d4b6fca5fad8ded0970c98a03a5bfe9a2f",
   "tests": {
-    "next/tests/outbox_inventory/test_source_recognition.py": "04656809e6d632f0d78c1afb236586d794298c001c7a827d3d2723a386038a86"
+    "next/tests/outbox_inventory/test_source_recognition.py": "fc5d2d1a84701d6d12074075d0e81326eb79b0d84e1d1f448587bcba4e84ec72"
   },
   "expected_nodes": [
-    "next.tests.outbox_inventory.test_source_recognition.SourceRecognition.test_u13_manifest_verified_prepared_prefix_is_recognized"
+    "next.tests.outbox_inventory.test_source_recognition.SourceRecognition.test_day2_catalog_query_and_helper_rebinding_refuse_even_with_new_pins"
   ],
   "kind": "tool",
-  "invariant": "migration SQL is accepted only from the reviewed helper/prefix",
+  "invariant": "AST pin renewal alone cannot approve changed catalog SELECT bytes",
   "mutation": {
-    "before": "and owner=='apply_migrations' and name=='sql':",
-    "after": "and owner=='apply_migrations' and name=='unreviewed_sql':"
+    "before": "hashlib.sha256(sql.encode()).hexdigest() in CATALOG_QUERY_SHA256",
+    "after": "True"
   }
 }

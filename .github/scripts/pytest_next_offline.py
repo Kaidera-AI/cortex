@@ -377,22 +377,30 @@ def inventory(root, manifest, base_manifest=None):
     root = Path(root).resolve()
     found = sorted(str(p.relative_to(root)) for p in (root / 'next').rglob('*.py')
                    if suite_name(p.name))
-    invalid, entries, run, excluded = [], [], [], []
+    helper = root / 'packages/cli/tests'
+    found += sorted(str(p.relative_to(root)) for p in helper.glob('test_transport*.py'))
+    invalid, entries, run, excluded, loopback = [], [], [], [], []
     # rglob does not descend into directory symlinks: reject them rather than hide suites.
     for path in (root / 'next').rglob('*'):
         if path.is_symlink():
             invalid.append('symlink under next inventory: ' + str(path.relative_to(root)))
-    if not isinstance(manifest, dict) or not {'run','excluded'}<=set(manifest) or not set(manifest)<= {'run','excluded','retirements','method_exclusions','retirement_checks','partitions'}:
+    for path in [helper, *helper.parents[:2], *helper.rglob('*')]:
+        if path.is_symlink():
+            invalid.append('symlink under helper transport inventory: ' + str(path.relative_to(root)))
+    if not isinstance(manifest, dict) or not {'run','excluded'}<=set(manifest) or not set(manifest)<= {'run','excluded','loopback','retirements','method_exclusions','retirement_checks','partitions'}:
         invalid.append('manifest must contain run/excluded and optional retirement source bindings')
         manifest = manifest if isinstance(manifest, dict) else {}
-    for key in ('run', 'excluded'):
-        values = manifest.get(key)
+    for key in ('run', 'excluded', 'loopback'):
+        values = manifest.get(key, [] if key == 'loopback' else None)
         if not isinstance(values, list):
             invalid.append(key + ' must be a list')
             continue
         for row in values:
-            path = row if key == 'run' else row.get('path') if isinstance(row, dict) else None
-            if (not isinstance(path, str) or not path.startswith('next/')
+            path = row if key != 'excluded' else row.get('path') if isinstance(row, dict) else None
+            allowed = (isinstance(path, str) and (path == 'next/src/cortex_core/schema/tests/test_seed.py'
+                or path.startswith('packages/cli/tests/test_transport'))) if key == 'loopback' else (
+                    isinstance(path, str) and path.startswith('next/'))
+            if (not allowed
                     or any(c in path for c in '*?[]\\')
                     or any(part in ('', '.', '..') for part in path.split('/'))
                     or not suite_name(PurePosixPath(path).name)):
@@ -401,6 +409,8 @@ def inventory(root, manifest, base_manifest=None):
             entries.append(path)
             if key == 'run':
                 run.append(path)
+            elif key == 'loopback':
+                loopback.append(path)
             else:
                 reason = row.get('reason')
                 if (set(row) not in ({'path', 'reason'},{'path','reason','evidence'}) or not isinstance(reason, str)
@@ -408,7 +418,8 @@ def inventory(root, manifest, base_manifest=None):
                     invalid.append('missing or non-single-line exclusion reason: ' + path)
                 excluded.append(row)
             absolute = root / path
-            if absolute.is_symlink() or not absolute.resolve().is_relative_to(root / 'next'):
+            source_root = helper if path.startswith('packages/') else root / 'next'
+            if absolute.is_symlink() or not absolute.resolve().is_relative_to(source_root):
                 invalid.append('suite symlink or escape: ' + path)
     duplicates = sorted(path for path, count in Counter(entries).items() if count != 1)
     if not run:
@@ -487,7 +498,7 @@ def inventory(root, manifest, base_manifest=None):
             row['nodeid'].split('::')[0] in partitions for row in [*retired, *method_exclusions])):
         invalid.append('execution partitions require ordinary admitted RUN suites and counts 2..16')
     return dict(ok=not (invalid or duplicates or missing or stale), found=found,
-                run=run, excluded=excluded, missing=missing, stale=stale,
+                run=run, excluded=excluded, loopback=loopback, missing=missing, stale=stale,
                 duplicates=duplicates, invalid=invalid, rc0_oracle_present=oracle in found,
                 retired=retired, replacement_nodes=replacements,transitions=transitions,
                 method_exclusions=method_exclusions,retirement_checks=checks,partitions=partitions)
@@ -682,6 +693,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--inventory-only', action='store_true')
+    parser.add_argument('--loopback', action='store_true', help='required helper/seed source home; no installed credit')
     parser.add_argument('--force-skip', action='store_true', help='deliberately RED hosted control')
     parser.add_argument('--base-ref',default=ACCEPTED_BASE,help='independently supplied accepted Git base SHA')
     args = parser.parse_args()
@@ -693,7 +705,8 @@ def main():
         checked=dict(ok=False,invalid=[str(error)],transitions=[])
     packet = dict(inventory=checked, suites=[], gate_exit=1,
                   manifest_sha256=hashlib.sha256(MANIFEST.read_bytes()).hexdigest(),
-                  python=sys.version, qualification='HOSTED_OFFLINE_SOURCE_CONTRACTS_ONLY',
+                  python=sys.version, qualification=('HOSTED_LOOPBACK_SOURCE_CONTRACTS_ONLY' if args.loopback
+                      else 'HOSTED_OFFLINE_SOURCE_CONTRACTS_ONLY'),
                   native_qualified=False, installed_qualified=False, old_installation='G_OLD_UNRESOLVED',
                   base_ref=args.base_ref,
                   policy_base_ref=ACCEPTED_BASE if args.base_ref in BOOTSTRAP_MAINS else args.base_ref,
@@ -709,29 +722,42 @@ def main():
         write(result, packet)
         print('NEXT_OFFLINE_INVENTORY_GREEN', flush=True)
         return 0
-    denied = []
-    for family in (socket.AF_INET, socket.AF_INET6):
-        for kind in (socket.SOCK_STREAM, socket.SOCK_DGRAM):
-            try:
-                probe = socket.socket(family, kind)
-            except OSError as error:
-                denied.append(dict(family=int(family), kind=int(kind), errno=error.errno,
-                                   denied=error.errno == errno.EAFNOSUPPORT))
-            else:
-                probe.close()
-                denied.append(dict(family=int(family), kind=int(kind), denied=False))
-    status = dict(line.split(':', 1) for line in Path('/proc/self/status').read_text().splitlines() if ':' in line)
-    packet['offline_runtime'] = dict(socket_creation_probes=denied,
-        network_namespace=os.readlink('/proc/self/ns/net'), uid=os.getuid(),
-        no_new_privs=status['NoNewPrivs'].strip(), ip_socket_denied=all(r['denied'] for r in denied))
-    write(result, packet)
-    if not packet['offline_runtime']['ip_socket_denied'] or packet['offline_runtime']['no_new_privs'] != '1':
-        print('NEXT_OFFLINE_RUNTIME_RESTRICTION_RED', flush=True)
-        return 1
+    selected_suites = checked['loopback'] if args.loopback else checked['run']
+    if args.loopback:
+        interfaces = sorted(path.name for path in Path('/sys/class/net').iterdir())
+        routes = Path('/proc/net/route').read_text().splitlines()[1:]
+        status = dict(line.split(':',1) for line in Path('/proc/self/status').read_text().splitlines() if ':' in line)
+        packet['loopback_runtime'] = dict(interfaces=interfaces, routes=routes,
+            network_namespace=os.readlink('/proc/self/ns/net'), uid=os.getuid(),
+            no_new_privs=status['NoNewPrivs'].strip())
+        write(result,packet)
+        if interfaces != ['lo'] or any(line.split()[0] != 'lo' for line in routes) or status['NoNewPrivs'].strip() != '1' or not selected_suites:
+            print('NEXT_LOOPBACK_RUNTIME_RESTRICTION_RED',flush=True)
+            return 1
+    else:
+        denied = []
+        for family in (socket.AF_INET, socket.AF_INET6):
+            for kind in (socket.SOCK_STREAM, socket.SOCK_DGRAM):
+                try:
+                    probe = socket.socket(family, kind)
+                except OSError as error:
+                    denied.append(dict(family=int(family), kind=int(kind), errno=error.errno,
+                                       denied=error.errno == errno.EAFNOSUPPORT))
+                else:
+                    probe.close()
+                    denied.append(dict(family=int(family), kind=int(kind), denied=False))
+        status = dict(line.split(':', 1) for line in Path('/proc/self/status').read_text().splitlines() if ':' in line)
+        packet['offline_runtime'] = dict(socket_creation_probes=denied,
+            network_namespace=os.readlink('/proc/self/ns/net'), uid=os.getuid(),
+            no_new_privs=status['NoNewPrivs'].strip(), ip_socket_denied=all(r['denied'] for r in denied))
+        write(result, packet)
+        if not packet['offline_runtime']['ip_socket_denied'] or packet['offline_runtime']['no_new_privs'] != '1':
+            print('NEXT_OFFLINE_RUNTIME_RESTRICTION_RED', flush=True)
+            return 1
     import psycopg
     packet['source_head'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     packet['dependencies'] = {name: importlib.metadata.version(name) for name in
-                              ('pytest', 'numpy', 'psycopg', 'jsonschema', 'asyncpg', 'httpx', 'starlette')}
+                              ('pytest', 'numpy', 'psycopg', 'jsonschema', 'asyncpg', 'httpx', 'starlette', 'cryptography')}
     packet['driver'] = dict(version=psycopg.__version__, pq_impl=psycopg.pq.__impl__, libpq_version=psycopg.pq.version())
     packet['unchanged_u13_validator_sha256'] = hashlib.sha256(
         Path(__file__).with_name('pytest_u13_worker.py').read_bytes()).hexdigest()
@@ -746,12 +772,12 @@ def main():
                            CORTEX_U13_CASE_ROOT=str(case), PYTEST_DISABLE_PLUGIN_AUTOLOAD='1',
                            PYTHONDONTWRITEBYTECODE='1', OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1')
         (case / 'home').mkdir()
-        proofs=retirement_proofs(ROOT,checked['retirement_checks'],args.output/'retirement-proofs',case,environment)
+        proofs=retirement_proofs(ROOT,[] if args.loopback else checked['retirement_checks'],args.output/'retirement-proofs',case,environment)
         packet['retirement_proofs']=proofs;write(result,packet)
         if not all(row['ok'] for row in proofs):
             print('NEXT_OFFLINE_RETIREMENT_PROOF_RED',flush=True)
             return 1
-        for index, suite in enumerate(checked['run']):
+        for index, suite in enumerate(selected_suites):
             retired = [row for row in checked['retired'] if row['nodeid'].split('::')[0] == suite]
             excluded=[row for row in checked['method_exclusions'] if row['nodeid'].split('::')[0]==suite]
             name = f'{index:03d}'
@@ -805,9 +831,11 @@ def main():
                   tests_declared_unavailable=sum(row['declared_unavailable'] for row in packet['suites']),
                   tests_passed=sum(row['passed'] for row in packet['suites']))
     packet['gate_exit'] = 0 if (packet['owned_case_root_absent'] and
-        len(packet['suites']) == len(checked['run']) and all(row['ok'] for row in packet['suites'])) else 1
+        len(packet['suites']) == len(selected_suites) and all(row['ok'] for row in packet['suites'])) else 1
     write(result, packet)
-    print('NEXT_OFFLINE_GREEN' if packet['gate_exit'] == 0 else 'NEXT_OFFLINE_RED', flush=True)
+    token = ('NEXT_LOOPBACK_GREEN' if packet['gate_exit'] == 0 else 'NEXT_LOOPBACK_RED') if args.loopback else (
+        'NEXT_OFFLINE_GREEN' if packet['gate_exit'] == 0 else 'NEXT_OFFLINE_RED')
+    print(token, flush=True)
     return packet['gate_exit']
 
 

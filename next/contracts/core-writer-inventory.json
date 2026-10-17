@@ -1348,6 +1348,15 @@
       "ordinal": 2,
       "statement_sha256": "187355d3936fc21420c4c92169bb2dd9dd23a23793c1b5356c1a50d63d7b2561",
       "classification": "X3_fixed_Grant_currentness_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/tests/test_resources.py",
+      "owner": "CatalogTests.test_observer_uses_one_readonly_snapshot_and_bound_identity_parameters",
+      "verb": "UPDATE",
+      "table": "<unqualified>:<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "6cb78ab1c6bdad2815633292caac2d1fc296f0b416b8b64e867f4563d4d6b1ae",
+      "classification": "Day2_catalog_test_assertion_DATA; fixed_SQL_keyword_negative; no_SQL_execution"
     }
   ]
 }

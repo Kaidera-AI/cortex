@@ -1,17 +1,19 @@
 {
   "schema_version": 1,
   "source": ".github/workflows/next-offline.yml",
-  "source_sha256": "2766f36cc110d60dd747f2dad76c9f75cf4adac5b6a181113c369d60fd513c8f",
+  "source_sha256": "f2c3a734d177ae701d07537487619f5da1d237b16f4d60a3ae14efde556c8299",
   "tests": {
+    "next/tests/ci_gates/tests/test_loopback_home.py": "d6d1f706d5c2bb1fdac03036fdbefa1b9c136e9dcdfecdd5c88620a1ab7b5acb",
     "next/tests/ci_gates/tests/test_sign_home.py": "328d6f34a36a624d4dfbdba555960434397bc9558080f9142a03420fbdab5061"
   },
   "expected_nodes": [
+    "test_loopback_home.LoopbackHome.test_required_hosted_home_uses_existing_worker_and_private_loopback",
     "test_sign_home.SigningHome.test_pinned_tool_is_prepared_before_the_network_isolated_worker"
   ],
   "kind": "inventory",
-  "invariant": "offline workflow pins the reviewed upstream signing binary archive",
+  "invariant": "helper and seed have a required bounded loopback workflow home",
   "mutation": {
-    "before": "9a599b48ba6eb7b1e80f12f36b94ceca7c00b7a5173c95c3efc88d9822957e73",
-    "after": "0000000000000000000000000000000000000000000000000000000000000000"
+    "before": "name: required helper and seed source loopback home",
+    "after": "name: absent helper source home"
   }
 }

@@ -35,3 +35,22 @@ retained in the sign-admission evidence. CI checks the archive before extracting
 only its x86_64 binary under runner.temp and requires `minisign 0.12`.
 No vendored binary, system package or release-signing key is added. This tool
 signs only disposable source-test fixtures; no installed-candidate credit.
+
+## Day-2 same-row admission continuation
+
+No new upstream dependency, parser, provider or service. Existing hashed offline
+closure supplies cryptography50.0.0; actual Core custody tests must use it with
+no missing-dependency skips. The helper home borrows the existing Linux systemd
+PrivateNetwork namespace, permits only AF_UNIX/AF_INET/AF_INET6 in that namespace,
+requires only the lo interface/no external route, and reuses the existing
+pytest_next_worker.py phase receipts and receipt_valid classifier. Its ordinary
+source tests run on both declared Pythons; Linux isolation remains hosted proof.
+
+Writer recognition reviews the published Core catalog's sole helper: six fixed
+parameterized SELECT strings, no escaped helper references or rebinding, exact
+complete module and function AST pins, and six independent literal-query byte
+hashes. Renewing AST pins alone cannot approve a changed query. The one
+SQL-keyword negative in the actual resource test is pinned assertion DATA under
+the existing exact-site classification and whole-file binding. No product source
+or historical migration bytes are changed by Mike. All author-composed results
+remain separate from Hale review, hosted-history and installed acceptance.

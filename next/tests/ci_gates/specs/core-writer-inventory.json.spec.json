@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/contracts/core-writer-inventory.json",
+  "source_sha256": "ad93fb3086b46f97731996f22fb5fccaac2533ee6a1333cb3888d9299d183acf",
+  "tests": {
+    "next/tests/outbox_inventory/test_source_recognition.py": "fc5d2d1a84701d6d12074075d0e81326eb79b0d84e1d1f448587bcba4e84ec72"
+  },
+  "expected_nodes": [
+    "next.tests.outbox_inventory.test_source_recognition.SourceRecognition.test_day2_inventory_is_source_bound"
+  ],
+  "kind": "inventory",
+  "invariant": "actual catalog negative assertion DATA classification stays source-bound",
+  "mutation": {
+    "before": "Day2_catalog_test_assertion_DATA; fixed_SQL_keyword_negative; no_SQL_execution",
+    "after": "unreviewed assertion DATA"
+  }
+}

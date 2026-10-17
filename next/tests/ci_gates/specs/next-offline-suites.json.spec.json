@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
   "source": ".github/next-offline-suites.json",
-  "source_sha256": "30d35e7855f2fcb42e38cd7b618460c549faadedf72213e8aaa439fa0ab56ee6",
+  "source_sha256": "8dc825fd134a912fe0c25ddf57f8e13e4c8c09adf7c4a83b6dd4f8f0e4f745cc",
   "tests": {
-    "next/tests/ci_gates/tests/test_receipt.py": "6a65b9717e728c95cc14aaef994e900ea8e27f89ccc216a0d88ae0cb0ca45bdb"
+    "next/tests/ci_gates/tests/test_receipt.py": "3b557694d133b2d785e42a105d06a03952fc23cfffeecfb967b292dd346e05b8"
   },
   "expected_nodes": [
     "test_receipt.SharedAdmission.test_day2_required_suites_are_RUN"
   ],
   "kind": "inventory",
-  "invariant": "sign suite remains RUN",
+  "invariant": "actual Core custody suite remains RUN",
   "mutation": {
-    "before": "\"next/release/ship/install/tests/test_sign.py\"",
-    "after": "\"next/release/ship/install/tests/test_unadmitted_sign.py\""
+    "before": "\"next/src/cortex_core/runtime/tests/test_custody.py\"",
+    "after": "\"next/src/cortex_core/runtime/tests/test_absent_custody.py\""
   }
 }

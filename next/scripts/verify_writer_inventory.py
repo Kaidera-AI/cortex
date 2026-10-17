@@ -14,6 +14,8 @@ FUNCTION = re.compile(r'CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+([a-z_][a-z0-9_.
 # Source-reviewed, normalized ASTs of the complete enclosing functions. A change
 # anywhere in one of these functions invalidates its indirect-SQL exception.
 KNOWN_INPUT_FUNCTION_SHA256 = {
+    ('src/cortex_core/runtime/catalog.py', '_rows'): 'b17120d3777bf74fa5cf85d1b88bde54df77aa8e6220ee9f7c79e2367fe114bc',
+    ('src/cortex_core/runtime/catalog.py', 'observe'): '9cbdab069a4a3dab1ba71d3827e86ac0025982b73ef630d3d5e78097af491322',
     ('src/cortex_core/coordination.py', 'Jobs._load'): 'e10eddc8f089d9ccc97e60e576dedbfe3d39541e3eb8bee0414db28b29407ade',
     ('src/cortex_core/auth.py', 'authorized'): '479d115551dc48de8bbc2e9fba943d21879bf0497f05a5d65610a97dc282ae46',
     ('src/cortex_core/identity.py', 'Identity._control'): '320f495f9fe9144201451e8d59117ac785efe629d24a518fc7365b685da100ba',
@@ -34,6 +36,7 @@ KNOWN_INPUT_FUNCTION_SHA256 = {
 # The function pins alone cannot see an aliased caller elsewhere in the module.
 # Every source change in a module that owns an exception requires a reviewed pin.
 KNOWN_INPUT_FILE_SHA256 = {
+    'src/cortex_core/runtime/catalog.py': '5b385b2fcf02c7fcf7a8ea7476112d65a385026808cead549b6d344370602d65',
     'src/cortex_core/coordination.py': '56c709da4e5caf8d5baceba92d08d60239d1aa07c85d61c1568bb74320d4a70b',
     'src/cortex_core/auth.py': 'cab6320af61cd8beff4923524460413ff3c48bc0ced61f9315919a7fb96567f0',
     'src/cortex_core/identity.py': 'aa5b4139e15a46d1eb161d84d23a3e9a2553e5126b110549d5bf839004a4ea1d',
@@ -60,6 +63,7 @@ EXEMPT_SYMBOL_FILES = {
 # scanner rows, not skip rules. Whole source bytes pin callers/authority as well
 # as the complete site identity. Any source or site drift requires new review.
 REVIEWED_WRITER_SOURCE_SHA256 = {
+    'src/cortex_core/runtime/tests/test_resources.py': 'f6995d34b8d71d69b30162e09917c7f91912471091d35e7935c1e97370d717ff',
     'schema/coordination/008-c09-external-v2.sql': '9147e294732af2aada64c75f0ff794cb2cd409ed754afa316bdc72755bb9db11',
     "src/cortex_core/auth.py": "b045ce44b1b944b6d84bcc87a62f97f110a4a73db7b648f2cfc35d848b0d9049",
     "schema/auth/005-first-identity.sql": "22964015953d66eebcd31cf2a0b10deaef2e00029c1390673afd3cff4ae6d09d",
@@ -74,6 +78,7 @@ REVIEWED_WRITER_SOURCE_SHA256 = {
 
 
 REVIEWED_WRITER_CLASSES = {
+    ('src/cortex_core/runtime/tests/test_resources.py', 'CatalogTests.test_observer_uses_one_readonly_snapshot_and_bound_identity_parameters', 'UPDATE', '<unqualified>:<dynamic_or_unsupported>', 0, '6cb78ab1c6bdad2815633292caac2d1fc296f0b416b8b64e867f4563d4d6b1ae'): 'Day2_catalog_test_assertion_DATA; fixed_SQL_keyword_negative; no_SQL_execution',
     ('schema/coordination/008-c09-external-v2.sql', 'coordination.c07_record', 'INSERT', 'coordination.vector_applied_heads', 0, '20df52164a58822d5f5fdc62798b15912878bd92e61b0a01229041a1c4877a62'): 'C09_external_v2_private_receipt_bookkeeping; SOURCE_ADMITTED_21; Core_durability_requires_native_receipts; capability_UNAVAILABLE',
     ('schema/coordination/008-c09-external-v2.sql', 'coordination.c09_bind', 'INSERT', 'coordination.vector_bindings', 0, '3229a056b109ec96b75c4715a2847cb982711c8571ccf4f73e7ee4422bf135d2'): 'C09_external_v2_private_receipt_bookkeeping; SOURCE_ADMITTED_21; Core_durability_requires_native_receipts; capability_UNAVAILABLE',
     ('src/cortex_core/auth.py', 'authorized', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '73b404c4edb916b5bf9f29735fa35621b218f0508f2df3604f10cefabf7c73eb'): 'fixed_C04_role_catalogue_read; SELECT_only; owned_request_SQL_transaction; local_request_ROLE; no_canonical_write_authority; native_HELD',
@@ -148,6 +153,7 @@ def input_bindings_intact(file,tree):
         'src/cortex_core/migrations.py': {'prepare_migrations'},
         'src/cortex_core/release/codec.py': {'_validator_class'},
         'src/cortex_core/schema/migrate.py': {'migrations'},
+        'src/cortex_core/runtime/catalog.py': {'_rows'},
     }.get(file,set())
     return not any(isinstance(node,ast.Name) and node.id in names
                    and isinstance(node.ctx,(ast.Store,ast.Del)) for node in ast.walk(tree))
@@ -384,6 +390,29 @@ def category(file,owner,verb,table):
     return None
 
 
+CATALOG_QUERY_SHA256 = {
+    '0270678748d0ce1314395c71e7e2266b110ba28a5804dde753c7f27bb4b1de5b',
+    '14ae809f195f5e037d100ccf3c9dbec7f26cf168f9c918702a4735aee5226058',
+    '9188618b95ecb6d143d06d837854e1f27d84283ce1f4188e493e57d80f12efcc',
+    'aaaefdc0752541f7a5bd82589919149273d995f228ab4cd1cbf32cd77957fee9',
+    'c6e82cd45986e1935eda39349b83504cdb945bcba7b4b7c0d2fa8d731a2883de',
+    'dbc994ef01a82d7c4f062343e4d2dc94c2c0034561c410d057f2164f98ca014e',
+}
+
+
+def reviewed_catalog_inputs(tree):
+    """The sole helper has six fixed reviewed SELECT inputs and no escaped alias."""
+    calls=[n for n in ast.walk(tree) if isinstance(n,ast.Call)
+           and isinstance(n.func,ast.Name) and n.func.id=='_rows']
+    references=[n for n in ast.walk(tree) if isinstance(n,ast.Name) and n.id=='_rows']
+    if len(calls)!=6 or set(references)!={call.func for call in calls}:return False
+    queries=[static_text(call.args[1]) if len(call.args) in (2,3) else None for call in calls]
+    return (all(isinstance(sql,str) and hashlib.sha256(sql.encode()).hexdigest() in CATALOG_QUERY_SHA256
+                for sql in queries) and len(set(queries))==6
+            and all(isinstance(call.args[0],ast.Name) and call.args[0].id=='connection'
+                    and not call.keywords for call in calls))
+
+
 def scan_source(file,source):
     rows=[]; ordinals={}
     def add(owner,text):
@@ -418,6 +447,9 @@ def scan_source(file,source):
                     and static_text(node.right.orelse)=='')
         if not isinstance(node,ast.Name):return False
         name=node.id
+        if file=='src/cortex_core/runtime/catalog.py' and owner=='_rows' and name=='sql':
+            return (ast.unparse(function)=="def _rows(connection, sql, parameters=None):\n    return connection.execute(sql, parameters).fetchall()"
+                and reviewed_catalog_inputs(tree))
         if file=='src/cortex_core/backup_validation.py' and owner=='read_restored_snapshot' and name=='SNAPSHOT_SQL':
             assignments=[n for n in tree.body if isinstance(n,ast.Assign) and len(n.targets)==1
                          and isinstance(n.targets[0],ast.Name) and n.targets[0].id==name]

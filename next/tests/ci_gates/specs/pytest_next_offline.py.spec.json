@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
   "source": ".github/scripts/pytest_next_offline.py",
-  "source_sha256": "479855ccfc879b70216f8c82a266753ea3a1953d85989b7377a0fbfa14983d2d",
+  "source_sha256": "9c772f66cbc6c22cd7c26fee3e96f0514ed1cbdeabb00744f32d72acb3727b1e",
   "tests": {
-    "next/tests/ci_gates/tests/test_native_home.py": "19c7ae6cfcd3973f89182672c87806dd66dcc5446269b66accce851e2e1e7c2f"
+    "next/tests/ci_gates/tests/test_loopback_home.py": "d6d1f706d5c2bb1fdac03036fdbefa1b9c136e9dcdfecdd5c88620a1ab7b5acb"
   },
   "expected_nodes": [
-    "test_native_home.NativeHome.test_dead_cluster_command_cannot_justify_exclusion_after_repin"
+    "test_loopback_home.LoopbackHome.test_new_transport_file_cannot_disappear_from_inventory"
   ],
   "kind": "tool",
-  "invariant": "repinning dead cluster commands cannot justify exclusion",
+  "invariant": "new helper transport suites cannot disappear from complete inventory",
   "mutation": {
-    "before": "and direct_command(anchor,'initdb')",
-    "after": "and True"
+    "before": "found += sorted(str(p.relative_to(root)) for p in helper.glob('test_transport*.py'))",
+    "after": "found += []"
   }
 }
