@@ -111,8 +111,9 @@ class Refused(Base):
         fn(obs)
         self.refused(obs, reason, **kw)
 
-    def test_only_the_seed_phase_exists(self):
-        self.refused(self.healthy(), 'catalog_phase', phase='serve')
+    def test_only_the_seed_and_serve_phases_exist(self):
+        self.refused(self.healthy(), 'catalog_phase', phase='status')
+        self.refused(self.healthy(), 'catalog_phase', phase='migrate')
 
     def test_the_config_must_be_the_seed_view(self):
         cfg = copy.copy(self.cfg)
@@ -342,7 +343,7 @@ class LedgerGrantText(Base):
     def test_the_ledger_script_is_one_transaction_that_stops_on_error(self):
         lines = R.render_ledger_grant(self.bind()).splitlines()
         self.assertEqual(lines[0], '\\set ON_ERROR_STOP on')
-        self.assertEqual((lines[1], lines[-2]), ('BEGIN;', 'COMMIT;'))
+        self.assertEqual((lines[1], lines[-1]), ('BEGIN;', 'COMMIT;'))
 
     def test_render_post_is_unchanged_by_the_ledger_grant(self):
         sql = R.render_post(self.bind())
