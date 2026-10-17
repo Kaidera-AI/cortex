@@ -18,3 +18,8 @@ reviewed candidates only. Neither is installed, vendored or used as the kill ora
 LEAN: reused strict runner/classifier; no quality service, second outcome parser or
 automatic green retry. Could consolidate phase-report emission into the original
 runner after that owner's review; this dispatch does not edit it.
+
+Day-2 join reuses existing `.github/scripts/pytest_next_worker.py` phase emission,
+`pytest_next_offline.py::receipt_valid` and the existing hosted `pytest-pg` job.
+Nix native fixture dependency: 0cf8e85e846de7a921c5d9337dbc83f356b82615;
+fixture bytes are preserved, not vendored or modified by Mike.

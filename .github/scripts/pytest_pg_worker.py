@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import asyncio
 import importlib.util
 import hashlib
@@ -10,6 +11,8 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
+import tempfile
 import subprocess
 import sys
 import time
@@ -260,16 +263,132 @@ def certificate(output):
     return 0 if result.returncode == 0 and len(data.get("selected", [])) == 3 else 1
 
 
+NATIVE_ROLES_SUITE = "next/release/ship/install/tests/test_roles_pg.py"
+NATIVE_ROLE_NODES = [NATIVE_ROLES_SUITE + "::" + name for name in (
+    "RolesInDatabase::test_1_pre_creates_exactly_the_approved_logins_with_exact_flags_and_scram",
+    "RolesInDatabase::test_2_pre_leaves_the_two_groups_to_the_unchanged_migrations",
+    "RolesInDatabase::test_3_post_grants_exactly_one_set_only_membership",
+    "RolesInDatabase::test_4_post_refuses_an_unexpected_membership",
+    "RolesInDatabase::test_5_phases_rerun_to_the_same_state",
+    "RolesInDatabase::test_6_close_closes_only_the_finite_logins",
+    "RolesInDatabase::test_7_a_closed_login_cannot_connect_and_a_service_login_still_can",
+    "RolesInDatabase::test_8_close_reruns_cleanly",
+    "SecretGuard::test_a_missing_or_short_secret_creates_nothing",
+)]
+
+
+def native_roles_result(packet, process_exit, source_sha256, cleanup):
+    """Nine exact native methods; unit packets do not themselves execute PostgreSQL."""
+    spec = importlib.util.spec_from_file_location("native_roles_phase_gate",
+        Path(__file__).with_name("pytest_next_offline.py"))
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    return (packet.get("suite") == NATIVE_ROLES_SUITE
+        and packet.get("source_sha256") == source_sha256
+        and Counter(packet.get("expected", [])) == Counter(NATIVE_ROLE_NODES)
+        and Counter(packet.get("collected", [])) == Counter(NATIVE_ROLE_NODES)
+        and cleanup == dict(ok=True, errors=[], residual=[])
+        and gate.receipt_valid(packet, process_exit))
+
+
+def installer_roles(output, pg_bin, site):
+    """Owned host-native cluster, outside offline RUN and all installed-candidate credit."""
+    root = Path(__file__).resolve().parents[2]
+    output = output.resolve()
+    output.mkdir(parents=True, exist_ok=False)
+    scratch = Path(tempfile.mkdtemp(prefix="cortex-installer-roles-"))
+    home = scratch / "home"; home.mkdir()
+    temporary = scratch / "temporary"; temporary.mkdir()
+    source_sha256 = hashlib.sha256((root / NATIVE_ROLES_SUITE).read_bytes()).hexdigest()
+    cleanup = dict(ok=True, errors=[], residual=[])
+    packet, code, error = {}, 125, None
+    process = None
+    # Credentials, inherited DB endpoints and caller plugin settings never reach the child.
+    environment = dict(PATH=str(pg_bin) + os.pathsep + os.defpath, HOME=str(home),
+        TMPDIR=str(temporary), LANG="C.UTF-8", PYTHONPATH=str(site), CORTEX_PG_BIN=str(pg_bin),
+        PYTEST_DISABLE_PLUGIN_AUTOLOAD="1", PYTHONDONTWRITEBYTECODE="1")
+    try:
+        if os.geteuid() == 0:
+            raise RuntimeError("native installer-role job must run as a non-root user")
+        if not site.is_dir() or not pg_bin.is_dir() or any(
+                not os.access(pg_bin / tool, os.X_OK) for tool in ("initdb", "pg_ctl", "psql")):
+            raise RuntimeError("explicit PostgreSQL tool directory and test site are required")
+        versions = {tool: subprocess.check_output([str(pg_bin / tool), "--version"],
+                    env=environment, text=True, timeout=10).strip()
+                    for tool in ("initdb", "pg_ctl", "psql")}
+        (output / "tools.json").write_text(json.dumps(dict(versions=versions, uid=os.geteuid(),
+            pg_bin=str(pg_bin), site=str(site), python=sys.version), indent=2) + "\n")
+        command = [sys.executable, "-B", str(root / ".github/scripts/pytest_next_worker.py"),
+                   "--suite", NATIVE_ROLES_SUITE, "--output", str(output / "phases.json"),
+                   "--temporary", str(scratch / "worker")]
+        (output / "command.json").write_text(json.dumps(command, indent=2) + "\n")
+        process = subprocess.Popen(command, cwd=root, env=environment, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+        try:
+            stdout, stderr = process.communicate(timeout=180)
+            code = process.returncode
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGKILL)
+            stdout, stderr = process.communicate(timeout=10)
+            code, error = 124, "native-role worker exceeded 180 seconds"
+        (output / "worker.stdout.txt").write_text(stdout)
+        (output / "worker.stderr.txt").write_text(stderr)
+        if (output / "phases.json").is_file():
+            packet = json.loads((output / "phases.json").read_text())
+        if hashlib.sha256((root / NATIVE_ROLES_SUITE).read_bytes()).hexdigest() != source_sha256:
+            raise RuntimeError("native-role source drifted during execution")
+    except Exception as exc:
+        error = type(exc).__name__ + ": " + str(exc)
+    finally:
+        if process is not None and process.poll() is None:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.communicate(timeout=10)
+        # A timed-out fixture can leave a daemon. Only stop clusters under this owned scratch.
+        for marker in scratch.rglob("postmaster.pid"):
+            data = marker.parent.resolve()
+            if not data.is_relative_to(scratch.resolve()):
+                cleanup["errors"].append("cluster escaped owned scratch")
+                continue
+            try:
+                stopped = subprocess.run([str(pg_bin / "pg_ctl"), "-D", str(data),
+                    "-m", "immediate", "-w", "stop"], env=environment, text=True,
+                    capture_output=True, timeout=30)
+                with (output / "cleanup.txt").open("a") as log:
+                    log.write(stopped.stdout + stopped.stderr)
+                if stopped.returncode:
+                    cleanup["errors"].append("pg_ctl stop returned " + str(stopped.returncode))
+            except Exception as exc:
+                cleanup["errors"].append(type(exc).__name__ + ": " + str(exc))
+        cleanup["residual"] = [str(path.relative_to(scratch)) for path in scratch.rglob("postmaster.pid")]
+        cleanup["ok"] = not cleanup["errors"] and not cleanup["residual"]
+        if cleanup["ok"]:
+            shutil.rmtree(scratch)
+    ok = error is None and native_roles_result(packet, code, source_sha256, cleanup)
+    result = dict(status="PASS" if ok else "FAIL", qualification="HOST_NATIVE_POSTGRESQL_ONLY",
+        installed_candidate=False, suite=NATIVE_ROLES_SUITE, source_sha256=source_sha256,
+        expected=NATIVE_ROLE_NODES, process_exit=code, error=error, cleanup=cleanup,
+        scratch=str(scratch), scratch_retained=not cleanup["ok"])
+    (output / "admission.json").write_text(json.dumps(result, indent=2) + "\n")
+    print(json.dumps(result), flush=True)
+    return 0 if ok else 1
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--pytest-worker", action="store_true")
-    parser.add_argument("--mode", choices=["general", "certificate"])
+    parser.add_argument("--mode", choices=["general", "certificate", "installer-roles"])
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--pg-bin", type=Path)
+    parser.add_argument("--site", type=Path)
     parser.add_argument("--report", type=Path)
     parser.add_argument("--expected-failures", type=int, default=0)
     parser.add_argument("--expected-selected", type=int)
     parser.add_argument("--bypass", action="store_true")
     parser.add_argument("targets", nargs="*")
     args = parser.parse_args()
+    if args.mode == "installer-roles":
+        if args.pg_bin is None or args.site is None or args.output is None:
+            parser.error("installer-roles requires --pg-bin, --site and fresh --output")
+        raise SystemExit(installer_roles(args.output, args.pg_bin.resolve(), args.site.resolve()))
     raise SystemExit(pytest_worker(args) if args.pytest_worker else
                      general(args.output) if args.mode == "general" else certificate(args.output))

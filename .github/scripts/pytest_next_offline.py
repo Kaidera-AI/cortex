@@ -172,6 +172,34 @@ def fixture_evidence(root, suite, evidence, nodeid=None):
     if not parsed or anchor is None:return False
     candidate,parsed=source_tree(root/suite)
     if not parsed:return False
+    if evidence['kind']=='native_postgres_fixture':
+        # One explicitly named native fixture; never a general exclusion mechanism.
+        native='next/release/ship/install/tests/test_roles_pg.py'
+        if name!=suite or name!=native or nodeid is not None or evidence['symbol']!='Cluster.__init__':return False
+        if set(evidence)!={'kind','source','sha256','symbol'}:return False
+        worker,ok=source_tree(root/'.github/scripts/pytest_pg_worker.py')
+        if not ok:return False
+        assignments={n.targets[0].id:n.value for n in worker.body if isinstance(n,ast.Assign)
+            and len(n.targets)==1 and isinstance(n.targets[0],ast.Name)}
+        try:
+            suite_name=ast.literal_eval(assignments['NATIVE_ROLES_SUITE'])
+            names=ast.literal_eval(assignments['NATIVE_ROLE_NODES'].generators[0].iter)
+        except (KeyError,ValueError,TypeError,AttributeError):return False
+        expected={suite_name+'::'+method for method in names}
+        actual={suite+'::'+cls.name+'::'+method.name for cls in tree.body if isinstance(cls,ast.ClassDef)
+            for method in cls.body if isinstance(method,ast.FunctionDef) and method.name.startswith('test_')}
+        if suite_name!=native or len(expected)!=9 or actual!=expected:return False
+        init=ast.unparse(anchor)
+        psql=symbol(tree,'Cluster.psql');stop=symbol(tree,'Cluster.stop')
+        # Require the real lazy tool discovery and subprocess-backed cluster/query/stop.
+        return ("self.bin = pg_bin()" in init and "self.bin / 'initdb'" in init
+            and "self.bin / 'pg_ctl'" in init and 'subprocess.run' in init
+            and psql is not None and "self.bin / 'psql'" in ast.unparse(psql)
+            and stop is not None and "self.bin / 'pg_ctl'" in ast.unparse(stop)
+            and not any(isinstance(n,ast.Call) and ast.unparse(n.func)=='pg_bin'
+                for n in tree.body)
+            and not any(isinstance(n,ast.Call) and ast.unparse(n.func) in
+                ('unittest.skip','unittest.skipIf','unittest.skipUnless','pytest.skip') for n in ast.walk(tree)))
     if evidence['kind']=='unbuilt_unit':
         # The same source reader accepts only the explicitly ratified pinned rows.
         approved=base_manifest_at(ROOT,UNBUILT_POLICY).get('method_exclusions',[])

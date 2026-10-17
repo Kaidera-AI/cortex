@@ -33,3 +33,10 @@ green, real-PG execution, native installation, paired identity, smoke or release
 The other authors still owe their own per-source causal proofs.
 
 Day-2 SharedAdmission checks all three Mike suites and Nemo compatibility contract are RUN and preserves the independently pinned prior admissions/controls. Strict inventory still discovers every next test. Native PostgreSQL execution remains separate from offline passes.
+
+Day-2 native installer-role join: `pytest-pg` runs `pytest_pg_worker.py --mode
+installer-roles --pg-bin EXPLICIT_BIN --site EXPLICIT_TEST_SITE --output FRESH_DIR`.
+The nine source-pinned role methods have their own exact setup/call/teardown gate,
+180-second worker ceiling and private cluster scratch. Missing tools, skips,
+deselection, phase errors, source drift and failed cleanup refuse. Synthetic
+receipt controls are unit evidence only; the hosted native packet is still required.

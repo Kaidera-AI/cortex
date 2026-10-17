@@ -198,7 +198,8 @@
     "next/tests/live_contract/tests/test_live_contract.py",
     "next/src/cortex_core/compat/tests/test_contract.py",
     "next/release/recipes/api/tests/test_locks.py",
-    "next/release/ship/install/tests/test_roles.py"
+    "next/release/ship/install/tests/test_roles.py",
+    "next/tests/ci_gates/tests/test_native_home.py"
   ],
   "excluded": [
     {
@@ -586,6 +587,16 @@
     {
       "path": "next/tests/test_receipts.py",
       "reason": "Receipt-runner helper library and CLI; defines no pytest tests (consumer tests run elsewhere in this manifest)."
+    },
+    {
+      "path": "next/release/ship/install/tests/test_roles_pg.py",
+      "reason": "Real PostgreSQL: required pytest-pg installer-roles job; zero offline credit.",
+      "evidence": {
+        "kind": "native_postgres_fixture",
+        "source": "next/release/ship/install/tests/test_roles_pg.py",
+        "sha256": "203d2d35b2f1f8a5e051dd61c346e93b66aec9ecda6e0908385b0abf02886060",
+        "symbol": "Cluster.__init__"
+      }
     }
   ],
   "retirements": [
