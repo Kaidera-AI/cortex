@@ -38,3 +38,11 @@
   7a1078213ac2497d6219e7778c7866001f97f30b with versioned names, explicit
   keyword mode/defaults and exact-string logging per Nemo's compatibility map.
   There is one moved strict helper; v1's original bytes are restored separately.
+
+- Retry5 health authority: Cox Option A health-ruling SHA256
+  5be624ca46df50462669085064b86d95671d102876dd9e001061e64af97113cd.
+  The actual Core four-field public wire is consumed by the existing strict
+  decoder/HTTP path. A separate disclosed test-contract commit corrects only
+  synthetic success-health inputs; existing assertions and the actual Core
+  health tests remain unchanged. No dependency, parser, config source or
+  legacy fallback is added. SQL/native/installed qualification stays separate.

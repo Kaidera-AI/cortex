@@ -23,7 +23,7 @@ def live_client():
 
         def do_GET(self):
             if self.path == '/health':
-                body = {'component': 'cortex', 'status': 'ready', 'installation_id': INSTALLATION}
+                body = {'component': 'cortex', 'status': 'ok', 'readiness': 'ready', 'installation_id': INSTALLATION}
             else:
                 active.set()
                 release.wait(4)
