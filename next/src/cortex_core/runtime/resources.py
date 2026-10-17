@@ -190,6 +190,10 @@ class SeedResources(_FiniteResources):
         from .catalog import observe
         return observe(self)
 
+    def catalog(self):
+        from .catalog import validated_seed
+        return validated_seed(self)
+
     @property
     def installer_enrollment(self):return self._connections['installer_enrollment']
 

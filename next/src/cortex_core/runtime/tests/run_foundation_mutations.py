@@ -41,6 +41,9 @@ DAY2_SPEC=[
  ('src/cortex_core/runtime/services.py',"if name!=name.lower() or name in seen:","if False:",'runtime','test_services.ServiceTests.test_duplicate_authority_headers_and_missing_key_refuse_before_principal'),
  ('src/cortex_core/runtime/services.py',"state=_service(connection,self._resources._config)","state={'installation_matches':True,'enrollment_readiness':'ready'}",'runtime','test_services.ServiceTests.test_health_rechecks_protected_state_and_cannot_reuse_startup_ready'),
  ('src/cortex_core/runtime/resources.py',"if remaining_seconds(deadline)>min(10,self._config.limits['request_seconds']):","if False:",'runtime','test_services.ServiceTests.test_oversized_request_refuses_before_any_driver_or_taint'),
+ ('src/cortex_core/runtime/catalog.py',"admitted=validate_catalog(resources._config,observation,phase='seed')","admitted=observation",'runtime','test_catalog_binding.CatalogBindingTests.test_actual_owner_schema_snapshot_and_fixed_validator_are_one_closed_path'),
+ ('src/cortex_core/runtime/catalog.py',"if check_schema_ready(connection) is not True:raise ValueError","if False:raise ValueError",'runtime','test_catalog_binding.CatalogBindingTests.test_actual_owner_schema_snapshot_and_fixed_validator_are_one_closed_path'),
+ ('src/cortex_core/runtime/catalog.py',"    resources.check_deadline()\n    return admitted","    return admitted",'runtime','test_catalog_binding.CatalogBindingTests.test_original_deadline_is_checked_after_the_sole_policy_returns'),
 ]
 
 

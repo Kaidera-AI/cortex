@@ -37,10 +37,31 @@ def observe_service(resources):
     return _observe(resources,service=True)
 
 
-def _observe(resources,*,service):
+def validated_seed(resources):
+    """The sole seed admission path: actual owner, ledger, observer, Nix policy."""
+    from .resources import SeedResources,current_seed_resources
+    if type(resources) is not SeedResources:raise Refusal('resources_unbound')
+    current_seed_resources(resources._config,resources._deadline)
+    if resources._in_transaction:raise Refusal('resources_transaction')
+    try:
+        from cortex_ship.install.roles import validate_catalog
+    except (ImportError,AttributeError):raise Refusal('catalog_validator_unavailable') from None
+    observation=_observe(resources,service=False,_schema=True)
+    try:
+        admitted=validate_catalog(resources._config,observation,phase='seed')
+        if type(admitted) is not dict:raise ValueError
+    except Exception:raise Refusal('catalog_refused') from None
+    resources.check_deadline()
+    return admitted
+
+
+def _observe(resources,*,service,_schema=False):
     try:
         purpose='api_request' if service else 'bootstrap'
         with resources.transaction(purpose,_read_only=True,_repeatable=not service) as connection:
+            if _schema:
+                from cortex_core.schema.readiness import check_schema_ready
+                if check_schema_ready(connection) is not True:raise ValueError
             databases=_rows(connection,'''SELECT datname,oid::bigint,datdba::bigint
                 FROM pg_catalog.pg_database WHERE datname=current_database()''')
             sessions=_rows(connection,'''SELECT session_user,usesysid::bigint,datid::bigint
