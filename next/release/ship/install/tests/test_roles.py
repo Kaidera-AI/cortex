@@ -179,5 +179,14 @@ class RolesInDatabase(Base):
         self.run_phase(R.render_close(self.roles, True))
 
 
+class SecretGuard(Base):
+    def test_a_missing_or_short_secret_creates_nothing(self):
+        (self.secrets / R.physical_name('probe')).write_text('short\n')
+        r = self.c.psql(R.render_pre(self.roles, self.secrets), check=False)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('secret_missing_or_short:' + R.physical_name('probe'), r.stderr)
+        self.assertEqual(self.c.rows("SELECT count(*) FROM pg_roles WHERE rolname LIKE 'kaidera-%'"), [('0',)])
+
+
 if __name__ == '__main__':
     unittest.main()
