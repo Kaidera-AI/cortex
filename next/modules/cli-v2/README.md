@@ -83,3 +83,16 @@ and defaults to the existing exact `/verify/write` readback. No automatic goal
 metadata or summary prefix is added; legacy `--goal` is rejected. No command
 fabricates a capability or retries against v1. Actual enrolled API capabilities
 remain Core's responsibility. Loopback command tests grant no SQL/installed credit.
+
+## Open actual health join at retry4
+
+The accepted earlier helper predicate still requires `status=ready` from public
+health. Actual published Core service/status source uses `status=ok` together
+with explicit `readiness=ready`. The new `test_health_join.py` derives its packet
+from actual bound Core services with explicit SQL/policy fixtures, then feeds
+that packet through the sole helper. Two BODY failures expose the mismatch:
+actual ready Core refuses, while legacy ready without readiness is admitted.
+The old30 transport assertion bodies and their packet apparatus remain byte
+unchanged under the namespace amendment. Cox must reconcile the sole health
+contract before that predicate or frozen packet apparatus changes. This source
+publication is PARTIAL and does not claim a functioning installed command join.
