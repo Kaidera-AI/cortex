@@ -1,6 +1,7 @@
 """Day-1 config admission: tests committed RED before implementation."""
 import copy
 from dataclasses import replace
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -118,6 +119,68 @@ class ConfigTests(unittest.TestCase):
             value=copy.deepcopy(self.value);mutate(value)
             with self.subTest(value=value),self.assertRaises(ValueError):
                 decode_config(json.dumps(value).encode(),mode='serve')
+
+    def test_numeric_database_aliases_refuse(self):
+        for host in ['134744072','0xa9fea9fe','0251.0376.0251.0376',
+                     '127.1','0X7F000001','2130706433']:
+            value=copy.deepcopy(self.value);value['database']['host']=host
+            with self.subTest(host=host),self.assertRaisesRegex(ValueError,'config_database'):
+                decode_config(json.dumps(value).encode(),mode='serve')
+
+    def test_double_leading_slash_vault_refuses(self):
+        for root in ['//','//vault','//vault/private']:
+            value=copy.deepcopy(self.value);value['vault_root']=root
+            with self.subTest(root=root),self.assertRaisesRegex(ValueError,'config_vault'):
+                decode_config(json.dumps(value).encode(),mode='serve')
+
+    def test_private_ip_literals_and_dns_are_admitted(self):
+        for host in ['::1','fc00::1','127.0.0.1','10.0.0.2','core.internal']:
+            value=copy.deepcopy(self.value);value['database']['host']=host
+            try:
+                config=decode_config(json.dumps(value).encode(),mode='serve')
+            except ValueError as error:
+                self.fail('private host refused: '+host+': '+str(error))
+            self.assertEqual(config.database['host'],host)
+            self.assertEqual(config.database['tls']['mode'],'verify-full')
+
+
+class CausalAdmissionTests(unittest.TestCase):
+    def setUp(self):
+        spec=importlib.util.spec_from_file_location('foundation_mutations',
+            Path(__file__).with_name('run_foundation_mutations.py'))
+        self.runner=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.runner)
+
+    def result(self,*,phase='healthy',failures=None,errors=None,skipped=0,executed=True,
+               source='source',test='test',tests_run=1):
+        value=dict(tests_run=tests_run,failures=failures or [],errors=errors or [],skipped=skipped,
+                   source_sha256=source,test_sha256=test,
+                   executed_code_fingerprints={'body:1':'code'} if executed else {})
+        return subprocess.CompletedProcess([],1 if phase=='mutant' else 0,
+            'CORTEX_TEST_RESULT='+json.dumps(value)+'\n','')
+
+    def test_causal_admission_requires_healthy_restored_execution_and_hashes(self):
+        admit=getattr(self.runner,'admit_phase',None)
+        self.assertIsNotNone(admit,'causal phases must have strict admission')
+        for phase in ['healthy','restored']:
+            self.assertTrue(admit(self.result(),{'case.body'},phase,'source','test'))
+            for kwargs in [dict(skipped=1),dict(executed=False),dict(source='other'),
+                           dict(test='other'),dict(tests_run=2)]:
+                with self.subTest(phase=phase,kwargs=kwargs):
+                    self.assertFalse(admit(self.result(**kwargs),{'case.body'},phase,'source','test'))
+
+    def test_causal_admission_refuses_undeclared_failures_and_errors(self):
+        admit=getattr(self.runner,'admit_phase',None)
+        self.assertIsNotNone(admit,'causal phases must have strict admission')
+        failure=dict(id='case.body',phase='test',is_assertion=True,traceback='AssertionError')
+        result=self.result(phase='mutant',failures=[failure])
+        self.assertTrue(admit(result,{'case.body'},'mutant','source','test'))
+        for failures,errors in [([failure,{**failure,'id':'other.body'}],[]),
+                                ([{**failure,'phase':'fixture'}],[]),
+                                ([failure],[dict(id='case.body',traceback='RuntimeError')]),
+                                ([],[])]:
+            with self.subTest(failures=failures,errors=errors):
+                self.assertFalse(admit(self.result(phase='mutant',failures=failures,errors=errors),
+                                       {'case.body'},'mutant','source','test'))
 
 
 class CredentialTests(unittest.TestCase):
