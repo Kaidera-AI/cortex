@@ -246,6 +246,15 @@ class ServiceTests(unittest.TestCase):
                 self.assertNotIn('private-password',str(caught.exception))
                 with self.assertRaisesRegex(ValueError,'resources_tainted'):
                     with owned.request_connection('probe',deadline=time.monotonic()+1):pass
+
+    def test_oversized_request_refuses_before_any_driver_or_taint(self):
+        self.require_source()
+        with self.opened() as owned:
+            with self.assertRaisesRegex(ValueError,'resources_deadline'):
+                with owned.request_connection('api_request',deadline=time.monotonic()+20):pass
+            self.assertEqual(owned.api_request.queries,[])
+            with owned.request_connection('api_request',deadline=time.monotonic()+1) as connection:
+                self.assertIs(connection,owned.api_request)
         with self.opened() as owned:
             start=time.monotonic()
             with self.assertRaisesRegex(ValueError,'resources_deadline'):

@@ -40,7 +40,7 @@ DAY2_SPEC=[
  ('src/cortex_core/runtime/services.py',"response={**(value.response or {}),'receipt':receipt}","response={**(value.response or {}),'receipt':{}}",'runtime','test_services.ServiceTests.test_same_c05_committed_receipt_and_existing_body_parser_reach_wire'),
  ('src/cortex_core/runtime/services.py',"if name!=name.lower() or name in seen:","if False:",'runtime','test_services.ServiceTests.test_duplicate_authority_headers_and_missing_key_refuse_before_principal'),
  ('src/cortex_core/runtime/services.py',"state=_service(connection,self._resources._config)","state={'installation_matches':True,'enrollment_readiness':'ready'}",'runtime','test_services.ServiceTests.test_health_rechecks_protected_state_and_cannot_reuse_startup_ready'),
- ('src/cortex_core/runtime/resources.py',"if remaining_seconds(deadline)>min(10,self._config.limits['request_seconds']):","if False:",'runtime','test_services.ServiceTests.test_request_connection_refuses_invalid_budget_purpose_nested_and_closed'),
+ ('src/cortex_core/runtime/resources.py',"if remaining_seconds(deadline)>min(10,self._config.limits['request_seconds']):","if False:",'runtime','test_services.ServiceTests.test_oversized_request_refuses_before_any_driver_or_taint'),
 ]
 
 
