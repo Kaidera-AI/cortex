@@ -204,5 +204,25 @@ class LifecycleTests(unittest.TestCase):
                 self.assertFalse(app.started);self.assertIsNotNone(app.failure)
             asyncio.run(check())
 
+    def test_signal_during_ledger_gate_prevents_next_startup_transaction(self):
+        self.require_source()
+        from cortex_core.schema.readiness import check_schema_ready
+        with self.app() as app:
+            at_signal=[]
+            def ledger(connection):
+                ready=check_schema_ready(connection)
+                at_signal.append(sum(len(c.queries) for c in self.calls))
+                app.begin_shutdown(deadline=time.monotonic()+0.2)
+                return ready
+            async def check():
+                with patch('cortex_core.schema.readiness.check_schema_ready',side_effect=ledger):
+                    incoming,outgoing,task,message=await self.start(app)
+                    with self.assertRaises(ValueError):await task
+                self.assertEqual(message['type'],'lifespan.startup.failed')
+                self.assertEqual(sum(len(c.queries) for c in self.calls),at_signal[0],
+                    'catalog/probe startup SQL continued after the first shutdown')
+                self.assertFalse(app.started);self.assertIsNotNone(app.failure)
+            asyncio.run(check())
+
 
 if __name__=='__main__':unittest.main()
