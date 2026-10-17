@@ -291,6 +291,24 @@ def native_roles_result(packet, process_exit, source_sha256, cleanup):
         and gate.receipt_valid(packet, process_exit))
 
 
+def owned_native_postmasters(scratch, pg_bin, proc=Path('/proc')):
+    """Identify only this uid's exact PostgreSQL binary and owned -D argument."""
+    found = []
+    for entry in proc.iterdir():
+        if not entry.name.isdecimal():
+            continue
+        try:
+            if entry.stat().st_uid != os.geteuid():
+                continue
+            argv = (entry / 'cmdline').read_bytes().decode().rstrip('\0').split('\0')
+            if (Path(argv[0]).resolve() == (pg_bin / 'postgres').resolve()
+                    and '-D' in argv and Path(argv[argv.index('-D') + 1]).resolve().is_relative_to(scratch.resolve())):
+                found.append(int(entry.name))
+        except (OSError, UnicodeError, IndexError):
+            continue  # Another uid or a process that exited while being inspected.
+    return sorted(found)
+
+
 def installer_roles(output, pg_bin, site):
     """Owned host-native cluster, outside offline RUN and all installed-candidate credit."""
     root = Path(__file__).resolve().parents[2]
@@ -308,6 +326,8 @@ def installer_roles(output, pg_bin, site):
         TMPDIR=str(temporary), LANG="C.UTF-8", PYTHONPATH=str(site), CORTEX_PG_BIN=str(pg_bin),
         PYTEST_DISABLE_PLUGIN_AUTOLOAD="1", PYTHONDONTWRITEBYTECODE="1")
     try:
+        if sys.platform != 'linux' or not Path('/proc').is_dir():
+            raise RuntimeError('native installer-role cleanup requires Linux procfs')
         if os.geteuid() == 0:
             raise RuntimeError("native installer-role job must run as a non-root user")
         if not site.is_dir() or not pg_bin.is_dir() or any(
@@ -360,6 +380,22 @@ def installer_roles(output, pg_bin, site):
             except Exception as exc:
                 cleanup["errors"].append(type(exc).__name__ + ": " + str(exc))
         cleanup["residual"] = [str(path.relative_to(scratch)) for path in scratch.rglob("postmaster.pid")]
+        # A fixture may remove its data directory even when pg_ctl stop failed.
+        # procfs still exposes the exact binary and private -D argument.
+        if sys.platform == 'linux' and Path('/proc').is_dir():
+            leaked = owned_native_postmasters(scratch, pg_bin)
+            if leaked:
+                cleanup['errors'].append('fixture leaked owned postmasters: ' + str(leaked))
+            for pid in leaked:
+                if pid in owned_native_postmasters(scratch, pg_bin):
+                    try:
+                        os.kill(pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+            deadline = time.monotonic() + 10
+            while owned_native_postmasters(scratch, pg_bin) and time.monotonic() < deadline:
+                time.sleep(.1)
+            cleanup['residual'].extend('pid:' + str(pid) for pid in owned_native_postmasters(scratch, pg_bin))
         cleanup["ok"] = not cleanup["errors"] and not cleanup["residual"]
         if cleanup["ok"]:
             shutil.rmtree(scratch)
