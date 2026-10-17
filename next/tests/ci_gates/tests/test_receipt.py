@@ -22,13 +22,13 @@ def history():
     attempts = []
     for run_id in (11, 12):
         runs.append(dict(id=run_id, head_sha=HEAD, run_attempt=1, name="offline",
-                         status="completed", conclusion="success"))
+                         status="completed", conclusion="success", updated_at="2026-10-17T12:01:00Z"))
         attempts.append(dict(run_id=run_id, attempt=1, status="completed", conclusion="success", head_sha=HEAD, total_count=2, jobs=[
             dict(id=run_id*10+i, name=name, status="completed", conclusion="success",
                  head_sha=HEAD, run_attempt=1)
             for i, name in enumerate(("py313", "py314"))]))
     return dict(head=HEAD, pages=[dict(page=1, total_count=2, workflow_runs=runs)],
-                attempts=attempts, closures=[])
+                attempts=attempts, closures=[], accepted_gate=dict(commit="d"*40, accepted_at="2026-10-17T12:00:00Z", receipt_sha256="f"*64))
 
 
 class Receipt(unittest.TestCase):
@@ -53,7 +53,7 @@ class Receipt(unittest.TestCase):
                     value["pages"][0]["total_count"] = 3
                     value["pages"][0]["workflow_runs"].append(dict(
                         id=10, head_sha="c"*40, run_attempt=1, name="offline",
-                        status="completed", conclusion="timed_out"))
+                        status="completed", conclusion="timed_out", updated_at="2026-10-17T12:01:00Z"))
                     value["attempts"].append(dict(run_id=10, attempt=1, status="completed", conclusion="timed_out", head_sha="c"*40, total_count=1,
                         jobs=[dict(id=100, name="py313", status="completed",
                                    conclusion="timed_out", head_sha="c"*40, run_attempt=1)]))
@@ -71,6 +71,23 @@ class Receipt(unittest.TestCase):
     def test_two_independent_complete_runs(self):
         self.assertEqual(gate.history_complete(history(), HEAD,
             {"offline": ["py313", "py314"]})["clean_runs"], {"offline": [11, 12]})
+
+
+    def test_old_accepted_history_is_preserved_but_rerun_red_blocks(self):
+        value = history()
+        old = dict(value["pages"][0]["workflow_runs"][0], id=10, head_sha="c"*40,
+                   conclusion="timed_out", updated_at="2026-10-17T11:59:00Z")
+        value["pages"][0]["workflow_runs"].append(old)
+        value["pages"][0]["total_count"] = 3
+        value["attempts"].append(dict(run_id=10, attempt=1, status="completed",
+            head_sha="c"*40, conclusion="timed_out", total_count=2, jobs=[
+                dict(job, head_sha="c"*40, conclusion="timed_out")
+                for job in value["attempts"][0]["jobs"]]))
+        self.assertEqual(gate.history_complete(value, HEAD,
+            {"offline": ["py313", "py314"]})["run_count"], 3)
+        old["updated_at"] = "2026-10-17T12:02:00Z"
+        with self.assertRaises(gate.ReceiptRefusal):
+            gate.history_complete(value, HEAD, {"offline": ["py313", "py314"]})
 
     def test_empty_or_duplicate_inventory_refuses(self):
         for required in ({}, {"offline": []}, {"offline": ["py313", "py313"]}):

@@ -72,7 +72,7 @@ class LiveContract(unittest.TestCase):
                 self.assertEqual(raised.exception.code, "spec_binding_mismatch")
 
     def test_missing_routes_schemas_security_links_and_placeholders(self):
-        for defect in ("route", "schema", "security", "link", "request", "ref", "error", "parameter"):
+        for defect in ("route", "schema", "security", "link", "request", "ref", "error", "parameter", "link_expression", "link_parameter"):
             with self.subTest(defect=defect):
                 doc = fixture()
                 create = doc["paths"]["/records"]["post"]
@@ -88,6 +88,10 @@ class LiveContract(unittest.TestCase):
                     del create["requestBody"]
                 elif defect == "ref":
                     create["responses"]["200"]["content"]["application/json"]["schema"] = {"$ref": "#/missing"}
+                elif defect == "link_expression":
+                    create["responses"]["200"]["links"]["read"]["parameters"]["id"] = "$response.body#/missing"
+                elif defect == "link_parameter":
+                    create["responses"]["200"]["links"]["read"]["parameters"] = {"wrong": "$response.body#/id"}
                 elif defect == "error":
                     del create["responses"]["400"]
                 else:
