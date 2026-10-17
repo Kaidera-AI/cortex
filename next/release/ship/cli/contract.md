@@ -4,6 +4,9 @@ Owner bob@helix. Accepted plan: DAY-1 + INDEX v2 (J06, J11). Interface receipt; 
 
 ## Wrapper
 
+Status: the argv and the three-line client wire below are PROPOSED day-2 seams (cox, rework of
+row e8798066). Core's `client` mode and the projector are not implemented here; no installed credit.
+
 One template, `wrapper.sh.in`, rendered once per command (`cortex-boot`, `cortex-log`,
 `cortex-search`). Placeholders: `@CLIENT@` (the frozen client), `@PROJECTOR@` (the client
 projection command), `@EMPTY_AGENTS@` (an empty private folder).

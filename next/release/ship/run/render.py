@@ -1,31 +1,39 @@
 #!/usr/bin/env python3
 """Render the option A serve pod (DB + API only) and the finite bootstrap plan.
 
-stdlib only; run as `python3 -I render.py`. Contract: contract.md next to this file.
-Every input is explicit: a missing one is a typed refusal, never a default.
+Run as `python3 -I render.py`; stdlib host Python plus the release's own Core source.
+The config is read only by Core's private-file reader and closed decoder, once per mode
+view; every secret projection target is Core's vault_root/secret_ref. Contract: contract.md.
 """
-import hashlib
 import json
 import os
 import pathlib
+import re
 import shutil
 import sys
 import tempfile
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "src"))
+from cortex_core.release.codec import sha256  # noqa: E402
+from cortex_core.runtime.bootstrap_config import MODE_PURPOSES, decode_config  # noqa: E402
+from cortex_core.runtime.contracts import (MAX_CONFIG_BYTES, MAX_LOCK_BYTES,  # noqa: E402
+                                           RC0_SHA256, decode)
+from cortex_core.runtime.credentials import read_private_file  # noqa: E402
+from cortex_core.runtime.signed_member import Refusal  # noqa: E402
+
 UNIT = "ship/run"
 PRODUCT = "cortex-v2"
-OPERATIONS_SHA256 = "51de95ac63cd19e59b046a9db913e38aa790687da48a87b2174468c6873a873b"
 FLAGS = ("--config", "--operations", "--release", "--core-conf", "--out")
 PY = "/opt/cortex/python/bin/python3"
 CONFIG_MOUNT = "/run/cortex/config/cortex.json"
-SECRET_ROOT = "/run/cortex/secrets"
 DATA = "/var/lib/cortex/core"
 DATA_VOLUME = "cortex-v2-core"
 BOOTSTRAP_POD = "cortex-v2-bootstrap"
 POD_FILE = "cortex-v2.pod.yaml"
-PURPOSES = ("api_request", "probe", "bootstrap", "migrator", "installer_enrollment")
-SERVE_SECRETS = ("api_request", "probe")
-ROLE_LOGIN_SECRETS = ("api_request", "installer_enrollment", "migrator", "probe")
+VIEWS = ("serve", "migrate", "seed")
+# Installer (nix) SQL steps are not Core modes: they log in as bootstrap; roles-pre also
+# reads the login secrets it sets.
+ROLE_LOGINS = ("api_request", "installer_enrollment", "migrator", "probe")
 CONF_FILES = ("postgresql.conf", "pg_hba.conf",
               "sql/roles-pre.sql", "sql/roles-post.sql", "sql/roles-close.sql")
 RELEASE_FIELDS = (("source_commit",), ("core", "image"), ("core", "initdb"),
@@ -37,10 +45,6 @@ STEP_BUDGET = {"core-init": "initdb_ms", "temporary-db": "initdb_ms",
                "roles-close": "migration_ms", "stop-temporary-db": "shutdown_ms",
                "serve": "initdb_ms"}
 LOCKED = ["--read-only", "--cap-drop=ALL", "--security-opt", "no-new-privileges"]
-
-
-class Refusal(Exception):
-    """A typed refusal: reason is printed as JSON and nothing is written."""
 
 
 def parse_args(argv):
@@ -59,29 +63,11 @@ def parse_args(argv):
     return values
 
 
-def reject_duplicates(name):
-    def pairs(items):
-        seen = {}
-        for key, value in items:
-            if key in seen:
-                raise Refusal(f"duplicate_key:{name}.{key}")
-            seen[key] = value
-        return seen
-    return pairs
-
-
 def read_bytes(path, name):
     try:
         return pathlib.Path(path).read_bytes()
     except OSError:
         raise Refusal(f"input_missing:{name}") from None
-
-
-def decode(raw, name):
-    try:
-        return json.loads(raw, object_pairs_hook=reject_duplicates(name))
-    except ValueError:
-        raise Refusal(f"input_invalid:{name}") from None
 
 
 def need(node, path, name):
@@ -90,36 +76,6 @@ def need(node, path, name):
             raise Refusal(f"input_missing:{name}.{'.'.join(path)}")
         node = node[key]
     return node
-
-
-def port(node, path):
-    value = need(node, path, "config")
-    if type(value) is not int or not 1 <= value <= 65535:
-        raise Refusal(f"input_invalid:config.{'.'.join(path)}")
-    return value
-
-
-def check_config(config):
-    if "ai_mode" not in config:
-        raise Refusal("ai_mode_missing")
-    if config["ai_mode"] != "off":
-        raise Refusal(f"ai_mode_not_off:{config['ai_mode']}")
-    need(config, ("installation_id",), "config")
-    host = need(config, ("publish", "host"), "config")
-    if host != "127.0.0.1":
-        raise Refusal(f"unsafe_publish:{host}")
-    tls = need(config, ("database", "tls", "mode"), "config")
-    if tls != "verify-full":
-        raise Refusal(f"transport_unratified:{tls}")
-    port(config, ("publish", "port"))
-    port(config, ("bind", "port"))
-    port(config, ("database", "port"))
-    purposes = need(config, ("purposes",), "config")
-    for purpose in PURPOSES:
-        entry = purposes.get(purpose) if isinstance(purposes, dict) else None
-        if not (isinstance(entry, dict) and isinstance(entry.get("login"), str)
-                and isinstance(entry.get("secret_ref"), str)):
-            raise Refusal(f"purpose_missing:{purpose}")
 
 
 def check_conf_dir(core_conf):
@@ -131,10 +87,23 @@ def check_conf_dir(core_conf):
     return root.resolve()
 
 
-def resolve_vector(ops, mode, config, release):
+class Projection:
+    """One Core ref: vault custody copy `cortex-v2-<name>` at vault_root/secret_ref."""
+
+    def __init__(self, vault_root, ref):
+        self.name = ref.rsplit("/", 1)[1]
+        self.source = f"{PRODUCT}-{self.name}"
+        self.target = str(pathlib.PurePosixPath(vault_root) / ref)
+        self.volume = "proj-" + re.sub(r"[^a-z0-9-]", "-", self.name.lower())[:50]
+
+    def flag(self):
+        return f"--secret={self.source},type=mount,target={self.target},mode=0400"
+
+
+def resolve_vector(ops, mode, logins, release):
     fields = {"target.core.initdb.value.path": release["core"]["initdb"],
               "target.core.postgres.value.path": release["core"]["postgres"],
-              "config.roles.bootstrap.binding.value.sql_name": config["purposes"]["bootstrap"]["login"]}
+              "config.roles.bootstrap.binding.value.sql_name": logins["bootstrap"]}
     argv = []
     for item in ops["operation_vectors"][mode]["argv"]:
         if isinstance(item, dict):
@@ -149,16 +118,14 @@ def cortex_argv(verb, *extra):
     return [PY, "-I", "-B", "-m", "cortex_core.cli", verb, "--config", CONFIG_MOUNT, *extra]
 
 
-def secret_volume(purpose):
-    return "secret-" + purpose.replace("_", "-")
-
-
-def serve_pod(config, release, config_path, conf_root, core_server):
+def serve_pod(serve, release, config_path, conf_root, core_server, ca):
     labels = {"ai.kaidera.product": PRODUCT,
               "ai.kaidera.cortex.source": release["source_commit"],
-              "ai.kaidera.cortex.installation": config["installation_id"]}
+              "ai.kaidera.cortex.installation": serve.installation_id}
     locked = {"readOnlyRootFilesystem": True, "allowPrivilegeEscalation": False,
               "capabilities": {"drop": ["ALL"]}}
+    projections = [Projection(serve.vault_root, serve.roles[p].secret_ref)
+                   for p in MODE_PURPOSES["serve"]] + [ca]
     core = {"name": "core", "image": release["core"]["image"], "command": core_server,
             "securityContext": locked,
             "volumeMounts": [
@@ -168,13 +135,13 @@ def serve_pod(config, release, config_path, conf_root, core_server):
                 {"name": "core-run", "mountPath": "/run/postgresql"},
                 {"name": "core-tmp", "mountPath": "/tmp"}]}
     api = {"name": "api", "image": release["api"]["image"], "command": cortex_argv("serve"),
-           "ports": [{"containerPort": config["bind"]["port"], "hostIP": "127.0.0.1",
-                      "hostPort": config["publish"]["port"]}],
+           "ports": [{"containerPort": serve.bind["port"], "hostIP": "127.0.0.1",
+                      "hostPort": serve.publish["port"]}],
            "securityContext": locked,
            "volumeMounts": [{"name": "config", "mountPath": CONFIG_MOUNT, "readOnly": True},
                             {"name": "api-tmp", "mountPath": "/tmp"}]
-           + [{"name": secret_volume(p), "mountPath": f"{SECRET_ROOT}/{p}", "readOnly": True}
-              for p in SERVE_SECRETS]}
+           + [{"name": p.volume, "mountPath": p.target, "subPath": p.name, "readOnly": True}
+              for p in projections]}
     volumes = [
         {"name": "core-data", "persistentVolumeClaim": {"claimName": DATA_VOLUME}},
         {"name": "config", "hostPath": {"path": str(config_path), "type": "File"}},
@@ -183,22 +150,18 @@ def serve_pod(config, release, config_path, conf_root, core_server):
         {"name": "core-run", "emptyDir": {}},
         {"name": "core-tmp", "emptyDir": {}},
         {"name": "api-tmp", "emptyDir": {}},
-    ] + [{"name": secret_volume(p),
-          "secret": {"secretName": f"{PRODUCT}-{p}", "defaultMode": 0o400}}
-         for p in SERVE_SECRETS]
+    ] + [{"name": p.volume, "secret": {"secretName": p.source, "defaultMode": 0o400}}
+         for p in projections]
     return {"apiVersion": "v1", "kind": "Pod",
             "metadata": {"name": PRODUCT, "labels": labels},
             "spec": {"hostNetwork": False, "restartPolicy": "Always",
                      "containers": [core, api], "volumes": volumes}}
 
 
-def secret_flags(purposes):
-    return [f"--secret={PRODUCT}-{p},type=mount,target={SECRET_ROOT}/{p},mode=0400"
-            for p in purposes]
-
-
-def plan(ops, config, release, config_path, conf_root, core_init, core_server):
+def plan(ops, views, roles, release, config_path, conf_root, core_init, core_server, ca):
     budgets = ops["budgets"]
+    vault = views["serve"].vault_root
+    database = views["serve"].database
     label = ["--label", f"ai.kaidera.product={PRODUCT}"]
     core_img, api_img = release["core"]["image"], release["api"]["image"]
     data = ["-v", f"{DATA_VOLUME}:{DATA}"]
@@ -206,26 +169,31 @@ def plan(ops, config, release, config_path, conf_root, core_init, core_server):
             "-v", f"{conf_root / 'pg_hba.conf'}:/run/cortex/pg_hba.conf:ro"]
     cfg = ["-v", f"{config_path}:{CONFIG_MOUNT}:ro"]
     in_pod = ["podman", "run", "--rm", "--pod", BOOTSTRAP_POD, *label, *LOCKED]
+    boot = Projection(vault, roles["bootstrap"].secret_ref)
 
     def sql(step):
         argv = [release["core"]["psql"], "--no-psqlrc", "-v", "ON_ERROR_STOP=1",
-                "-h", "127.0.0.1", "-p", str(config["database"]["port"]),
-                "-U", config["purposes"]["bootstrap"]["login"], "-d", "postgres",
+                "-h", database["host"], "-p", str(database["port"]),
+                "-U", roles["bootstrap"].login, "-d", "postgres",
                 "-f", f"/run/cortex/sql/{step}.sql"]
-        logins = ROLE_LOGIN_SECRETS if step == "roles-pre" else ()
+        logins = ROLE_LOGINS if step == "roles-pre" else ()
+        mounted = [Projection(vault, roles[p].secret_ref) for p in logins] + [ca]
         podman = [*in_pod, "--name", f"{BOOTSTRAP_POD}-{step}",
-                  f"--secret={PRODUCT}-bootstrap,type=env,target=PGPASSWORD",
-                  *secret_flags(logins),
+                  f"--secret={boot.source},type=env,target=PGPASSWORD",
+                  "-e", "PGSSLMODE=verify-full", "-e", f"PGSSLROOTCERT={ca.target}",
+                  *[p.flag() for p in mounted],
                   "-v", f"{conf_root / 'sql' / (step + '.sql')}:/run/cortex/sql/{step}.sql:ro",
                   core_img, *argv]
         return {"name": step, "image": core_img, "argv": argv,
                 "secrets": sorted(("bootstrap", *logins)), "podman": [podman]}
 
-    def cortex(step, verb, purpose):
-        argv = cortex_argv(verb)
+    def cortex(step):
+        argv = cortex_argv(step)
+        purposes = MODE_PURPOSES[step]
+        mounted = [Projection(vault, views[step].roles[p].secret_ref) for p in purposes] + [ca]
         podman = [*in_pod, "--name", f"{BOOTSTRAP_POD}-{step}", *cfg,
-                  *secret_flags([purpose]), api_img, *argv]
-        return {"name": step, "image": api_img, "argv": argv, "secrets": [purpose],
+                  *[p.flag() for p in mounted], api_img, *argv]
+        return {"name": step, "image": api_img, "argv": argv, "secrets": sorted(purposes),
                 "podman": [podman]}
 
     steps = [
@@ -233,7 +201,7 @@ def plan(ops, config, release, config_path, conf_root, core_init, core_server):
          "when": f"absent:{DATA}/PG_VERSION",
          "podman": [["podman", "run", "--rm", "--name", f"{PRODUCT}-core-init", *label, *LOCKED,
                      "--network=none", *data,
-                     f"--secret={PRODUCT}-bootstrap,type=mount,target=/run/cortex/bootstrap/initdb-password,mode=0400",
+                     f"--secret={boot.source},type=mount,target=/run/cortex/bootstrap/initdb-password,mode=0400",
                      core_img, *core_init]]},
         {"name": "temporary-db", "image": core_img, "argv": core_server, "secrets": [],
          "podman": [["podman", "pod", "create", "--name", BOOTSTRAP_POD, *label, "--network=none"],
@@ -241,9 +209,9 @@ def plan(ops, config, release, config_path, conf_root, core_init, core_server):
                      *label, *LOCKED, *data, *conf, "--tmpfs", "/run/postgresql", "--tmpfs", "/tmp",
                      core_img, *core_server]]},
         sql("roles-pre"),
-        cortex("migrate", "migrate", "migrator"),
+        cortex("migrate"),
         sql("roles-post"),
-        cortex("seed", "seed", "installer_enrollment"),
+        cortex("seed"),
         sql("roles-close"),
         {"name": "stop-temporary-db", "secrets": [],
          "podman": [["podman", "pod", "stop", "--time", str(budgets["shutdown_ms"] // 1000), BOOTSTRAP_POD],
@@ -262,29 +230,34 @@ def plan(ops, config, release, config_path, conf_root, core_init, core_server):
 
 def render(values):
     ops_raw = read_bytes(values["--operations"], "operations")
-    if hashlib.sha256(ops_raw).hexdigest() != OPERATIONS_SHA256:
+    if sha256(ops_raw) != RC0_SHA256["runtime-operations-v1.json"]:
         raise Refusal("operations_mismatch")
-    ops = decode(ops_raw, "operations")
-    config = decode(read_bytes(values["--config"], "config"), "config")
-    check_config(config)
-    release = decode(read_bytes(values["--release"], "release"), "release")
+    ops = decode(ops_raw, limit=MAX_LOCK_BYTES)
+    # Core's one reader and closed decoder; each mode view admits only its own purposes.
+    raw = read_private_file(pathlib.Path(values["--config"]).resolve(), limit=MAX_CONFIG_BYTES)
+    views = {mode: decode_config(raw, mode=mode) for mode in VIEWS}
+    roles = {p: role for view in views.values() for p, role in view.roles.items()}
+    release = decode(read_bytes(values["--release"], "release"), limit=MAX_CONFIG_BYTES)
     for path in RELEASE_FIELDS:
         need(release, path, "release")
     conf_root = check_conf_dir(values["--core-conf"])
     config_path = pathlib.Path(values["--config"]).resolve()
-    core_init = resolve_vector(ops, "core-init", config, release)
-    core_server = resolve_vector(ops, "core-server", config, release)
-    pod = serve_pod(config, release, config_path, conf_root, core_server)
-    bootstrap = plan(ops, config, release, config_path, conf_root, core_init, core_server)
+    serve = views["serve"]
+    ca = Projection(serve.vault_root, serve.database["tls"]["root_cert_ref"])
+    logins = {p: role.login for p, role in roles.items()}
+    core_init = resolve_vector(ops, "core-init", logins, release)
+    core_server = resolve_vector(ops, "core-server", logins, release)
+    pod = serve_pod(serve, release, config_path, conf_root, core_server, ca)
+    bootstrap = plan(ops, views, roles, release, config_path, conf_root, core_init, core_server, ca)
     inventory = {
-        "operations_sha256": OPERATIONS_SHA256,
+        "operations_sha256": RC0_SHA256["runtime-operations-v1.json"],
         "source_commit": release["source_commit"],
         "serve": {"pod": PRODUCT, "containers": [c["name"] for c in pod["spec"]["containers"]],
                   "images": {c["name"]: c["image"] for c in pod["spec"]["containers"]},
-                  "secrets": list(SERVE_SECRETS),
-                  "published": [{"host": "127.0.0.1", "port": config["publish"]["port"]}]},
+                  "secrets": sorted(MODE_PURPOSES["serve"]),
+                  "published": [{"host": "127.0.0.1", "port": serve.publish["port"]}]},
         "bootstrap": {"pod": BOOTSTRAP_POD, "steps": [s["name"] for s in bootstrap["steps"]]},
-        "ready": {"url": f"http://127.0.0.1:{config['publish']['port']}/health",
+        "ready": {"url": f"http://127.0.0.1:{serve.publish['port']}/health",
                   "fields": list(ops["health"]["c11_fields"]),
                   "source_commit": release["source_commit"]},
         "status_argv": cortex_argv("status", "--json"),
@@ -315,7 +288,7 @@ def main(argv):
         values = parse_args(argv)
         publish(values["--out"], render(values))
     except Refusal as refusal:
-        print(json.dumps({"reason": str(refusal), "unit": UNIT}), file=sys.stderr)
+        print(json.dumps({"reason": refusal.reason, "unit": UNIT}), file=sys.stderr)
         return 2
     return 0
 
