@@ -1,5 +1,5 @@
 #!/bin/bash
-# Install the Cortex v2 client wrappers (ship/cli). Contract: contract.md next to this file.
+# Install the Cortex v2 client launchers (ship/cli). Contract: contract.md next to this file.
 # Refuses before writing anything; never shadows a command it did not install.
 set -u
 
@@ -14,15 +14,16 @@ refuse() {
     exit 2
 }
 
-prefix="" client_dir="" projector="" link_dir="" no_link=0
+prefix="" client_dir="" core_python="" config="" link_dir="" no_link=0
 while [ $# -gt 0 ]; do
     case "$1" in
-        --prefix|--client-dir|--projector|--link-dir)
+        --prefix|--client-dir|--core-python|--config|--link-dir)
             [ $# -ge 2 ] || refuse "input_missing:$1"
             case "$1" in
                 --prefix) prefix="$2" ;;
                 --client-dir) client_dir="$2" ;;
-                --projector) projector="$2" ;;
+                --core-python) core_python="$2" ;;
+                --config) config="$2" ;;
                 --link-dir) link_dir="$2" ;;
             esac
             shift 2 ;;
@@ -32,11 +33,12 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$prefix" ] || refuse "input_missing:--prefix"
 [ -n "$client_dir" ] || refuse "input_missing:--client-dir"
-[ -n "$projector" ] || refuse "input_missing:--projector"
+[ -n "$core_python" ] || refuse "input_missing:--core-python"
+[ -n "$config" ] || refuse "input_missing:--config"
 [ -n "$link_dir" ] || refuse "input_missing:--link-dir"
 
-# Paths are written into the wrappers and a sed script: absolute, no shell or sed specials.
-for path in "$prefix" "$client_dir" "$projector" "$link_dir"; do
+# Paths are written into the launchers and a sed script: absolute, no shell or sed specials.
+for path in "$prefix" "$client_dir" "$core_python" "$config" "$link_dir"; do
     case "$path" in /*) ;; *) refuse "unsafe_path:$path" ;; esac
     case "$path" in *[\"\$\`\\\|\&\']*|*"
 "*) refuse "unsafe_path:$path" ;; esac
@@ -45,7 +47,7 @@ done
 for name in $COMMANDS; do
     [ -f "$client_dir/$name" ] && [ -x "$client_dir/$name" ] || refuse "client_missing:$name"
 done
-[ -f "$projector" ] && [ -x "$projector" ] || refuse "projector_missing:$projector"
+[ -f "$core_python" ] && [ -x "$core_python" ] || refuse "core_python_missing:$core_python"
 
 ours() {
     [ -L "$1" ] && [ "$(readlink "$1")" = "$prefix/bin/$2" ]
@@ -69,9 +71,10 @@ chmod 700 "$prefix/cli/agents-empty"
 for name in $COMMANDS; do
     staged="$prefix/bin/.$name.tmp"
     sed -e "s|@CLIENT@|$client_dir/$name|g" \
-        -e "s|@PROJECTOR@|$projector|g" \
+        -e "s|@CORE_PYTHON@|$core_python|g" \
+        -e "s|@CONFIG@|$config|g" \
         -e "s|@EMPTY_AGENTS@|$prefix/cli/agents-empty|g" \
-        "$HERE/wrapper.sh.in" > "$staged" || refuse "write_failed:$staged"
+        "$HERE/launcher.py.in" > "$staged" || refuse "write_failed:$staged"
     chmod 755 "$staged"
     mv -f "$staged" "$prefix/bin/$name" || refuse "write_failed:$prefix/bin/$name"
 done

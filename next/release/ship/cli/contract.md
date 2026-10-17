@@ -1,68 +1,55 @@
-# ship/cli contract (option A, .004 day 1)
+# ship/cli contract (option A, .004 day 2)
 
-Owner bob@helix. Accepted plan: DAY-1 + INDEX v2 (J06, J11). Interface receipt; changes are a consult.
+Owner bob@helix. Accepted plan: DAY-1 + INDEX v2 (J06, J11), DAY-2 (H-D622). Joined to Core's
+`runtime.operator config client` (cox 090698743d9c), finn's helper (491d795c13) and cox's ruling
+`review/cortex/design/J06-process-transfer-v1.md` Q4. Changes are a consult.
 
-## Wrapper
+## Launcher
 
-Status: the argv and the three-line client wire below are PROPOSED day-2 seams (cox, rework of
-row e8798066). Core's `client` mode and the projector are not implemented here; no installed credit.
-They are SUPERSEDED, not accepted: J06 interface v1 section 7 (review/cortex/design/J06-interface-v1.md,
-sha256 25f208b9...) fixes the client projection as Core's
-`python -m cortex_core.runtime.operator config client --config FILE --unlock-fd N --key-id ID
---projection-fd M`, seven NUL-terminated fields on a private anonymous pipe, read by Finn's existing
-helper. `CORTEX_CREDENTIAL_FILE` is not a custody interface. This wrapper is not adoptable until that
-Core source, the helper's descriptor input and an explicit unlock input exist; the gate stays visibly
-unconfigured, with no default.
+One template, `launcher.py.in`, rendered once per command (`cortex-boot`, `cortex-log`,
+`cortex-search`). Placeholders: `@CORE_PYTHON@` (the installed Core interpreter; also the
+launcher's own `-IS` interpreter), `@CONFIG@` (the ONE vault config), `@CLIENT@` (the frozen
+client), `@EMPTY_AGENTS@` (an empty private folder). Standard library only.
 
-One template, `wrapper.sh.in`, rendered once per command (`cortex-boot`, `cortex-log`,
-`cortex-search`). Placeholders: `@CLIENT@` (the frozen client), `@PROJECTOR@` (the client
-projection command), `@EMPTY_AGENTS@` (an empty private folder).
+In order, the launcher:
+1. Reads the explicit unlock selectors `CORTEX_UNLOCK_FD` (an inherited open descriptor number) and
+   `CORTEX_KEY_ID`, then drops every `CORTEX_*` variable from the environment. No default, key path
+   or key search: missing or unusable selectors refuse `unlock_unconfigured`.
+2. Creates ONE anonymous pipe and runs `@CORE_PYTHON@ -I -B -m cortex_core.runtime.operator config
+   client --config @CONFIG@ --unlock-fd N --key-id ID --projection-fd W`, passing only the write end
+   and the unlock descriptor; closes its own write end; waits (15 s bound) for the actual exit.
+   The projector's stdout and stderr are never forwarded.
+3. On success closes the unlock descriptor and `exec`s the client with the read end inherited, its
+   number in `CORTEX_CLIENT_PROJECTION_FD`, plus `CORTEX_AGENTS_DIR=@EMPTY_AGENTS@`,
+   `CORTEX_RUNTIME_CONFIG=/dev/null`, `CORTEX_WORKSPACE_CONFIG=/dev/null`. The client (finn's
+   helper) reads and validates the seven-field frame itself; the launcher never reads it.
 
-In order, the wrapper:
-1. Unsets every exported `CORTEX_*` variable (admin token, CTO override, v1 URL, project, ...).
-2. Runs the projector (cox's `cortex config client --config FILE` on host python3) and reads its
-   stdout through a pipe. Its stderr is discarded, never forwarded: a nonzero exit gives the one
-   refusal line `projection_failed:<rc>` and nothing else. It must print exactly these three keys,
-   once each, nothing else:
-
-       CORTEX_API_URL=http://127.0.0.1:<port>
-       CORTEX_PROJECT=<key>
-       CORTEX_CREDENTIAL_FILE=<absolute path>
-
-3. Pins `CORTEX_AGENTS_DIR=@EMPTY_AGENTS@`, `CORTEX_RUNTIME_CONFIG=/dev/null`,
-   `CORTEX_WORKSPACE_CONFIG=/dev/null`, so the helper's runtime.yaml walk-up finds nothing.
-4. `exec`s the frozen client with `"$@"`.
-
-It never retries and never calls another URL.
+It never retries and never calls another URL. No secret is in argv, environment, a file or a log.
 
 ## Typed refusals
 
 Exit 2, stderr one JSON line `{"reason": ..., "unit": "ship/cli"}`, the client never runs:
-`projection_failed:<rc>`, `projection_field_missing:<k>`, `projection_field_unknown:<k>`,
-`projection_duplicate:<k>`, `projection_field_invalid:CORTEX_PROJECT` (not `[A-Za-z0-9_-]+`),
-`url_not_v2:<url>` (not `http://127.0.0.1:<port>`, or port 8501, the v1 fallback),
-`credential_missing:<path>`, `credential_unsafe:<path>` (relative, symlink, not regular, not owned
-by the caller, or not mode 0600).
+`unlock_unconfigured`, `projection_failed:<Core reason>` (Core's one typed refusal, reduced to its
+reason), `projection_failed:<exit code>` (anything else), `projection_failed:interrupted`
+(timeout or interrupt), `projection_failed:unavailable` (the interpreter could not start).
 
 ## Install
 
-    install_cli.sh --prefix P --client-dir DIR --projector FILE --link-dir DIR [--no-link]
+    install_cli.sh --prefix P --client-dir DIR --core-python FILE --config FILE --link-dir DIR [--no-link]
 
 Renders `P/bin/<command>` from the template, makes the empty `P/cli/agents-empty`, then links
 `<link-dir>/<command>` to `P/bin/<command>`. All checks run before the first write. If a command name
 already resolves on `PATH`, or exists in the link folder, as anything but our own link, it refuses
-`path_collision:<path>` and writes nothing. `--no-link` skips the PATH check and keeps the wrappers
+`path_collision:<path>` and writes nothing. `--no-link` skips the PATH check and keeps the launchers
 in `P/bin` only.
 
 Refusals (exit 2, same JSON line): `input_missing:<flag>`, `bad_argument:<arg>`,
 `unsafe_path:<path>` (relative, or contains a quote, `$`, backquote, backslash, `|`, `&` or newline),
-`client_missing:<command>`, `projector_missing:<path>`, `link_dir_missing:<dir>`,
+`client_missing:<command>`, `core_python_missing:<path>`, `link_dir_missing:<dir>`,
 `path_collision:<path>`, `write_failed:<path>`.
 
 ## Open joins
 
-- finn: the descriptor the helper reads the seven-field projection from (replaces
-  `CORTEX_CREDENTIAL_FILE`).
-- cox: the actual `cortex_core.runtime.operator config client` source pin (J06 v1 section 7).
-- operator: an explicit unlock descriptor and key id per invocation; never a key path or default
-  baked into the generated wrapper.
+- nix: the installed Core interpreter with its qualified cryptography closure on both hosts, and the
+  operator-facing way to supply the unlock descriptor; the frozen clients sourcing finn's helper.
+- day 2, real hosts: a shebang path within the kernel limit, and the actual client commands end to end.
