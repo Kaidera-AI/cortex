@@ -17,6 +17,8 @@ class CurrentHome(unittest.TestCase):
             self.assertIn(V2+name,value['loopback'])
         self.assertFalse(any(p.startswith('packages/cli/tests/test_transport') for p in value['loopback']))
         self.assertFalse(set(value['loopback']) & set(value['run']))
+    def test_latest_health_contract_has_explicit_loopback_home(self):
+        self.assertIn(V2+'test_health_contract.py',self.manifest()['loopback'])
     def test_seed_caller_has_explicit_loopback_home(self):
         self.assertIn(SCHEMA+'test_seed_operator.py',self.manifest()['loopback'])
         self.assertIn(SCHEMA+'test_seed_owner_contract.py',self.manifest()['run'])
