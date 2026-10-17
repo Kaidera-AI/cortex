@@ -21,6 +21,19 @@ SPEC=[
  ('src/cortex_core/schema/migrate.py','return migrations.apply_migrations(connection, directory)','return []','schema','test_readiness.ReadinessTests.test_existing_runner_is_only_migration_engine'),
  ('src/cortex_core/schema/readiness.py','if len(rows) != len(expected) or dict(rows) != dict(expected):','if False:','schema','test_readiness.ReadinessTests.test_wrong_applied_order_identity_and_digest_refuse'),
 ]
+DAY2_SPEC=[
+ ('src/cortex_core/runtime/bootstrap_config.py',"hashlib.sha256(canonical_bytes(value)).hexdigest()","'0'*64",'runtime','test_custody.SnapshotIdentity.test_full_snapshot_changes_for_hidden_other_mode_role_and_semantic_bytes'),
+ ('src/cortex_core/runtime/custody_fs.py','or stat.S_IMODE(s.st_mode) != 0o700','or False','runtime','test_custody.CustodyTests.test_unsafe_root_parent_and_lock_refuse'),
+ ('src/cortex_core/runtime/custody.py','reference, purpose, self._key_id, generation])','reference, purpose, self._key_id, 0])','runtime','test_custody.CustodyTests.test_aad_binds_project_reference_purpose_and_generation'),
+ ('src/cortex_core/runtime/custody.py',"if material.state != 'committed':",'if False:','runtime','test_custody.CustodyTests.test_ciphertext_before_return_exact_replay_and_committed_client'),
+ ('src/cortex_core/runtime/resources.py','current._config is not config','False','runtime','test_resources.ResourceTests.test_accessor_rejects_other_identity_deadline_expiry_and_closed_handles'),
+ ('src/cortex_core/runtime/resources.py','if self._tainted:','if False:','runtime','test_resources.TransactionFailureTests.test_failed_sql_stage_taints_carrier_until_complete_resource_close'),
+ ('src/cortex_core/runtime/resources.py','signal.setitimer(signal.ITIMER_REAL,remaining_seconds(deadline),0.05)','signal.setitimer(signal.ITIMER_REAL,remaining_seconds(deadline))','runtime','test_resources.TransactionFailureTests.test_deadline_also_bounds_driver_rollback_after_body_interruption'),
+ ('src/cortex_core/runtime/catalog.py','protected_owners=protected','protected_owners=[]','runtime','test_resources.CatalogTests.test_incident_memberships_and_ownership_are_retained_for_sole_validator'),
+ ('src/cortex_core/runtime/operator.py',"fields=['cortex.client.v1'","fields=['cortex.client.v0'",'runtime','test_operator.OperatorTests.test_committed_seven_fields_exact_eof_and_no_public_secret_output'),
+ ('src/cortex_core/runtime/resources.py',"applied=apply_forward_migrations(self._connections['migrator'])",'applied=[]','runtime','test_resources.MigrationResourceTests.test_only_migrator_login_and_no_seed_context_or_nested_transaction'),
+ ('src/cortex_core/runtime/operator.py',"if command=='migrate':",'if False:','runtime','test_operator.MigrationOperatorTests.test_actual_dispatch_uses_one_config_one_finite_login_and_existing_engine'),
+]
 
 
 def receipt_module():
@@ -77,8 +90,10 @@ def phase_main():
 
 def main():
     out=Path(sys.argv[1]).resolve();out.mkdir(parents=True,exist_ok=True)
+    selected=DAY2_SPEC if sys.argv[2:]==['--day2'] else SPEC
+    if sys.argv[2:] not in ([],['--day2']):raise ValueError('unknown mutation selection')
     receipts=receipt_module();rows=[]
-    for index,(relative,old,new,group,expected) in enumerate(SPEC):
+    for index,(relative,old,new,group,expected) in enumerate(selected):
         with tempfile.TemporaryDirectory(prefix='mutant-',dir=out) as tmp:
             case=Path(tmp)/'next'
             shutil.copytree(NEXT/'src',case/'src',ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
@@ -116,7 +131,7 @@ def main():
              'inconclusive':sum(r['classification']=='inconclusive' for r in rows),
              'phases_valid':sum(p['valid'] for r in rows for p in r['phases'])}
     (out/'RESULT.json').write_text(json.dumps(summary,indent=2)+'\n')
-    return 0 if summary['killed']==len(SPEC) else 1
+    return 0 if summary['killed']==len(selected) else 1
 
 
 if __name__=='__main__':
