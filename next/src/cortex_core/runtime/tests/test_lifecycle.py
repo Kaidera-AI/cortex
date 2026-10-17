@@ -166,5 +166,43 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(len(calls),1);self.assertEqual(calls[0][0].mode,'serve')
         self.assertEqual(calls[0][1:],(11,'unit-public-key'))
 
+    def test_signal_during_partial_open_cannot_renew_cleanup_budget(self):
+        self.require_source()
+        with self.app() as app:
+            def driver(**kw):
+                if self.calls:
+                    app.begin_shutdown(deadline=time.monotonic()+0.06)
+                    raise RuntimeError('public-fixture-connect-failure')
+                connection=self.driver(**kw)
+                connection.close=lambda:time.sleep(0.25)
+                return connection
+            async def check():
+                began=time.monotonic()
+                with patch.object(resources,'_driver_connect',side_effect=driver):
+                    incoming,outgoing,task,message=await self.start(app)
+                    with self.assertRaises(ValueError):await task
+                self.assertEqual(message['type'],'lifespan.startup.failed')
+                self.assertLess(time.monotonic()-began,0.18,
+                    'partial-open cleanup renewed the first shutdown budget')
+                self.assertFalse(app.started);self.assertIsNotNone(app.failure)
+            asyncio.run(check())
+
+    def test_signal_during_first_open_stops_second_connection_and_startup_sql(self):
+        self.require_source()
+        with self.app() as app:
+            def driver(**kw):
+                connection=self.driver(**kw)
+                if len(self.calls)==1:app.begin_shutdown(deadline=time.monotonic()+0.2)
+                return connection
+            async def check():
+                with patch.object(resources,'_driver_connect',side_effect=driver):
+                    incoming,outgoing,task,message=await self.start(app)
+                    with self.assertRaises(ValueError):await task
+                self.assertEqual(message['type'],'lifespan.startup.failed')
+                self.assertEqual(len(self.calls),1,'draining startup opened another role')
+                self.assertEqual(self.calls[0].queries,[],'startup SQL ran after first shutdown')
+                self.assertFalse(app.started);self.assertIsNotNone(app.failure)
+            asyncio.run(check())
+
 
 if __name__=='__main__':unittest.main()

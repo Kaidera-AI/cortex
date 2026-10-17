@@ -98,5 +98,17 @@ class StatusBindingTests(unittest.TestCase):
             self.assertEqual(operator.dispatch_operator_command(['status','--config',str(path)]),1)
         self.assertEqual(len(calls),1);self.assertEqual(calls[0].mode,'status')
 
+    def test_operator_status_main_exposes_real_diagnostic_exit_without_custody(self):
+        self.require_source()
+        from cortex_core.runtime import operator
+        path=self.root/'config.json';path.write_text(json.dumps(self.value));path.chmod(0o600)
+        out,err=io.StringIO(),io.StringIO();seen=[]
+        def read(config):seen.append(config.mode);return 1
+        with patch.object(status,'read_status',side_effect=read),patch('sys.stdout',out),patch('sys.stderr',err), \
+             patch.object(operator,'open_custody',side_effect=AssertionError('status unlocked custody')):
+            code=operator.main(['status','--config',str(path)])
+        self.assertEqual(code,1,err.getvalue());self.assertEqual(seen,['status'])
+        self.assertEqual((out.getvalue(),err.getvalue()),('',''))
+
 
 if __name__=='__main__':unittest.main()
