@@ -14,7 +14,9 @@ projection command), `@EMPTY_AGENTS@` (an empty private folder).
 In order, the wrapper:
 1. Unsets every exported `CORTEX_*` variable (admin token, CTO override, v1 URL, project, ...).
 2. Runs the projector (cox's `cortex config client --config FILE` on host python3) and reads its
-   stdout through a pipe. It must print exactly these three keys, once each, nothing else:
+   stdout through a pipe. Its stderr is discarded, never forwarded: a nonzero exit gives the one
+   refusal line `projection_failed:<rc>` and nothing else. It must print exactly these three keys,
+   once each, nothing else:
 
        CORTEX_API_URL=http://127.0.0.1:<port>
        CORTEX_PROJECT=<key>

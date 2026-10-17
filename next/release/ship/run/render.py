@@ -8,7 +8,6 @@ view; every secret projection target is Core's vault_root/secret_ref. Contract: 
 import json
 import os
 import pathlib
-import re
 import shutil
 import sys
 import tempfile
@@ -87,6 +86,11 @@ def check_conf_dir(core_conf):
     return root.resolve()
 
 
+def volume_id(ref):
+    # A DNS-1123 label from the whole case-sensitive ref; serve_pod refuses any collision.
+    return "proj-" + sha256(ref.encode())[:16]
+
+
 class Projection:
     """One Core ref: vault custody copy `cortex-v2-<name>` at vault_root/secret_ref."""
 
@@ -94,7 +98,7 @@ class Projection:
         self.name = ref.rsplit("/", 1)[1]
         self.source = f"{PRODUCT}-{self.name}"
         self.target = str(pathlib.PurePosixPath(vault_root) / ref)
-        self.volume = "proj-" + re.sub(r"[^a-z0-9-]", "-", self.name.lower())[:50]
+        self.volume = volume_id(ref)
 
     def flag(self):
         return f"--secret={self.source},type=mount,target={self.target},mode=0400"
@@ -152,6 +156,9 @@ def serve_pod(serve, release, config_path, conf_root, core_server, ca):
         {"name": "api-tmp", "emptyDir": {}},
     ] + [{"name": p.volume, "secret": {"secretName": p.source, "defaultMode": 0o400}}
          for p in projections]
+    names = [v["name"] for v in volumes]
+    if len(set(names)) != len(names):
+        raise Refusal("projection_collision")
     return {"apiVersion": "v1", "kind": "Pod",
             "metadata": {"name": PRODUCT, "labels": labels},
             "spec": {"hostNetwork": False, "restartPolicy": "Always",
@@ -233,15 +240,16 @@ def render(values):
     if sha256(ops_raw) != RC0_SHA256["runtime-operations-v1.json"]:
         raise Refusal("operations_mismatch")
     ops = decode(ops_raw, limit=MAX_LOCK_BYTES)
-    # Core's one reader and closed decoder; each mode view admits only its own purposes.
-    raw = read_private_file(pathlib.Path(values["--config"]).resolve(), limit=MAX_CONFIG_BYTES)
+    # Core's one reader and closed decoder; each mode view admits only its own purposes. The
+    # caller's spelling goes to Core unresolved, so its no-follow walk sees every symlink.
+    config_path = pathlib.Path(values["--config"])
+    raw = read_private_file(config_path, limit=MAX_CONFIG_BYTES)
     views = {mode: decode_config(raw, mode=mode) for mode in VIEWS}
     roles = {p: role for view in views.values() for p, role in view.roles.items()}
     release = decode(read_bytes(values["--release"], "release"), limit=MAX_CONFIG_BYTES)
     for path in RELEASE_FIELDS:
         need(release, path, "release")
     conf_root = check_conf_dir(values["--core-conf"])
-    config_path = pathlib.Path(values["--config"]).resolve()
     serve = views["serve"]
     ca = Projection(serve.vault_root, serve.database["tls"]["root_cert_ref"])
     logins = {p: role.login for p, role in roles.items()}

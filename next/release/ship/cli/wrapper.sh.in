@@ -15,7 +15,8 @@ for name in $(compgen -e); do
     case "$name" in CORTEX_*) unset "$name" ;; esac
 done
 
-projection="$("@PROJECTOR@")"
+# The projector's stderr is never forwarded: its exit code is the only failure detail reported.
+projection="$("@PROJECTOR@" 2>/dev/null)"
 rc=$?
 [ "$rc" -eq 0 ] || refuse "projection_failed:$rc"
 
