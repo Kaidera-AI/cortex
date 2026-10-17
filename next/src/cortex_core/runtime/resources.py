@@ -56,7 +56,7 @@ def _driver_deadline(deadline):
     def expired(signum,frame):raise Refusal('resources_deadline')
     signal.signal(signal.SIGALRM,expired)
     try:
-        signal.setitimer(signal.ITIMER_REAL,remaining_seconds(deadline))
+        signal.setitimer(signal.ITIMER_REAL,remaining_seconds(deadline),0.05)
         yield
         remaining_seconds(deadline)
     finally:
@@ -103,13 +103,13 @@ def _connect(config, custody, purpose, deadline):
 
 
 class _Resources:
-    __slots__ = ('_config','_custody','_deadline','_connections','_closed','_in_transaction')
+    __slots__ = ('_config','_custody','_deadline','_connections','_closed','_in_transaction','_tainted')
 
     def __init__(self, config, custody, deadline, connections, *, token):
         if token is not _BIRTH:
             raise Refusal('resources_unbound')
         for key,value in (('_config',config),('_custody',custody),('_deadline',deadline),
-                          ('_connections',MappingProxyType(connections)),('_closed',False),('_in_transaction',False)):
+                          ('_connections',MappingProxyType(connections)),('_closed',False),('_in_transaction',False),('_tainted',False)):
             object.__setattr__(self,key,value)
 
     def __setattr__(self,name,value):
@@ -135,6 +135,8 @@ class _Resources:
     def check_deadline(self):
         if self._closed:
             raise Refusal('resources_closed')
+        if self._tainted:
+            raise Refusal('resources_tainted')
         return remaining_seconds(self._deadline)
 
 
@@ -161,8 +163,10 @@ class SeedResources(_Resources):
                     yield connection
                     self.check_deadline()
                 self.check_deadline()
-        except Refusal:raise
-        except Exception:raise Refusal('resources_transaction') from None
+        except BaseException as error:
+            object.__setattr__(self,'_tainted',True)
+            if isinstance(error,(Refusal,KeyboardInterrupt,SystemExit)):raise
+            raise Refusal('resources_transaction') from None
         finally:object.__setattr__(self,'_in_transaction',False)
 
     def observe_catalog(self):
