@@ -64,3 +64,12 @@ That change does not re-label earlier psycopg3.2.9 receipts or qualify target
 images/native installations. cryptography remains50.0.0; the earlier named
 macOS lock gap remains open. No product-side package install or bootstrap is
 implemented by Core.
+
+Day-2 public status reader reuses stock `httpx==0.28.1` from the existing
+hash-pinned closure, upstream https://github.com/encode/httpx/tree/0.28.1,
+BSD-3-Clause (license verified in the installed distribution). Retain its
+distribution license. Core uses its synchronous streaming client with ambient
+proxy settings disabled, no redirects, a bounded body and the existing strict
+decoder/CLI status emitter. No HTTP implementation or parser is copied; the
+one absolute process timer also bounds a blocking read. This source dependency
+receipt does not qualify either target's packaged executable.

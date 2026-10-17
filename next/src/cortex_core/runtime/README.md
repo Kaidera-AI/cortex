@@ -1,4 +1,4 @@
-# Option A config foundation
+# Option A runtime owner
 
 The public contract is [contract.md](contract.md). Run the foundation units with
 `PYTHONPATH=next/src python3 -m unittest discover -s next/src/cortex_core/runtime/tests -v`.
@@ -12,6 +12,28 @@ bound and checks that the file did not change while read. It never logs bytes.
 
 The host decoder runs on stdlib-only Python (`-S` is exercised by the units).
 Schema consumers still load the existing pinned jsonschema implementation.
-No command dispatcher or listener is delivered by this Day-1 slice. No result
-from these unit tests qualifies a real database, secret custody, install or
-paired-platform release.
+Day 2 adds one encrypted custody adapter, fixed synchronous PostgreSQL resource
+owners and the actual operator entry `python -m cortex_core.runtime.operator`.
+The finite commands are `migrate` and `seed`; `config client` writes the existing
+private projection to an explicitly supplied descriptor. `serve` starts one
+stock Uvicorn/Starlette listener, and `status --config FILE` reads that listener's
+public health using HTTPX without custody or database access. Effectful commands
+require explicit `--unlock-fd` and `--key-id`; config admission and status do not.
+No master-key generation, persistent key store or implicit unlock is provided.
+
+All commands use the same strict config snapshot and existing JSON decoder.
+Core owns connection, transaction, request and shutdown lifetimes; the fixed
+`cortex_ship.install.roles` package owns catalog policy and Finn's schema module
+owns seed. Missing source or failed readiness refuses. Shutdown stops admission
+at the first signal and shares one absolute budget across startup, active SQL,
+drain and reverse cleanup; unresolved cleanup is failure. Status emits the
+existing `cortex.status.v1` JSON and returns ready=0, enrollment_required=1,
+unavailable/invalid=2. It never treats a ready fixture as installation proof.
+
+The currently bound API is the existing C11b memory write, record read and
+health gateway. Generated registry, daily-command and search capabilities are
+not implemented by this composition. Stock runtime dependencies and licenses
+are recorded in [UPSTREAM.md](UPSTREAM.md). Unit/driver-policy fixtures and
+loopback/signal process receipts qualify source behavior only. Actual full-schema
+SQL, least-privilege grants, encrypted descriptor mounts, installed closure,
+paired-platform proof, independent review and release remain separate gates.
