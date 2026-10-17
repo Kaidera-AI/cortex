@@ -1,5 +1,6 @@
 """Effect-free option A config; the existing decoder, one closed authority file."""
 from dataclasses import dataclass
+import hashlib
 import ipaddress
 from pathlib import PurePosixPath
 import re
@@ -9,6 +10,7 @@ from uuid import UUID
 from .contracts import decode, MAX_CONFIG_BYTES
 from .credentials import read_private_file
 from .signed_member import Refusal
+from cortex_core.release.codec import canonical_bytes
 
 MODE_PURPOSES = MappingProxyType({
     'serve': ('api_request', 'probe'), 'migrate': ('migrator',),
@@ -41,6 +43,8 @@ class BootstrapConfig:
     limits: object
     mode: str
     client_ref: str | None = None
+    source_sha256: str = ''
+    role_logins: object = None
 
 
 def _shape(value, keys):
@@ -151,7 +155,8 @@ def validate_bootstrap(value, *, mode):
     return BootstrapConfig(*ids, MappingProxyType(dict(names)), 'off', root, bind, publish,
                            MappingProxyType({**database, 'tls': MappingProxyType(dict(tls))}),
                            admitted, MappingProxyType(dict(limits)), mode,
-                           client['credential_ref'] if mode == 'client' else None)
+                           client['credential_ref'], hashlib.sha256(canonical_bytes(value)).hexdigest(),
+                           MappingProxyType({name: role['login'] for name, role in roles.items()}))
 
 
 def decode_config(raw, *, mode):

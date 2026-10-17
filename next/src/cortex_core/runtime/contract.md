@@ -55,3 +55,36 @@ without changing validation, so the same decoder can run on stdlib-only host
 Python. Extract the existing migration preparation unchanged for shared reuse;
 do not create another parser or migration engine. These small prerequisite
 edits are covered by import/admission regression tests and causal assertions.
+
+## Day-2 J06 encrypted custody (source foundation)
+
+The accepted J06 interface v1 SHA256 is
+`25f208b916fa71f7c42be52399c0a92b1be1b2241d412427ab395712893d6d49`.
+The actual config carrier retains nonsecret `client_ref` in all modes and adds
+immutable `source_sha256` over the full canonical decoded snapshot plus the
+read-only five-purpose `role_logins` map. Its credential authority remains
+limited to the selected mode. No second config or JSON decoder is introduced.
+
+`custody.open_custody(config, *, unlock_fd, key_id)` consumes exactly 32 raw key
+bytes plus EOF through an explicitly admitted private descriptor. It uses
+stock cryptography 50.0.0 AESGCM and the existing private vault layout. It does
+not generate, store, recover or default a key. Credential purposes are checked
+before filesystem access. Unknown/malformed/unsafe/wrong-key records refuse;
+no plaintext-reader fallback exists in this adapter.
+
+`vault.seed_record()` holds a nonblocking stable private lock. `load()` returns
+private immutable `SeedMaterial` or None for an absent leaf only; `create()` is
+absent-only and durably publishes encrypted PREPARED; `commit(receipt=...)`
+retains intent/credential, checks the loaded file snapshot, and durably writes
+COMMITTED. Exact committed replay does not rewrite the record. A failed write
+acknowledgement invalidates the handle and requires later reload/reconcile.
+The only first-console record is the existing client reference. `resolve`
+admits only a committed client record; role imports use the same adapter and
+require an explicit purpose and secret. Lock files are never unlinked.
+
+This source stage is not a SQL seed, resource connector, operator, listener or
+installed proof. Those joins require the actual later modules and independent
+exact-head review. The old `credentials` reader remains an unbound foundation
+interface; Option A must not use it as an encrypted credential fallback. Pure
+config admission remains stdlib; encrypted client projection needs the
+qualified installed Core cryptography closure.
