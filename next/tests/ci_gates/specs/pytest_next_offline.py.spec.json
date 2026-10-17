@@ -1,19 +1,17 @@
 {
   "schema_version": 1,
   "source": ".github/scripts/pytest_next_offline.py",
-  "source_sha256": "9c772f66cbc6c22cd7c26fee3e96f0514ed1cbdeabb00744f32d72acb3727b1e",
+  "source_sha256": "3469dc18637cb8aa0d642edca81d581a11c363009b7f0481db02dddee7243e1c",
   "tests": {
-    "next/tests/ci_gates/tests/test_loopback_home.py": "d6d1f706d5c2bb1fdac03036fdbefa1b9c136e9dcdfecdd5c88620a1ab7b5acb",
-    "next/tests/ci_gates/tests/test_native_home.py": "19c7ae6cfcd3973f89182672c87806dd66dcc5446269b66accce851e2e1e7c2f"
+    "next/tests/ci_gates/tests/test_ledger_home.py": "07b7527880a67419b4a22752481a089fab1095e1256b341e4d3250d749a9aa8d"
   },
   "expected_nodes": [
-    "test_loopback_home.LoopbackHome.test_new_transport_file_cannot_disappear_from_inventory",
-    "test_native_home.NativeHome.test_native_fixture_witness_is_pinned_and_semantic"
+    "test_ledger_home.LedgerHome.test_both_suite_and_imported_cluster_are_pinned"
   ],
   "kind": "tool",
-  "invariant": "new helper transport suites cannot disappear from complete inventory",
+  "invariant": "ledger witness requires the source and imported Cluster pins",
   "mutation": {
-    "before": "found += sorted(str(p.relative_to(root)) for p in helper.glob('test_transport*.py'))",
-    "after": "found += []"
+    "before": "if hashlib.sha256((root/native).read_bytes()).hexdigest()!=fixture['sha256']:return False",
+    "after": "if False:return False"
   }
 }

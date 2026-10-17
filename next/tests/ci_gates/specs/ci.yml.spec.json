@@ -1,17 +1,18 @@
 {
   "schema_version": 1,
   "source": ".github/workflows/ci.yml",
-  "source_sha256": "4c7a542082ace4bbf7f0a8ce5d7e7bb31aded27c69a45ce70d32a52c76c4bfc9",
+  "source_sha256": "125446f0406066cde89d2d98ac752a36a2be9fcc3729e80a5eaedd20731d98ce",
   "tests": {
+    "next/tests/ci_gates/tests/test_ledger_home.py": "07b7527880a67419b4a22752481a089fab1095e1256b341e4d3250d749a9aa8d",
     "next/tests/ci_gates/tests/test_native_home.py": "19c7ae6cfcd3973f89182672c87806dd66dcc5446269b66accce851e2e1e7c2f"
   },
   "expected_nodes": [
-    "test_native_home.NativeHome.test_hosted_native_step_is_required_and_bounded"
+    "test_ledger_home.LedgerHome.test_hosted_ledger_step_is_required_bounded_and_receipted"
   ],
   "kind": "inventory",
-  "invariant": "native execution home is a required bounded workflow step",
+  "invariant": "ledger native home is required and bounded",
   "mutation": {
-    "before": "installer roles (nine exact methods; native PostgreSQL)",
-    "after": "installer roles (unqualified renamed step)"
+    "before": "installer ledger (nine exact methods; native PostgreSQL)",
+    "after": "installer ledger (unqualified renamed step)"
   }
 }

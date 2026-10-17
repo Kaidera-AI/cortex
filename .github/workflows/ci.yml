@@ -42,6 +42,14 @@ jobs:
             python .github/scripts/pytest_pg_worker.py --mode installer-roles \
             --output "${{ runner.temp }}/cortex-installer-roles-pg" \
             --pg-bin "$PG_BINDIR" --site "${{ runner.temp }}/cortex-pg-site"
+      - name: installer ledger (nine exact methods; native PostgreSQL)
+        if: ${{ !cancelled() }}
+        run: |
+          PG_BINDIR="$(pg_config --bindir)"
+          systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
+            python .github/scripts/pytest_pg_worker.py --mode installer-ledger \
+            --output "${{ runner.temp }}/cortex-installer-ledger-pg" \
+            --pg-bin "$PG_BINDIR" --site "${{ runner.temp }}/cortex-pg-site"
       - name: U13 pinned test driver and exact-node gate controls
         run: |
           systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
@@ -89,6 +97,8 @@ jobs:
             ${{ runner.temp }}/cortex-pytest-pg/**/*.txt
             ${{ runner.temp }}/cortex-installer-roles-pg/**/*.json
             ${{ runner.temp }}/cortex-installer-roles-pg/**/*.txt
+            ${{ runner.temp }}/cortex-installer-ledger-pg/**/*.json
+            ${{ runner.temp }}/cortex-installer-ledger-pg/**/*.txt
           if-no-files-found: warn
           retention-days: 7
   pytest-offline:

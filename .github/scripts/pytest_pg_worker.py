@@ -275,18 +275,31 @@ NATIVE_ROLE_NODES = [NATIVE_ROLES_SUITE + "::" + name for name in (
     "RolesInDatabase::test_8_close_reruns_cleanly",
     "SecretGuard::test_a_missing_or_short_secret_creates_nothing",
 )]
+NATIVE_LEDGER_SUITE = "next/release/ship/install/tests/test_ledger_acl_pg.py"
+NATIVE_LEDGER_NODES = [NATIVE_LEDGER_SUITE + "::" + name for name in (
+    "LedgerAcl::test_1_the_exact_api_login_reads_the_ledger",
+    "LedgerAcl::test_2_the_api_login_cannot_change_the_ledger_or_read_any_other_core_table",
+    "LedgerAcl::test_3_probe_the_request_group_and_a_stranger_are_denied",
+    "LedgerAcl::test_4_nothing_is_granted_to_public_and_the_exact_privilege_set_is_known",
+    "LedgerAcl::test_5_rerunning_post_and_closing_the_finite_logins_keeps_exactly_that_access",
+    "ProvisionStepsPg::test_1_pre_creates_the_four_logins_with_policy_flags_and_scram",
+    "ProvisionStepsPg::test_2_the_bound_secret_never_appears_in_statement_text",
+    "ProvisionStepsPg::test_3_a_short_secret_creates_nothing_and_leaves_no_password_setting",
+    "ProvisionStepsPg::test_4_post_ledger_and_close_steps_apply_and_give_the_same_acl_as_the_scripts",
+)]
 
 
-def native_roles_result(packet, process_exit, source_sha256, cleanup):
+def native_roles_result(packet, process_exit, source_sha256, cleanup, suite=NATIVE_ROLES_SUITE):
     """Nine exact native methods; unit packets do not themselves execute PostgreSQL."""
     spec = importlib.util.spec_from_file_location("native_roles_phase_gate",
         Path(__file__).with_name("pytest_next_offline.py"))
     gate = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gate)
-    return (packet.get("suite") == NATIVE_ROLES_SUITE
+    nodes = {NATIVE_ROLES_SUITE: NATIVE_ROLE_NODES, NATIVE_LEDGER_SUITE: NATIVE_LEDGER_NODES}.get(suite)
+    return (nodes is not None and packet.get("suite") == suite
         and packet.get("source_sha256") == source_sha256
-        and Counter(packet.get("expected", [])) == Counter(NATIVE_ROLE_NODES)
-        and Counter(packet.get("collected", [])) == Counter(NATIVE_ROLE_NODES)
+        and Counter(packet.get("expected", [])) == Counter(nodes)
+        and Counter(packet.get("collected", [])) == Counter(nodes)
         and cleanup == dict(ok=True, errors=[], residual=[])
         and gate.receipt_valid(packet, process_exit))
 
@@ -309,7 +322,17 @@ def owned_native_postmasters(scratch, pg_bin, proc=Path('/proc')):
     return sorted(found)
 
 
-def installer_roles(output, pg_bin, site):
+def native_environment(pg_bin, site, home, temporary, suite):
+    """Closed child environment; bounded ledger fixtures cannot inherit migration scope."""
+    environment = dict(PATH=str(pg_bin) + os.pathsep + os.defpath, HOME=str(home),
+        TMPDIR=str(temporary), LANG="C.UTF-8", PYTHONPATH=str(site), CORTEX_PG_BIN=str(pg_bin),
+        PYTEST_DISABLE_PLUGIN_AUTOLOAD="1", PYTHONDONTWRITEBYTECODE="1")
+    if suite == NATIVE_LEDGER_SUITE:
+        environment['CORTEX_ACL_THROUGH'] = 'api-replay-0004'
+    return environment
+
+
+def installer_roles(output, pg_bin, site, suite=NATIVE_ROLES_SUITE):
     """Owned host-native cluster, outside offline RUN and all installed-candidate credit."""
     root = Path(__file__).resolve().parents[2]
     output = output.resolve()
@@ -317,14 +340,16 @@ def installer_roles(output, pg_bin, site):
     scratch = Path(tempfile.mkdtemp(prefix="cortex-installer-roles-"))
     home = scratch / "home"; home.mkdir()
     temporary = scratch / "temporary"; temporary.mkdir()
-    source_sha256 = hashlib.sha256((root / NATIVE_ROLES_SUITE).read_bytes()).hexdigest()
+    if suite not in (NATIVE_ROLES_SUITE, NATIVE_LEDGER_SUITE):
+        raise ValueError('unknown native suite')
+    source_hashes = {path: hashlib.sha256((root / path).read_bytes()).hexdigest()
+                     for path in (NATIVE_ROLES_SUITE, suite)}
+    source_sha256 = source_hashes[suite]
     cleanup = dict(ok=True, errors=[], residual=[])
     packet, code, error = {}, 125, None
     process = None
     # Credentials, inherited DB endpoints and caller plugin settings never reach the child.
-    environment = dict(PATH=str(pg_bin) + os.pathsep + os.defpath, HOME=str(home),
-        TMPDIR=str(temporary), LANG="C.UTF-8", PYTHONPATH=str(site), CORTEX_PG_BIN=str(pg_bin),
-        PYTEST_DISABLE_PLUGIN_AUTOLOAD="1", PYTHONDONTWRITEBYTECODE="1")
+    environment = native_environment(pg_bin, site, home, temporary, suite)
     try:
         if sys.platform != 'linux' or not Path('/proc').is_dir():
             raise RuntimeError('native installer-role cleanup requires Linux procfs')
@@ -339,7 +364,7 @@ def installer_roles(output, pg_bin, site):
         (output / "tools.json").write_text(json.dumps(dict(versions=versions, uid=os.geteuid(),
             pg_bin=str(pg_bin), site=str(site), python=sys.version), indent=2) + "\n")
         command = [sys.executable, "-B", str(root / ".github/scripts/pytest_next_worker.py"),
-                   "--suite", NATIVE_ROLES_SUITE, "--output", str(output / "phases.json"),
+                   "--suite", suite, "--output", str(output / "phases.json"),
                    "--temporary", str(scratch / "worker")]
         (output / "command.json").write_text(json.dumps(command, indent=2) + "\n")
         process = subprocess.Popen(command, cwd=root, env=environment, text=True,
@@ -355,7 +380,8 @@ def installer_roles(output, pg_bin, site):
         (output / "worker.stderr.txt").write_text(stderr)
         if (output / "phases.json").is_file():
             packet = json.loads((output / "phases.json").read_text())
-        if hashlib.sha256((root / NATIVE_ROLES_SUITE).read_bytes()).hexdigest() != source_sha256:
+        if any(hashlib.sha256((root / path).read_bytes()).hexdigest() != pin
+               for path, pin in source_hashes.items()):
             raise RuntimeError("native-role source drifted during execution")
     except Exception as exc:
         error = type(exc).__name__ + ": " + str(exc)
@@ -399,10 +425,12 @@ def installer_roles(output, pg_bin, site):
         cleanup["ok"] = not cleanup["errors"] and not cleanup["residual"]
         if cleanup["ok"]:
             shutil.rmtree(scratch)
-    ok = error is None and native_roles_result(packet, code, source_sha256, cleanup)
+    ok = error is None and native_roles_result(packet, code, source_sha256, cleanup, suite=suite)
     result = dict(status="PASS" if ok else "FAIL", qualification="HOST_NATIVE_POSTGRESQL_ONLY",
-        installed_candidate=False, suite=NATIVE_ROLES_SUITE, source_sha256=source_sha256,
-        expected=NATIVE_ROLE_NODES, process_exit=code, error=error, cleanup=cleanup,
+        installed_candidate=False, suite=suite, source_sha256=source_sha256, source_hashes=source_hashes,
+        migration_through=environment.get('CORTEX_ACL_THROUGH'),
+        expected=NATIVE_LEDGER_NODES if suite == NATIVE_LEDGER_SUITE else NATIVE_ROLE_NODES,
+        process_exit=code, error=error, cleanup=cleanup,
         scratch=str(scratch), scratch_retained=not cleanup["ok"])
     (output / "admission.json").write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps(result), flush=True)
@@ -412,7 +440,7 @@ def installer_roles(output, pg_bin, site):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--pytest-worker", action="store_true")
-    parser.add_argument("--mode", choices=["general", "certificate", "installer-roles"])
+    parser.add_argument("--mode", choices=["general", "certificate", "installer-roles", "installer-ledger"])
     parser.add_argument("--output", type=Path)
     parser.add_argument("--pg-bin", type=Path)
     parser.add_argument("--site", type=Path)
@@ -422,9 +450,10 @@ if __name__ == "__main__":
     parser.add_argument("--bypass", action="store_true")
     parser.add_argument("targets", nargs="*")
     args = parser.parse_args()
-    if args.mode == "installer-roles":
+    if args.mode in ("installer-roles", "installer-ledger"):
         if args.pg_bin is None or args.site is None or args.output is None:
-            parser.error("installer-roles requires --pg-bin, --site and fresh --output")
-        raise SystemExit(installer_roles(args.output, args.pg_bin.resolve(), args.site.resolve()))
+            parser.error(args.mode + " requires --pg-bin, --site and fresh --output")
+        suite = NATIVE_LEDGER_SUITE if args.mode == "installer-ledger" else NATIVE_ROLES_SUITE
+        raise SystemExit(installer_roles(args.output, args.pg_bin.resolve(), args.site.resolve(), suite=suite))
     raise SystemExit(pytest_worker(args) if args.pytest_worker else
                      general(args.output) if args.mode == "general" else certificate(args.output))

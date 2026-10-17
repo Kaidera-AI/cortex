@@ -2,6 +2,9 @@
   "run": [
     "next/docs/runtime/rc0/test_oracle.py",
     "next/release/recipes/api/tests/test_locks.py",
+    "next/release/ship/install/tests/test_catalog.py",
+    "next/release/ship/install/tests/test_package.py",
+    "next/release/ship/install/tests/test_provision_steps.py",
     "next/release/ship/install/tests/test_roles.py",
     "next/release/ship/install/tests/test_sign.py",
     "next/src/cortex_core/compat/tests/test_contract.py",
@@ -40,6 +43,7 @@
     "next/tests/c11a/test_gateway.py",
     "next/tests/c11a/test_run_pg.py",
     "next/tests/c11b2/test_credential.py",
+    "next/tests/ci_gates/tests/test_ledger_home.py",
     "next/tests/ci_gates/tests/test_loopback_home.py",
     "next/tests/ci_gates/tests/test_native_home.py",
     "next/tests/ci_gates/tests/test_receipt.py",
@@ -603,6 +607,21 @@
         "source": "next/release/ship/install/tests/test_roles_pg.py",
         "sha256": "203d2d35b2f1f8a5e051dd61c346e93b66aec9ecda6e0908385b0abf02886060",
         "symbol": "Cluster.__init__"
+      }
+    },
+    {
+      "path": "next/release/ship/install/tests/test_ledger_acl_pg.py",
+      "reason": "Real PostgreSQL: required pytest-pg installer-ledger job, explicitly bounded through api-replay-0004; full 21/pgvector separate; zero offline or installed credit.",
+      "evidence": {
+        "kind": "native_postgres_fixture",
+        "source": "next/release/ship/install/tests/test_ledger_acl_pg.py",
+        "sha256": "6c214f3407e4701cf8959885cdcb417802069059833ee826ddd9ed821563b9f4",
+        "symbol": "LedgerAcl.setUpClass",
+        "fixture": {
+          "source": "next/release/ship/install/tests/test_roles_pg.py",
+          "sha256": "203d2d35b2f1f8a5e051dd61c346e93b66aec9ecda6e0908385b0abf02886060",
+          "symbol": "Cluster.__init__"
+        }
       }
     }
   ],

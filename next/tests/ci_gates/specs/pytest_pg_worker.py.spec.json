@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "source": ".github/scripts/pytest_pg_worker.py",
-  "source_sha256": "4861427689ff4f4d46ac48442e6521d230dd6bd438045a4f708e7bf785766929",
+  "source_sha256": "8fb9f478962188e078724745bbee8863c0228f39dee581f51758c0bbcec4065e",
   "tests": {
-    "next/tests/ci_gates/tests/test_native_home.py": "19c7ae6cfcd3973f89182672c87806dd66dcc5446269b66accce851e2e1e7c2f"
+    "next/tests/ci_gates/tests/test_ledger_home.py": "07b7527880a67419b4a22752481a089fab1095e1256b341e4d3250d749a9aa8d"
   },
   "expected_nodes": [
-    "test_native_home.NativeHome.test_exact_nine_phase_receipt"
+    "test_ledger_home.LedgerHome.test_nine_exact_ledger_nodes_and_all_phases_are_required"
   ],
   "kind": "tool",
-  "invariant": "native phase admission rejects nonzero process exit",
+  "invariant": "ledger native result rejects nonzero process exit",
   "mutation": {
     "before": "and gate.receipt_valid(packet, process_exit)",
     "after": "and gate.receipt_valid(packet, 0)"

@@ -163,7 +163,9 @@ def assertions(node):
 def fixture_evidence(root, suite, evidence, nodeid=None):
     """Conservative AST proof; unknown or mixed coverage cannot leave RUN."""
     if not isinstance(evidence,dict) or set(evidence) not in (
-            {'kind','source','sha256','symbol'},{'kind','source','sha256','symbol','keys'}):return False
+            {'kind','source','sha256','symbol'},{'kind','source','sha256','symbol','keys'},
+            {'kind','source','sha256','symbol','fixture'}):return False
+    if 'fixture' in evidence and evidence['kind']!='native_postgres_fixture':return False
     name=evidence['source']
     if not source_path(name) or not isinstance(evidence['symbol'],str):return False
     path=root/name
@@ -173,22 +175,39 @@ def fixture_evidence(root, suite, evidence, nodeid=None):
     candidate,parsed=source_tree(root/suite)
     if not parsed:return False
     if evidence['kind']=='native_postgres_fixture':
-        # One explicitly named native fixture; never a general exclusion mechanism.
+        # Two explicitly named suites; never a general exclusion mechanism.
         native='next/release/ship/install/tests/test_roles_pg.py'
-        if name!=suite or name!=native or nodeid is not None or evidence['symbol']!='Cluster.__init__':return False
-        if set(evidence)!={'kind','source','sha256','symbol'}:return False
+        ledger='next/release/ship/install/tests/test_ledger_acl_pg.py'
+        if name!=suite or suite not in (native,ledger) or nodeid is not None:return False
+        if suite==ledger:
+            if set(evidence)!={'kind','source','sha256','symbol','fixture'} or evidence['symbol']!='LedgerAcl.setUpClass':return False
+            fixture=evidence['fixture']
+            if not isinstance(fixture,dict) or set(fixture)!={'source','sha256','symbol'}:return False
+            if fixture['source']!=native or fixture['symbol']!='Cluster.__init__':return False
+            if not (root/native).is_file():return False
+            if hashlib.sha256((root/native).read_bytes()).hexdigest()!=fixture['sha256']:return False
+            if not any(isinstance(n,ast.Import) and len(n.names)==1
+                and n.names[0].name=='test_roles_pg' and n.names[0].asname=='P' for n in candidate.body):return False
+            for cls in ('LedgerAcl','ProvisionStepsPg'):
+                setup=symbol(candidate,cls+'.setUpClass');stop=symbol(candidate,cls+'.tearDownClass')
+                if not isinstance(setup,ast.FunctionDef) or not isinstance(stop,ast.FunctionDef):return False
+                if not any(isinstance(n,ast.Assign) and ast.unparse(n)=='cls.c = P.Cluster()' for n in setup.body):return False
+                if not any(isinstance(n,ast.Expr) and ast.unparse(n)=='cls.c.stop()' for n in stop.body):return False
+            tree,parsed=source_tree(root/native);anchor=symbol(tree,'Cluster.__init__')
+            if not parsed or anchor is None:return False
+        elif evidence['symbol']!='Cluster.__init__' or set(evidence)!={'kind','source','sha256','symbol'}:return False
         worker,ok=source_tree(root/'.github/scripts/pytest_pg_worker.py')
         if not ok:return False
         assignments={n.targets[0].id:n.value for n in worker.body if isinstance(n,ast.Assign)
             and len(n.targets)==1 and isinstance(n.targets[0],ast.Name)}
         try:
-            suite_name=ast.literal_eval(assignments['NATIVE_ROLES_SUITE'])
-            names=ast.literal_eval(assignments['NATIVE_ROLE_NODES'].generators[0].iter)
+            suite_name=ast.literal_eval(assignments['NATIVE_LEDGER_SUITE' if suite==ledger else 'NATIVE_ROLES_SUITE'])
+            names=ast.literal_eval(assignments['NATIVE_LEDGER_NODES' if suite==ledger else 'NATIVE_ROLE_NODES'].generators[0].iter)
         except (KeyError,ValueError,TypeError,AttributeError):return False
         expected={suite_name+'::'+method for method in names}
-        actual={suite+'::'+cls.name+'::'+method.name for cls in tree.body if isinstance(cls,ast.ClassDef)
+        actual={suite+'::'+cls.name+'::'+method.name for cls in candidate.body if isinstance(cls,ast.ClassDef)
             for method in cls.body if isinstance(method,ast.FunctionDef) and method.name.startswith('test_')}
-        if suite_name!=native or len(expected)!=9 or actual!=expected:return False
+        if suite_name!=suite or len(expected)!=9 or actual!=expected:return False
         psql=symbol(tree,'Cluster.psql');stop=symbol(tree,'Cluster.stop')
         def direct_command(function,tool):
             if not isinstance(function,ast.FunctionDef):return False
@@ -204,7 +223,8 @@ def fixture_evidence(root, suite, evidence, nodeid=None):
             and not any(isinstance(call,ast.Call) and ast.unparse(call.func)=='pg_bin'
                 for n in tree.body if not isinstance(n,(ast.FunctionDef,ast.ClassDef)) for call in ast.walk(n))
             and not any(isinstance(n,ast.Call) and ast.unparse(n.func) in
-                ('unittest.skip','unittest.skipIf','unittest.skipUnless','pytest.skip') for n in ast.walk(tree)))
+                ('unittest.skip','unittest.skipIf','unittest.skipUnless','pytest.skip')
+                for source in (tree,candidate) for n in ast.walk(source)))
     if evidence['kind']=='unbuilt_unit':
         # The same source reader accepts only the explicitly ratified pinned rows.
         approved=base_manifest_at(ROOT,UNBUILT_POLICY).get('method_exclusions',[])

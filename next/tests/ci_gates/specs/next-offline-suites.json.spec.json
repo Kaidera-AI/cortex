@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
   "source": ".github/next-offline-suites.json",
-  "source_sha256": "4a57225ff6c5d7ff7fe8ff74bd0548e8ffdfb7137dcb8596f7ab572679d0a949",
+  "source_sha256": "caac2588caaf32d2eaa796cfdeeee4669941ff6a8b7dc7f8489e0dbfc5e0756d",
   "tests": {
-    "next/tests/ci_gates/tests/test_receipt.py": "3b557694d133b2d785e42a105d06a03952fc23cfffeecfb967b292dd346e05b8"
+    "next/tests/ci_gates/tests/test_ledger_home.py": "07b7527880a67419b4a22752481a089fab1095e1256b341e4d3250d749a9aa8d"
   },
   "expected_nodes": [
-    "test_receipt.SharedAdmission.test_day2_required_suites_are_RUN"
+    "test_ledger_home.LedgerHome.test_three_pure_suites_run_and_ledger_has_a_named_native_home"
   ],
   "kind": "inventory",
-  "invariant": "actual Core custody suite remains RUN",
+  "invariant": "actual Nix catalog pure suite cannot disappear from RUN",
   "mutation": {
-    "before": "\"next/src/cortex_core/runtime/tests/test_custody.py\"",
-    "after": "\"next/src/cortex_core/runtime/tests/test_absent_custody.py\""
+    "before": "    \"next/release/ship/install/tests/test_catalog.py\",\n",
+    "after": ""
   }
 }
