@@ -142,9 +142,20 @@ def normalized_function_digest(function):
     return hashlib.sha256(ast.dump(function,include_attributes=False,**options).encode()).hexdigest()
 
 
+def input_bindings_intact(file,tree):
+    # Pin renewal is necessary but cannot authorize replacing these bindings.
+    names={
+        'src/cortex_core/migrations.py': {'prepare_migrations'},
+        'src/cortex_core/release/codec.py': {'_validator_class'},
+        'src/cortex_core/schema/migrate.py': {'migrations'},
+    }.get(file,set())
+    return not any(isinstance(node,ast.Name) and node.id in names
+                   and isinstance(node.ctx,(ast.Store,ast.Del)) for node in ast.walk(tree))
+
+
 def reviewed_input(file,owner,tree,function):
     """Both complete ASTs must still match their source-reviewed versions."""
-    return (function is not None
+    return (function is not None and input_bindings_intact(file,tree)
             and normalized_function_digest(tree)==KNOWN_INPUT_FILE_SHA256.get(file)
             and normalized_function_digest(function)==KNOWN_INPUT_FUNCTION_SHA256.get((file,owner)))
 

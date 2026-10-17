@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "source": "next/scripts/verify_writer_inventory.py",
-  "source_sha256": "9f844dab7b6fa71dd3e39a359114f9ce6a480a16b19749142697715a5587e2a0",
+  "source_sha256": "7f2a27a37e244076ea0177726b5f5e9b3a47faf26be1cca79fa1caec98dd5aca",
   "tests": {
-    "next/tests/outbox_inventory/test_source_recognition.py": "64c5e9136ca3a430539f9765946456c4319b28f989d1ef3c4c3a564d4378567e"
+    "next/tests/outbox_inventory/test_source_recognition.py": "04656809e6d632f0d78c1afb236586d794298c001c7a827d3d2723a386038a86"
   },
   "expected_nodes": [
     "next.tests.outbox_inventory.test_source_recognition.SourceRecognition.test_u13_manifest_verified_prepared_prefix_is_recognized"

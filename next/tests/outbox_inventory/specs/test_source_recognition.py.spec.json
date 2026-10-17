@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "source": "next/tests/outbox_inventory/test_source_recognition.py",
-  "source_sha256": "64c5e9136ca3a430539f9765946456c4319b28f989d1ef3c4c3a564d4378567e",
+  "source_sha256": "04656809e6d632f0d78c1afb236586d794298c001c7a827d3d2723a386038a86",
   "tests": {
-    "next/tests/outbox_inventory/test_source_recognition.py": "64c5e9136ca3a430539f9765946456c4319b28f989d1ef3c4c3a564d4378567e"
+    "next/tests/outbox_inventory/test_source_recognition.py": "04656809e6d632f0d78c1afb236586d794298c001c7a827d3d2723a386038a86"
   },
   "expected_nodes": [
     "next.tests.outbox_inventory.test_source_recognition.SourceRecognition.test_day2_inventory_is_source_bound"
