@@ -70,8 +70,6 @@ def bind(configs, roles=None):
     missing = [p for p in A_PURPOSES if p not in merged]
     if missing:
         raise RoleRefusal('role_config_incomplete:' + ','.join(missing))
-    if any(other != shared[0] for other in shared[1:]):
-        raise RoleRefusal('role_config_conflict:snapshot')
     root = roots.pop()
     logins, secrets = {}, {}
     for purpose in A_PURPOSES:
@@ -90,6 +88,9 @@ def bind(configs, roles=None):
     paths = [str(PurePosixPath(v)) for v in secrets.values()]
     if len(set(paths)) != len(paths):
         raise RoleRefusal('role_config_collision:secret')
+    # Snapshot identity LAST: the typed collision reasons above stay decisive for mixed snapshots (the Core carrier's source_sha256 differs between them).
+    if any(other != shared[0] for other in shared[1:]):
+        raise RoleRefusal('role_config_conflict:snapshot')
     return Binding(policy, logins, secrets, root)
 
 
