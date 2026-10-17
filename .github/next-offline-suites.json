@@ -196,7 +196,9 @@
     "next/tests/ci_gates/tests/test_receipt.py",
     "next/tests/floor/tests/test_admission.py",
     "next/tests/live_contract/tests/test_live_contract.py",
-    "next/src/cortex_core/compat/tests/test_contract.py"
+    "next/src/cortex_core/compat/tests/test_contract.py",
+    "next/release/recipes/api/tests/test_locks.py",
+    "next/release/ship/install/tests/test_roles.py"
   ],
   "excluded": [
     {
