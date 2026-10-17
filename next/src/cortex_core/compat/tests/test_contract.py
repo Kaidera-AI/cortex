@@ -205,6 +205,16 @@ class Day2PublishedConformance(unittest.TestCase):
         self.assertEqual(d['custody']['plaintext_fallback'], False)
         self.assertEqual(d['custody']['second_store'], False)
 
+    def test_custody_proposals_require_owner_reconciliation(self):
+        d = day2(self)
+        self.assertEqual(d['custody'].get('design_state'), 'PROPOSED; accepted reconciliation receipt required')
+        self.assertEqual(d['custody']['reconciliation_owner'], 'cox with finn')
+        self.assertEqual(set(d['custody']['design_receipts']), {'J06-custody-adapter.md', 'J06-seed-replay.md'})
+        self.assertEqual(d['custody']['open_reconciliation'], ['unlock_protocol', 'AAD_identity',
+            'record_reference', 'lock_semantics', 'absence_observation', 'adapter_and_client_api'])
+        self.assertEqual(d['custody']['pre_sql_scope'], 'before mutating SQL; fresh read-only admission needs owner ruling')
+        self.assertFalse(d['custody']['drafts_authorize_build'])
+
     def test_seed_replay_crash_and_authority_obligations(self):
         d = day2(self)
         self.assertEqual(d['seed']['sequence'], ['persist stable IDs/operation key/secret encrypted before SQL',
