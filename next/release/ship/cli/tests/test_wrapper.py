@@ -5,6 +5,7 @@ encrypted custody, staged with public fixture bytes and no SQL enrollment; the c
 that reads the inherited pipe. Nothing here grants installed, native or Podman credit.
 """
 import hashlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 import pathlib
@@ -12,6 +13,7 @@ import re
 import stat
 import subprocess
 import sys
+import threading
 import venv
 
 import pytest
@@ -19,6 +21,7 @@ import pytest
 HERE = pathlib.Path(__file__).resolve().parent
 TEMPLATE = HERE.parent / "launcher.py.in"
 REPO_NEXT = HERE.parents[3]
+HELPER = REPO_NEXT / "modules" / "cli-v2" / "_cortex_api.sh"
 sys.path.insert(0, str(REPO_NEXT / "src"))
 from cortex_core.runtime.bootstrap_config import decode_config  # noqa: E402
 from cortex_core.runtime.custody import open_custody  # noqa: E402
@@ -68,11 +71,13 @@ def core_python(tmp_path_factory):
     return root / "bin" / "python3"
 
 
-def stage(root, *, committed=True):
+def stage(root, *, committed=True, port=None):
     root.chmod(0o700)
     for sub in ("config", "secrets", "secrets/cortex"):
         (root / sub).mkdir(mode=0o700)
     value = sample(root)
+    if port is not None:
+        value["publish"]["port"] = port
     path = root / "config" / "cortex.json"
     path.write_text(json.dumps(value))
     path.chmod(0o600)
@@ -255,3 +260,54 @@ def test_template_has_no_admin_path():
     assert '"cortex_core.runtime.operator", "config", "client"' in text
     assert "os.execve(CLIENT" in text
     assert stat.S_ISREG(TEMPLATE.stat().st_mode)
+
+
+def test_launcher_feeds_finns_actual_v2_helper(tmp_path, core_python):
+    # Composition control: launcher -> actual Core projector -> one pipe -> finn's actual helper
+    # -> loopback recorder. Source only: no API runtime, SQL enrollment or installed client.
+    requests, value = [], {}
+
+    class Recorder(BaseHTTPRequestHandler):
+        def log_message(self, *_args):
+            pass
+
+        def do_GET(self):
+            requests.append((self.path, dict(self.headers)))
+            body = ({"component": "cortex", "status": "ready",
+                     "installation_id": value["installation_id"]}
+                    if self.path == "/health" else {"record": {"id": "fixture"}})
+            raw = json.dumps(body).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Recorder)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        vault = tmp_path.resolve() / "vault"
+        vault.mkdir()
+        staged, config = stage(vault, port=server.server_port)
+        value.update(staged)
+        client = tmp_path / "cortex-client"
+        client.write_text(f'#!/bin/bash\nsource "{HELPER}"\n'
+                          'cortex_api_call GET /records/fixture "" first-console\n')
+        client.chmod(0o755)
+        empty = tmp_path / "empty-agents"
+        empty.mkdir()
+        world = {"tmp": tmp_path, "client": client, "core_python": core_python, "config": config,
+                 "empty": empty, "out": tmp_path / "unused.json"}
+        # The helper runs python3 -S and curl from PATH: bind it to this interpreter's directory.
+        proc = call(world, render(world),
+                    extra_env={"PATH": f"{pathlib.Path(sys.executable).parent}:/usr/bin:/bin"})
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+    assert proc.returncode == 0, proc.stderr
+    assert json.loads(proc.stdout) == {"record": {"id": "fixture"}}
+    assert [r[0] for r in requests] == ["/health", "/records/fixture"]
+    assert "Authorization" not in requests[0][1]
+    assert requests[1][1]["Authorization"] == "Bearer " + SECRET.decode()
+    assert requests[1][1]["X-Project"] == "sample"
