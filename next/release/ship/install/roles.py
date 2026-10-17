@@ -1,15 +1,20 @@
-"""ship/install roles (J02, rework): create the approved login roles before the unchanged migrations, set the exact membership after them, close the
+"""ship/install roles (J02, rework; J06 sole catalog validator `validate_catalog`): create the approved login roles before the unchanged migrations, set the exact membership after them, close the
 finite logins only after the one seed's durable acknowledgement. Pure functions that render psql scripts.
 Policy: the five option-A purposes projected from the ONE roles block of runtime-operations-v1.json (flags unchanged; supervisor and observer are not A,
 J07). Names and secret references: from the published Core config carrier (cortex_core.runtime.bootstrap_config: roles[purpose].login/.secret_ref,
 vault_root); a reference resolves to vault_root/secret_ref. No second config parser here."""
+import copy
 import json
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from pathlib import Path
 
-NEXT = Path(__file__).resolve().parents[3]
-CONTRACT = NEXT / 'contracts/runtime/runtime-operations-v1.json'
+_PACKED = Path(__file__).resolve().with_name('runtime-operations-v1.json')
+if __name__.startswith('cortex_ship.'):  # packaged into the Core closure: the contract ships next to the module, never a tree path
+    CONTRACT = _PACKED
+else:
+    NEXT = Path(__file__).resolve().parents[3]
+    CONTRACT = _PACKED if _PACKED.is_file() else NEXT / 'contracts/runtime/runtime-operations-v1.json'
 A_PURPOSES = ('bootstrap', 'migrator', 'api_request', 'probe', 'installer_enrollment')
 # Fixed by the unchanged migrations 002 (the two NOLOGIN groups) and 004 (the installer login); config may not rename them.
 REQUEST_GROUP = 'kaidera-runtime-core-request'
@@ -148,3 +153,143 @@ def render_close(b, seed_ack):
                 f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '{login}' AND pid <> pg_backend_pid();"]
     out += ['COMMIT;', '']
     return '\n'.join(out)
+
+
+# ---- J06: the SOLE role-catalog policy validator. Cox's read-only observer (runtime/catalog.py) returns the raw observation; this admits or refuses it. ----
+INTENDED_REVISION = {'bootstrap': 0, 'migrator': 0, 'api_request': 1, 'probe': 1, 'installer_enrollment': 1}  # intent, never an observed authority (Cox v2 proposal)
+BOUND = ('api_request', 'probe', 'installer_enrollment')
+_FLAG_KEYS = ('login', 'superuser', 'createdb', 'createrole', 'inherit', 'replication', 'bypassrls')
+_EDGE_KEYS = ('member', 'oid', 'set', 'inherit', 'admin')
+_MEMBER_KEYS = ('oid', 'set', 'inherit', 'admin')
+_BINDING_KEYS = ('role_oid', 'role_name', 'logical_role', 'installation_id', 'active', 'revision', 'operation_id', 'database_oid', 'database_owner_oid', 'embedding_job_kind')
+
+
+def _shape(ok):
+    if not ok:
+        raise RoleRefusal('catalog_shape')
+
+
+def _dict(value, keys):
+    _shape(type(value) is dict and set(value) == set(keys))
+    return value
+
+
+def _int(value):
+    _shape(type(value) is int)
+    return value
+
+
+def _flags_of(value):
+    flags = _dict(value, _FLAG_KEYS)
+    _shape(all(type(flags[k]) is bool for k in _FLAG_KEYS))
+    return flags
+
+
+def _members(value):
+    _shape(type(value) is list)
+    out = []
+    for edge in value:
+        _dict(edge, _MEMBER_KEYS)
+        _int(edge['oid'])
+        _shape(all(type(edge[k]) is bool for k in ('set', 'inherit', 'admin')))
+        out.append(dict(edge))
+    return out
+
+
+def validate_catalog(config, observation, *, phase='seed'):
+    """Admit (a detached dict) or refuse (RoleRefusal catalog_*) one raw catalog observation for the seed phase: same policy and flags as render_*, the
+    actual bootstrap session and database, five roles, the two fixed groups, EVERY edge incident on them (foreign incoming too), no service ownership of the
+    database or protected objects, and bindings that are absent (fresh) or exactly the three revision-1 rows (replay). An observed revision is never copied
+    as authority: the intent comes from INTENDED_REVISION."""
+    if phase != 'seed':
+        raise RoleRefusal('catalog_phase')
+    try:
+        if config.mode != 'seed':
+            raise RoleRefusal('catalog_config')
+        logins = dict(config.role_logins)
+        installation, db_name = str(config.installation_id), config.database['name']
+        _shape(set(logins) == set(A_PURPOSES) and all(type(v) is str for v in logins.values()))
+    except (AttributeError, TypeError, KeyError):
+        raise RoleRefusal('catalog_config') from None
+    policy = load_roles()
+    obs = _dict(observation, ('database', 'session', 'roles', 'groups', 'memberships', 'bindings', 'protected_owners'))
+    db = _dict(obs['database'], ('name', 'oid', 'owner_oid'))
+    _shape(type(db['name']) is str)
+    _int(db['oid']), _int(db['owner_oid'])
+    sess = _dict(obs['session'], ('login', 'oid', 'database_oid'))
+    _shape(type(sess['login']) is str)
+    _int(sess['oid']), _int(sess['database_oid'])
+    raw_roles = obs['roles']
+    if type(raw_roles) is not dict or set(raw_roles) != set(A_PURPOSES):
+        raise RoleRefusal('catalog_roles')
+    roles = {}
+    for p in A_PURPOSES:
+        r = _dict(raw_roles[p], ('login', 'oid', 'flags', 'memberships'))
+        _shape(type(r['login']) is str)
+        roles[p] = {'login': r['login'], 'oid': _int(r['oid']), 'flags': dict(_flags_of(r['flags'])), 'memberships': _members(r['memberships'])}
+    raw_groups = obs['groups']
+    if type(raw_groups) is not dict or set(raw_groups) != set(GROUPS):
+        raise RoleRefusal('catalog_groups')
+    groups = {}
+    for g in GROUPS:
+        r = _dict(raw_groups[g], ('login', 'oid', 'flags', 'memberships'))
+        groups[g] = {'login': r['login'], 'oid': _int(r['oid']), 'flags': dict(_flags_of(r['flags'])), 'memberships': _members(r['memberships'])}
+    _shape(type(obs['memberships']) is list and type(obs['protected_owners']) is list and type(obs['bindings']) is list)
+    edges = []
+    for e in obs['memberships']:
+        _dict(e, _EDGE_KEYS)
+        _int(e['member']), _int(e['oid'])
+        _shape(all(type(e[k]) is bool for k in ('set', 'inherit', 'admin')))
+        edges.append(dict(e))
+    owners = []
+    for o in obs['protected_owners']:
+        _dict(o, ('kind', 'schema', 'name', 'owner_oid'))
+        _shape(all(type(o[k]) is str for k in ('kind', 'schema', 'name')))
+        owners.append({**o, 'owner_oid': _int(o['owner_oid'])})
+    bindings = []
+    for b in obs['bindings']:
+        _dict(b, _BINDING_KEYS)
+        _shape(all(type(b[k]) is str for k in ('role_name', 'logical_role', 'installation_id', 'operation_id'))
+               and all(type(b[k]) is int for k in ('role_oid', 'revision', 'database_oid', 'database_owner_oid'))
+               and type(b['active']) is bool and (b['embedding_job_kind'] is None or type(b['embedding_job_kind']) is str))
+        bindings.append(dict(b))
+    if db['name'] != db_name:
+        raise RoleRefusal('catalog_database')
+    if sess['login'] != logins['bootstrap'] or sess['oid'] != roles['bootstrap']['oid'] or sess['database_oid'] != db['oid']:
+        raise RoleRefusal('catalog_session')
+    oids = [roles[p]['oid'] for p in A_PURPOSES] + [groups[g]['oid'] for g in GROUPS]
+    if any(roles[p]['login'] != logins[p] for p in A_PURPOSES) or len(set(oids)) != len(oids):
+        raise RoleRefusal('catalog_roles')
+    for p in A_PURPOSES:
+        if roles[p]['flags'] != {k: policy[p][k] for k in _FLAG_KEYS}:
+            raise RoleRefusal(f'catalog_flags:{p}')
+    for g in GROUPS:
+        if groups[g]['login'] != g or any(groups[g]['flags'].values()) or groups[g]['memberships']:
+            raise RoleRefusal('catalog_groups')
+    expected = sorted((roles[p]['oid'], groups[g]['oid'], True, False, False) for p in A_PURPOSES for g in policy[p]['memberships'])
+    if sorted((e['member'], e['oid'], e['set'], e['inherit'], e['admin']) for e in edges) != expected:
+        raise RoleRefusal('catalog_membership')
+    for p in A_PURPOSES:  # each role's own outgoing list must be exactly its edges
+        own = sorted((m['oid'], m['set'], m['inherit'], m['admin']) for m in roles[p]['memberships'])
+        if own != sorted((e['oid'], e['set'], e['inherit'], e['admin']) for e in edges if e['member'] == roles[p]['oid']):
+            raise RoleRefusal('catalog_membership')
+    service = {roles[p]['oid'] for p in BOUND}
+    if db['owner_oid'] in service or any(o['owner_oid'] in service for o in owners):
+        raise RoleRefusal('catalog_ownership')
+    if bindings:
+        by_oid = {roles[p]['oid']: p for p in BOUND}
+        seen = {}
+        for b in bindings:
+            p = by_oid.get(b['role_oid'])
+            if (p is None or p in seen or b['role_name'] != roles[p]['login'] or b['logical_role'] != p or b['installation_id'] != installation
+                    or not b['active'] or b['revision'] != INTENDED_REVISION[p] or b['database_oid'] != db['oid']
+                    or b['database_owner_oid'] != db['owner_oid'] or b['embedding_job_kind'] is not None):
+                raise RoleRefusal('catalog_bindings')
+            seen[p] = b
+        if set(seen) != set(BOUND) or len({b['operation_id'] for b in bindings}) != 1:
+            raise RoleRefusal('catalog_bindings')
+    return copy.deepcopy({'phase': phase, 'database': db, 'session': sess,
+                          'roles': {p: {**roles[p], 'intended_revision': INTENDED_REVISION[p]} for p in A_PURPOSES},
+                          'groups': {g: {'oid': groups[g]['oid']} for g in GROUPS},
+                          'bindings': {'state': 'bound' if bindings else 'absent', 'rows': sorted(bindings, key=lambda b: b['role_oid'])},
+                          'intended_revision': dict(INTENDED_REVISION)})

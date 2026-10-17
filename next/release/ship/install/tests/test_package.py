@@ -22,8 +22,9 @@ def sha(p):
 
 class Package(unittest.TestCase):
     def setUp(self):
-        self.out = Path(tempfile.mkdtemp(prefix='nix-closure-'))
-        self.addCleanup(shutil.rmtree, self.out, True)
+        self.tmp = Path(tempfile.mkdtemp(prefix='nix-closure-'))
+        self.out = self.tmp / 'closure'
+        self.addCleanup(shutil.rmtree, self.tmp, True)
         self.run_pkg = subprocess.run([sys.executable, '-I', str(INSTALL / 'package_closure.py'), '--out', str(self.out)], capture_output=True, text=True)
         self.assertEqual(self.run_pkg.returncode, 0, self.run_pkg.stderr)
 
@@ -62,13 +63,16 @@ class Package(unittest.TestCase):
         self.assertLessEqual(imported, STDLIB_OK)
 
     def test_a_missing_packaged_contract_refuses_instead_of_falling_back_to_a_tree_path(self):
+        decoy = self.out.parent / 'contracts/runtime'   # exactly where a tree-relative fallback would look (module parents[3])
+        decoy.mkdir(parents=True)
+        shutil.copy(NEXT / 'contracts/runtime/runtime-operations-v1.json', decoy)
+        self.addCleanup(shutil.rmtree, self.out.parent / 'contracts', True)
         (self.out / 'cortex_ship/install/runtime-operations-v1.json').unlink()
         code = ("import sys; sys.path.insert(0, sys.argv[1])\n"
                 "from cortex_ship.install import roles\n"
                 "try:\n    roles.load_roles(); print('LOADED')\nexcept roles.RoleRefusal as e:\n    print(e.reason)\n")
         r = subprocess.run([sys.executable, '-I', '-c', code, str(self.out)], capture_output=True, text=True)
         self.assertEqual(r.stdout.strip(), 'roles_contract_invalid', r.stderr)
-
 
 if __name__ == '__main__':
     unittest.main()

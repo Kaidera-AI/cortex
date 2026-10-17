@@ -200,6 +200,9 @@ class Refused(Base):
         self.edit(lambda o: o['bindings'].append(copy.deepcopy(o['bindings'][0])), 'catalog_bindings', bound=True)  # duplicate
         self.edit(lambda o: o['bindings'].append({**copy.deepcopy(o['bindings'][0]), 'role_oid': 77777, 'role_name': 'foreign'}), 'catalog_bindings', bound=True)  # foreign row for this installation
 
+    def test_the_three_bindings_must_come_from_one_operation(self):
+        self.edit(lambda o: o['bindings'][1].update(operation_id=str(uuid.uuid4())), 'catalog_bindings', bound=True)
+
 
 if __name__ == '__main__':
     unittest.main()
