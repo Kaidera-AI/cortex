@@ -45,3 +45,20 @@ Changes: add published-owner documentary conformance and honest unresolved
 custody/client/CI joins. Retain all Day-1 normative fields and assertion methods.
 Only Python stdlib unittest/json/Path are executed. The strict receipt helper is
 unchanged; source/CI/native/installed/hosted evidence remain separate classes.
+
+Accepted reconciliation provenance (documentary input, no code donor):
+- J06-interface-v1.md: SHA256
+  25f208b916fa71f7c42be52399c0a92b1be1b2241d412427ab395712893d6d49.
+- Cox's j06-design-v1/RECONCILIATION.json: SHA256
+  59749e80015e1cec977fd98a0f7f78f6fd75791cfac89151f578d0b4def793df;
+  ACCEPT_FOR_BOUNDED_SOURCE_WITH_INTERFACE_RESOLUTIONS, not source/installed
+  acceptance. Frozen input bytes are in the same-row rework evidence receipt.
+- Finn's accepted J06-seed-replay.md v2: SHA256
+  8b5a5ad5fb56a66d696427f54ec1d45fd45b2b3657381d3e118dc670049bd3ab;
+  exact intent, 64 lower-case ASCII hex credential and eight-field receipt.
+
+Changes: append a distinct controlling accepted section and 13 tests-first
+assertions, retaining every earlier map value, source pin/proposal and the 23
+existing test bodies. cryptography==50.0.0 is the accepted Cox/Nix runtime
+closure obligation; this spec installs, imports and vendors none of it. No
+external service, parser, transport, store or runtime authority is introduced.

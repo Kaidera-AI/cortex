@@ -649,6 +649,208 @@ in Cox's commissioned new-head round; the author cannot self-close it.
       "inventory_is_suite_or_installed_pass": false,
       "hosted_acceptance_inherited": false
     }
+  },
+  "accepted_j06_v1": {
+    "authority": {
+      "interface": "J06-interface-v1.md",
+      "sha256": "25f208b916fa71f7c42be52399c0a92b1be1b2241d412427ab395712893d6d49",
+      "disposition": "ACCEPT_FOR_BOUNDED_SOURCE_WITH_INTERFACE_RESOLUTIONS",
+      "controls_over_conflicting_proposals": true,
+      "historical_section": "day2",
+      "source_accepted": false,
+      "installed_accepted": false
+    },
+    "config_metadata": {
+      "immutable_all_modes": ["source_sha256", "role_logins", "client_ref"],
+      "source_sha256": "SHA256 of full canonical decoded config",
+      "role_logins": "read-only five-purpose nonsecret login map",
+      "client_ref": "nonsecret metadata retained in ALL modes",
+      "resolve_guard": "mode and purpose checked BEFORE filesystem access",
+      "metadata_grants_credential_access": false,
+      "combined_login_reference_uniqueness": true
+    },
+    "unlock": {
+      "crypto": "cryptography==50.0.0 AESGCM",
+      "key_bytes": 32,
+      "key_terminator": "EOF",
+      "key_id": "explicit",
+      "read_max_bytes": 33,
+      "absolute_seconds": 1,
+      "fd0": "explicit selection AND validated anonymous pipe",
+      "fd1_fd2": "refuse",
+      "private_regular_fd": "owned/private/single-link/read-only validation",
+      "recovery": "same operator-held key or refuse",
+      "fallbacks": []
+    },
+    "record": {
+      "reference": "existing client.credential_ref",
+      "second_seed_intent_file": false,
+      "states": ["prepared", "committed"],
+      "aad": [
+        "schema",
+        "installation_id",
+        "tenant_id",
+        "project_id",
+        "reference",
+        "purpose",
+        "key_id",
+        "clear authenticated generation"
+      ],
+      "physical_path_is_identity": false,
+      "offline_malicious_rollback_proof": false
+    },
+    "payload": {
+      "schema": "cortex.seed-custody.v1",
+      "closed_fields": ["schema", "intent", "credential", "state", "receipt"],
+      "credential": "strict base64 of private Bearer bytes INSIDE encryption",
+      "receipt_before_commit": null,
+      "secret_in_intent_result_log_receipt": false
+    },
+    "seed_order": [
+      "bounded authoritative read-only empty-state observation",
+      "durable encrypted prepared before ANY SQL writes",
+      "bootstrap anchors/bindings transaction",
+      "actual kaidera-runtime-core-installer login calls auth.first_identity",
+      "api_request confirms current readiness",
+      "durable encrypted committed checkpoint",
+      "finite close/serve"
+    ],
+    "seed_refusals": {
+      "missing_custody_existing_or_partial_sql": "refuse; no replacement",
+      "ambiguous_commit": "replay/reconcile same intent and credential; never assume rollback",
+      "db_filesystem_atomicity": false,
+      "local_lock_replaces_sql_guards": false
+    },
+    "adapter": {
+      "import": "cortex_core.runtime.custody",
+      "open": "open_custody(config, *, unlock_fd, key_id)",
+      "seed_record": "seed mode only; owned stable nonblocking lock",
+      "methods": ["load()", "create(intent=..., credential=...)", "commit(receipt=...)"],
+      "load_none": "absent leaf ONLY",
+      "create": "absent only",
+      "commit": "retain intent/credential; verify loaded identity/digest/generation; generation+1",
+      "same_committed_receipt": "idempotent no-write",
+      "changed_receipt": "refuse",
+      "durability_unknown": "stop SQL/closure; later reload and reconcile",
+      "material": "frozen/repr-suppressed; defensive intent/receipt copies; private credential",
+      "after_close": "refuse",
+      "unlink_live_lock": false,
+      "public_injectable_authority": false
+    },
+    "resources": {
+      "open": "runtime.resources.open_seed_resources(config, *, custody, deadline)",
+      "connections": ["bootstrap", "installer_enrollment", "api_request"],
+      "connector": "actual psycopg; verify-full and admitted root certificate",
+      "accessor": "current_seed_resources(config, deadline)",
+      "requires": [
+        "SAME config object",
+        "SAME absolute monotonic deadline",
+        "live context",
+        "actual fixed SeedResources type"
+      ],
+      "carrier": "private context variable; actual carrier.custody",
+      "cleanup": "partial-open cleanup; reverse close; reset context on every exit",
+      "public_seed": "seed_runtime_bindings(config, operation_key, deadline)",
+      "serve_only": ["api_request", "probe"],
+      "driver_exception_text": false,
+      "unit_doubles_grant_production_authority": false
+    },
+    "projection": {
+      "argv": [
+        "python",
+        "-m",
+        "cortex_core.runtime.operator",
+        "config",
+        "client",
+        "--config",
+        "FILE",
+        "--unlock-fd",
+        "N",
+        "--key-id",
+        "ID",
+        "--projection-fd",
+        "M",
+        "[--project NAME]"
+      ],
+      "output_fd": "explicit owned anonymous pipe; no tty/regular file/default stdout",
+      "selection": "ONE admitted config map; default selected project UUID",
+      "prefix_before_full_validation": false,
+      "fields": [
+        "cortex.client.v1",
+        "admitted loopback URL",
+        "installation UUID",
+        "selected project UUID",
+        "admitted project name",
+        "committed client credential",
+        "integer total request seconds"
+      ],
+      "framing": "exactly seven UTF-8 fields, EACH NUL-terminated, then EOF",
+      "reject_in_every_field": ["NUL", "CR", "LF"],
+      "request_seconds": "min(config.request_seconds, 10)",
+      "helper": "packages/cli/_cortex_api.sh; fixed framing only; no config/decryption"
+    },
+    "credential": {
+      "format": "64 lower-case ASCII hex",
+      "entropy_bytes": 32,
+      "generate": "once",
+      "sha256_input": "raw ASCII Bearer bytes",
+      "base64_is_storage_encoding_only": true
+    },
+    "intent": {
+      "fields": [
+        "operation_key",
+        "installation_id",
+        "tenant_id",
+        "project_id",
+        "principal_id",
+        "credential_id",
+        "client_ref",
+        "schema_prefix_sha256",
+        "credential_sha256",
+        "database",
+        "roles"
+      ],
+      "operation_key_bound": "nonempty; <=256 UTF-8 characters and <=1024 bytes",
+      "database_fields": ["name", "oid", "owner_oid"],
+      "role_fields": ["login", "oid", "revision", "flags", "memberships"]
+    },
+    "receipt": {
+      "fields": [
+        "installation_id",
+        "tenant_id",
+        "project_id",
+        "principal_id",
+        "credential_id",
+        "operation_key",
+        "credential_sha256",
+        "intent_sha256"
+      ],
+      "intent_sha256": "SHA256 of Core canonical JSON bytes of intent",
+      "readiness_is_reusable_authority": false,
+      "retry": "reconcile exact SQL receipt, actual purpose identity and CURRENT readiness"
+    },
+    "closure": {
+      "pure_config_render": "stdlib only",
+      "encrypted_projection": "actual installed Core cryptography closure; Nix qualifies BOTH targets",
+      "ad_hoc_install_bootstrap": false,
+      "bob_transfer": "actual private FD transfer and minimal selected record mount; no whole-vault/finite-role serve mount",
+      "old_env_or_credential_file_wire_fallback": false,
+      "plaintext_host_client_fallback": false,
+      "secret_in_argv_env_temp_log": false,
+      "missing_uncommitted_unsafe_custody": "typed refusal before networking",
+      "failure_output": "one sanitized typed JSON line; no driver/OS details"
+    },
+    "open_proofs": [
+      "exact published Cox resources source before Finn integration",
+      "Nix executable/native cryptography closure",
+      "Bob actual private FD/mount transfer",
+      "Mike published RUN addition AND exact composed inventory",
+      "Cox commissions ONE Hale exact-final-head review",
+      "paired native/installed proof"
+    ],
+    "runtime_implementation_pin": null,
+    "fixture_as_live_credit": false,
+    "ai": "off; .005 deferred; no provider/model defaults or calls"
   }
 }
 ```
@@ -675,3 +877,54 @@ Source reuse and licence are recorded in UPSTREAM.md. Runtime implementation,
 old migration edits, v1 service/DB/PATH, provider/settings work, local AI, merge,
 signing and release are outside this slice. Hale reviews the exact pushed head;
 Cox owns ordered composition and reruns. No author release/merge approval.
+
+
+## Accepted J06 v1 reconciliation — 17 October 2026
+
+`accepted_j06_v1` controls conflicting proposals in the historical `day2`
+section. Historical fields, source pins and proposed APIs above remain the
+receipt of what was published then; their pending design status is preserved.
+Cox's accepted J06-interface-v1.md and frozen reconciliation receipt authorize
+bounded source work. They do not accept any implementation, CI, native install,
+actual descriptor transfer or runtime result. No implementation pin is invented.
+
+The accepted design adds immutable nonsecret snapshot metadata in all modes,
+while credential resolution checks mode/purpose before filesystem access.
+One encrypted first-console record uses existing client.credential_ref; there
+is no second seed-intent store. Explicit operator-held key bytes and key ID,
+authenticated UUID identity/generation and a stable owned lock protect the
+prepared/committed replay protocol. Unknown/malformed/key/tag failures refuse.
+There is no KDF, passphrase, key generation, implicit stdin/env/keychain, HTTP
+key provision or inferred recovery; the operator keeps and backs up the same
+key outside the adapter. Credential/principal UUIDs remain stable in intent.
+
+Bounded authoritative read-only emptiness admission may precede creation;
+EVERY mutating SQL operation follows durable encrypted prepared custody.
+Bootstrap and actual installer enrollment are separate purpose transactions.
+Current api_request readiness precedes durable committed custody and serve.
+The local lock supplies neither DB/filesystem atomicity nor authority over a
+remote installer. Ambiguous SQL commit reconciles the same intent/credential.
+The accepted fixed custody/resources seams preserve actual config identity,
+absolute deadline, purpose and lifetime; test doubles grant source-only credit.
+The seed material exposes defensive copies and no automatic secret serialization.
+The adapter also retains mode-bound resolve and explicit absent-only role import.
+Serve exposes only api_request/probe; no migrator credentials reach the seed.
+Finn v2 supplies exact database OIDs and owner, five role snapshots with revision,
+login/superuser/createdb/createrole/inherit/replication/bypassrls boolean flags and
+sorted exact OID/set/inherit/admin membership observations. Existing authoritative
+Cox/Nix validation remains required; the old unbound role_grants is no binder.
+
+The explicit projection descriptor carries exactly seven fully validated UTF-8
+fields, EACH NUL-terminated, then EOF. It is an owned anonymous pipe, and emits
+no partial prefix. The existing helper consumes framing only. It cannot select
+another config, credential source, decryptor, server-derived project or v1.
+Pure config admission/render remains stdlib-only; encrypted projection requires
+Nix's actual installed Core cryptography closure on both targets and Bob's real
+private FD/selected-record transfer. No pip/uv bootstrap or plaintext host client
+fallback follows from the older proposal. Until this operational join exists,
+helper/installation remains OPEN and refuses. No fixture supplies live credit.
+
+Mike's published RUN entry AND exact composed inventory, followed by ONE
+Cox-commissioned Hale exact-final-head review, remain separate open receipts.
+The public API, SQL/migrations, runtime modules and CI manifest are unchanged by
+this spec slice. AI remains off; .005 and provider/model defaults/calls deferred.
