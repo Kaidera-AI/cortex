@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sys
+import time
 
 from .bootstrap_config import read_config_file
 from .custody import open_custody
@@ -83,6 +84,17 @@ def dispatch_operator_command(argv):
     command,values=_arguments(argv)
     if command=='client':
         _client(values)
+        return 0
+    if command=='migrate':
+        from .resources import open_migration_resources
+        config=read_config_file(values['--config'],mode='migrate')
+        deadline=time.monotonic()+config.limits['request_seconds']
+        with open_custody(config,unlock_fd=values['--unlock-fd'],key_id=values['--key-id']) as vault:
+            with open_migration_resources(config,custody=vault,deadline=deadline) as resources:
+                applied=resources.migrate()
+        # Success is emitted only after the actual engine and owned cleanup.
+        print(json.dumps({'schema':'cortex.operator.v1','ok':True,'operation':'migrate',
+            'installation_id':config.installation_id,'applied':applied},separators=(',',':')))
         return 0
     # Partial dependency publication: no placeholder can admit another effect.
     raise Refusal('operator_unbound')

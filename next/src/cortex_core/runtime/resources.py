@@ -20,6 +20,7 @@ _SEED = ContextVar('cortex_option_a_seed_resources', default=None)
 _BIRTH = object()
 _SEED_PURPOSES = ('bootstrap', 'installer_enrollment', 'api_request')
 _CORE_PURPOSES = ('api_request', 'probe')
+_MIGRATE_PURPOSES = ('migrator',)
 
 
 def remaining_seconds(deadline, *, connecting=False):
@@ -183,6 +184,25 @@ class CoreResources(_Resources):
     __slots__ = ()
 
 
+class MigrationResources(_Resources):
+    __slots__ = ()
+
+    def migrate(self):
+        # The existing engine owns the top-level transaction. Wrapping it in
+        # another transaction would hide its commit boundary behind a savepoint.
+        self.check_deadline()
+        from cortex_core.schema.migrate import apply_forward_migrations
+        try:
+            with private_driver_logs(),_driver_deadline(self._deadline):
+                applied=apply_forward_migrations(self._connections['migrator'])
+                self.check_deadline()
+            return applied
+        except BaseException as error:
+            object.__setattr__(self,'_tainted',True)
+            if isinstance(error,(Refusal,KeyboardInterrupt,SystemExit)):raise
+            raise Refusal('schema_migration') from None
+
+
 def current_seed_resources(config, deadline):
     current = _SEED.get()
     if (type(current) is not SeedResources or current._closed
@@ -217,13 +237,14 @@ def _open(config, *, custody, deadline, mode):
         raise Refusal('resources_bound')
     connections = {};carrier=token=None;failed=False
     try:
-        for purpose in (_SEED_PURPOSES if mode=='seed' else _CORE_PURPOSES):
+        purposes={'seed':_SEED_PURPOSES,'serve':_CORE_PURPOSES,'migrate':_MIGRATE_PURPOSES}[mode]
+        for purpose in purposes:
             connection, certificate = _connect(config,custody,purpose,deadline)
             connections[purpose] = connection  # ownership precedes any further check
             remaining_seconds(deadline)
             if _certificate(config)[1] != certificate:
                 raise Refusal('resources_changed')
-        cls = SeedResources if mode=='seed' else CoreResources
+        cls = {'seed':SeedResources,'serve':CoreResources,'migrate':MigrationResources}[mode]
         carrier = cls(config,custody,deadline,connections,token=_BIRTH)
         if mode=='seed':token=_SEED.set(carrier)
         yield carrier
@@ -244,3 +265,7 @@ def open_seed_resources(config, *, custody, deadline):
 
 def open_core_resources(config, *, custody, deadline):
     return _open(config,custody=custody,deadline=deadline,mode='serve')
+
+
+def open_migration_resources(config, *, custody, deadline):
+    return _open(config,custody=custody,deadline=deadline,mode='migrate')
