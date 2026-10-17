@@ -21,3 +21,27 @@ INDEX v2 J05/J09/J10. No runtime source is modified or copied. The nullable log
 adapter, server log marker, mode gate and bound OpenAPI remain Finn/Cox work.
 Stdlib unittest/json/Path are Python/PSF dependencies already present, no install.
 Accepted dispatch and INDEX/DAY-1 hashes live in the task's PRE_EDIT.json evidence.
+
+Day-2 published-owner pins (same repository MIT, no copied runtime code):
+- Cox 8e1babb2118a7b2ecb11115babb4dd39c90750d6:
+  runtime/bootstrap_config.py, runtime/credentials.py and runtime/contract.md.
+  Reuse their actual closed field names, explicit mode purposes, private reader
+  requirements and verify-full. This is foundation source, not encrypted custody
+  or an operator/listener implementation.
+- Bob 887c4d6d3d9e1523d13297b5bab949edb7c48b7c:
+  next/release/ship/{run,cli}/contract.md. Freeze the bootstrap order and the
+  PROPOSED operator argv/client keys with their open reconciliation status.
+- Finn bc4514a66164c9a5cbee449d7ff5bd2dc839d74c:
+  schema/tests/test_seed.py and packages/cli/_cortex_api.sh; seed.py is absent.
+  Do not credit negatives or unchanged legacy helper as a seed implementation.
+
+Full source paths/Git blob IDs/SHA256s are in contract.md day2.source_receipts;
+exact J06 draft hashes/status are in day2.custody.design_receipts. Accepted
+DAY-2/data-seed/data-transport obligations supply the replay/design-first gates.
+J06's proposed cryptography dependency is owned by Cox/Nix; this documentary
+slice neither installs nor vendors it. No external research/code donor is used.
+
+Changes: add published-owner documentary conformance and honest unresolved
+custody/client/CI joins. Retain all Day-1 normative fields and assertion methods.
+Only Python stdlib unittest/json/Path are executed. The strict receipt helper is
+unchanged; source/CI/native/installed/hosted evidence remain separate classes.
