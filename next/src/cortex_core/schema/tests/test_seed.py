@@ -585,6 +585,136 @@ class DurableSeedTests(unittest.TestCase):
             self.assertEqual(self.material(c).credential, before.credential)
             self.assertEqual(self.material(c).generation, before.generation)
 
+    def test_rollback_during_bindings_retains_prepared_for_exact_retry(self):
+        seed = self.require_seed()
+        with self.scenario() as c:
+            calls = []
+            def interrupt(table):
+                calls.append(table)
+                if calls.count('auth.runtime_login_bindings') == 2:
+                    raise OSError('public test interrupted anchor transaction')
+            c.db.before_write = interrupt
+            self.refuse(lambda:self.invoke(seed, c))
+            before = self.material(c)
+            self.assertEqual(before.state, 'prepared')
+            self.assertTrue(all(not rows for rows in c.db.tables.values()),
+                            'bootstrap rollback must leave no partial anchors/bindings')
+            c.db.before_write = None
+            self.invoke(seed, c)
+            self.assertEqual(self.material(c).intent, before.intent)
+            self.assertEqual(self.material(c).credential, before.credential)
+            self.assertEqual(c.db.enrollments, 1)
+
+    def test_actual_purpose_order_and_exact_sql_receipt_precede_checkpoint(self):
+        seed = self.require_seed()
+        with self.scenario() as c:
+            from cortex_core.runtime.custody import _SeedRecord
+            from cortex_core.release.codec import canonical_bytes
+            original = _SeedRecord.commit
+            checkpoints = []
+            def checkpoint(record, *, receipt):
+                m = record._material
+                expected = {k:m.intent[k] for k in ('installation_id', 'tenant_id',
+                    'project_id', 'principal_id', 'credential_id', 'operation_key', 'credential_sha256')}
+                expected['intent_sha256'] = hashlib.sha256(canonical_bytes(m.intent)).hexdigest()
+                self.assertEqual(receipt, expected, 'checkpoint must bind exact confirmed intent')
+                events = [e[0] for e in c.db.events]
+                self.assertLess(events.index('enrollment'), events.index('readiness'))
+                self.assertIn(('commit', 'installer_enrollment'), c.db.events)
+                self.assertIn(('commit', 'api_request'), c.db.events)
+                checkpoints.append(True)
+                return original(record, receipt=receipt)
+            with patch.object(_SeedRecord, 'commit', checkpoint):
+                self.invoke(seed, c)
+            self.assertTrue(checkpoints, 'no successful seed without durable checkpoint')
+            self.assertEqual(c.db.calls, ['bootstrap', 'installer_enrollment', 'api_request'])
+            self.assertTrue(any(e[0] == 'lock' for e in c.db.events), 'seed requires SQL serialization')
+            self.assertEqual(self.material(c).state, 'committed')
+
+    def test_changed_sql_receipt_refuses_without_checkpoint_rewrite(self):
+        seed = self.require_seed()
+        with self.scenario() as c:
+            self.invoke(seed, c)
+            before = self.material(c)
+            c.db.tables['auth.first_identity_receipts'][0]['key_digest'] = '0' * 64
+            count = len(c.db.writes())
+            self.refuse(lambda:self.invoke(seed, c))
+            self.assertEqual(len(c.db.writes()), count)
+            after = self.material(c)
+            self.assertEqual((after.intent, after.credential, after.receipt, after.generation),
+                             (before.intent, before.credential, before.receipt, before.generation))
+
+    def test_partial_inactive_and_revised_bindings_cannot_be_repaired_implicitly(self):
+        seed = self.require_seed()
+        for change in ('partial', 'inactive', 'revision'):
+            with self.subTest(change=change), self.scenario() as c:
+                self.invoke(seed, c)
+                rows = c.db.tables['auth.runtime_login_bindings']
+                if change == 'partial':
+                    rows.pop()
+                elif change == 'inactive':
+                    rows[0]['active'] = False
+                else:
+                    rows[0]['revision'] = 2
+                before = c.db.snapshot()
+                count = len(c.db.writes())
+                self.refuse(lambda:self.invoke(seed, c))
+                self.assertEqual(c.db.tables, before)
+                self.assertEqual(len(c.db.writes()), count)
+
+    def test_tampered_ciphertext_cannot_rotate_existing_enrollment(self):
+        seed = self.require_seed()
+        with self.scenario() as c:
+            self.invoke(seed, c)
+            before = c.db.snapshot()
+            count = len(c.db.writes())
+            path = Path(c.config.vault_root)/c.config.client_ref
+            raw = path.read_bytes()
+            envelope = json.loads(raw)
+            token = envelope['ciphertext']
+            envelope['ciphertext'] = ('A' if token[0] != 'A' else 'B') + token[1:]
+            path.write_text(json.dumps(envelope)); path.chmod(0o600)
+            self.refuse(lambda:self.invoke(seed, c))
+            self.assertEqual(c.db.tables, before)
+            self.assertEqual(len(c.db.writes()), count)
+            self.assertEqual(path.read_text(), json.dumps(envelope))
+
+    def test_incomplete_or_changed_schema_ledger_refuses_before_prepared(self):
+        seed = self.require_seed()
+        for change in ('missing', 'changed'):
+            with self.subTest(change=change), self.scenario() as c:
+                if change == 'missing':
+                    c.db.prefix.pop()
+                else:
+                    identity, digest = c.db.prefix[-1]
+                    c.db.prefix[-1] = (identity, '0' * 64)
+                self.refuse(lambda:self.invoke(seed, c))
+                self.assertIsNone(self.material(c))
+                self.assertEqual(c.db.writes(), [])
+
+    def test_serve_mode_never_acquires_finite_seed_authority(self):
+        seed = self.require_seed()
+        with self.scenario() as c:
+            from cortex_core.runtime.bootstrap_config import decode_config
+            from cortex_core.runtime.custody import open_custody
+            from cortex_core.runtime.tests.test_bootstrap_config import sample
+            value = sample(Path(c.config.vault_root))
+            value['roles']['installer_enrollment']['login'] = 'kaidera-runtime-core-installer'
+            serve = decode_config(json.dumps(value).encode(), mode='serve')
+            read, write = os.pipe()
+            os.write(write, bytes(range(32))); os.close(write)
+            try:
+                with open_custody(serve, unlock_fd=read, key_id='unit-public-key') as vault:
+                    for purpose in serve.roles:
+                        vault.import_credential(purpose, b'public-source-test-password')
+                    deadline = time.monotonic()+15
+                    with c.resources.open_core_resources(serve, custody=vault, deadline=deadline):
+                        self.refuse(lambda:seed.seed_runtime_bindings(serve, c.operation, deadline))
+            finally:
+                os.close(read)
+            self.assertEqual(c.db.calls, ['api_request', 'probe'])
+            self.assertEqual(c.db.writes(), [])
+
 
 if __name__ == '__main__':
     unittest.main()
