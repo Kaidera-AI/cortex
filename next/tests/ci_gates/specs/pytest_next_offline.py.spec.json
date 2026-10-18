@@ -1,19 +1,18 @@
 {
   "schema_version": 1,
   "source": ".github/scripts/pytest_next_offline.py",
-  "source_sha256": "0c1d3a6623ea59d331c5623a541cc372ac1b710a1b7f82c4023d1f309b028666",
+  "source_sha256": "0539003cb13b79de168e5850876f4f5b4e090232f49e1b2e2b2d6e3b71479d88",
   "tests": {
-    "next/tests/ci_gates/tests/test_packaged_policy.py": "bf577560b7b0414f5696c02935940a9cb42dbb3bb0328a766f1f9889c8688990",
-    "next/tests/ci_gates/tests/test_current_home.py": "237135ccf319eb6b7aa577e83faa35b16ecf72f03192b26ddcdd3b1fe7fb76a3"
+    "next/tests/ci_gates/tests/test_current_home.py": "b364133e414459503a1465428faa50cda914adbd06a7cce6c9360978328a377b"
   },
   "expected_nodes": [
-    "test_packaged_policy.PackagedPolicy.test_copied_policy_drift_refuses_even_with_a_rewritten_packager_receipt",
-    "test_current_home.CurrentHome.test_ship_wrapper_has_exact_loopback_admission_without_adjacent_escape"
+    "test_current_home.CurrentHome.test_finite_job_selectors_refuse_empty_duplicate_and_adjacent_suites",
+    "test_current_home.CurrentHome.test_real_unpartitioned_collection_equals_exact_job_node_union"
   ],
   "kind": "tool",
-  "invariant": "Only the exact ship wrapper has required loopback admission; adjacent paths remain refused",
+  "invariant": "Finite complete whole-job partitions equal an independently collected unpartitioned node list, refusing all coverage escapes",
   "mutation": {
-    "before": "                or path == 'next/release/ship/cli/tests/test_wrapper.py'\n",
-    "after": ""
+    "before": "and Counter(actual)==Counter(full)",
+    "after": "and Counter(actual)!=Counter(full)"
   }
 }

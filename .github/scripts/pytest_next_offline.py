@@ -28,6 +28,7 @@ BOOTSTRAP_MAINS = ('66cba6a1f8a2a3787844e168ab5415cb96738a0d',
 UNBUILT_POLICY = 'c88f772bef234368d5057c298edc703ecf46ba97'
 # Kai ruling263722e5: exact U3 whole-file rows; no PASS credit.
 UNAVAILABLE_POLICY = '58031a28534aa1a36d20097bb0057dfc29ba383c'
+JOB_PARTITIONS = 8
 SPEC = importlib.util.spec_from_file_location('unchanged_u13_outcome',
                                             Path(__file__).with_name('pytest_u13_worker.py'))
 U13 = importlib.util.module_from_spec(SPEC)
@@ -751,6 +752,138 @@ def stage_ship_closure(root,destination,environment):
         raise ValueError('ship_closure_invalid') from error
 
 
+def job_partition(suites, index):
+    """A finite selector over the already admitted home; it cannot admit a path."""
+    if (type(index) is not int or not 0 <= index < JOB_PARTITIONS
+            or not isinstance(suites, list) or any(not isinstance(path, str)
+                or not path.endswith('.py') or not (path.startswith('next/')
+                    or path.startswith('packages/cli/tests/test_transport'))
+                or any(c in path for c in '*?[]\\')
+                or any(part in ('', '.', '..') for part in path.split('/')) for path in suites)):
+        raise ValueError('invalid whole-job selector or suite path')
+    return partition_plan(suites, JOB_PARTITIONS)[index]
+
+
+def collect_unpartitioned(command, root, environment):
+    """Use the unchanged worker's full pytest collection, with ZERO phase credit."""
+    destination = Path(command[command.index('--output') + 1])
+    suite = command[command.index('--suite') + 1]
+    source = Path(root) / suite
+    pin = hashlib.sha256(source.read_bytes()).hexdigest()
+    # The existing worker records collected/expected IDs in collection_finish.
+    # Its unchanged phase validator deliberately returns RED without execution.
+    done = subprocess.run(command, cwd=root, env={**environment, 'PYTEST_ADDOPTS':'--collect-only'},
+                          capture_output=True, text=True, timeout=180)
+    destination.with_suffix('.txt').write_text(done.stdout + done.stderr)
+    packet = json.loads(destination.read_bytes())
+    retired = json.loads(command[command.index('--retired-json')+1]) if '--retired-json' in command else []
+    excluded = json.loads(command[command.index('--excluded-json')+1]) if '--excluded-json' in command else []
+    removed = {row['nodeid'] for row in [*retired, *excluded]
+               if row in retired or row['evidence']['kind'] != 'unbuilt_unit'}
+    full = packet['collected']
+    if (done.returncode != 1 or packet['pytest_exit'] != 0 or packet['gate_exit'] != 1
+            or packet['reports'] or packet['deselected'] or not full or len(full) != len(set(full))
+            or not all(isinstance(node,str) and node.startswith(suite+'::') for node in full)
+            or packet['expected'] != [node for node in full if node not in removed]
+            or packet['selected'] != packet['expected'] or packet.get('partition')
+            or packet['retired'] != retired or packet['excluded_methods'] != excluded
+            or packet['suite'] != suite or packet['source_sha256'] != pin
+            or hashlib.sha256(source.read_bytes()).hexdigest() != pin):
+        raise ValueError('independent unpartitioned collection refused: '+suite)
+    return packet
+
+
+def job_coverage(suites, parts, independent):
+    """Compare actual receipt nodes to a separate full collection, never a count."""
+    try:
+        if (len(parts) != JOB_PARTITIONS or [part['index'] for part in parts] != list(range(JOB_PARTITIONS))
+                or any(type(part['index']) is not int for part in parts)
+                or [packet['suite'] for packet in independent] != suites):return False
+        actual, full = [], []
+        pins = {packet['suite']:packet['source_sha256'] for packet in independent}
+        for packet in independent:
+            nodes = packet['collected']
+            if (not nodes or len(nodes)!=len(set(nodes))
+                    or not all(isinstance(node,str) and node.startswith(packet['suite']+'::') for node in nodes)):
+                return False
+            full.extend(nodes)
+        for index, part in enumerate(parts):
+            expected = job_partition(suites,index)
+            if part['suites'] != expected or [p['suite'] for p in part['outcomes']] != expected:return False
+            for packet in part['outcomes']:
+                if packet['source_sha256'] != pins[packet['suite']]:return False
+                actual.extend(packet['collected'])
+        return bool(full) and len(full)==len(set(full)) and Counter(actual)==Counter(full)
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def source_identity():
+    paths = ('.github/next-offline-suites.json', '.github/scripts/pytest_next_offline.py',
+             '.github/scripts/pytest_next_worker.py', '.github/scripts/pytest_u13_worker.py')
+    return dict(head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
+                sha256={path:hashlib.sha256((ROOT/path).read_bytes()).hexdigest() for path in paths})
+
+
+def verify_job_partitions(root, checked, identity, base_ref):
+    """Required hosted join: both homes, every job, strict phases, independent IDs."""
+    root = Path(root)
+    prefix = 'next-offline-receipts-' + sys.version.split()[0] + '-'
+    names = [prefix+str(index) for index in range(JOB_PARTITIONS)]
+    if sorted(path.name for path in root.iterdir()) != sorted(names):
+        raise ValueError('missing, duplicate or foreign job artifacts')
+    result = dict(source_identity=identity, python=sys.version, homes={}, gate_exit=1,
+                  qualification='HOSTED_PARTITIONED_SOURCE_CONTRACTS_ONLY', native_qualified=False,
+                  installed_qualified=False, old_installation='G_OLD_UNRESOLVED')
+    for home, folder in (('run','next-offline-receipts'),('loopback','next-loopback-receipts')):
+        parts, independent = [], []
+        for index,name in enumerate(names):
+            directory = root/name/folder
+            packet = json.loads((directory/'summary.json').read_bytes())
+            selected = job_partition(checked[home],index)
+            if (packet['gate_exit'] != 0 or packet['source_identity'] != identity
+                    or packet['base_ref'] != base_ref or packet['inventory'] != checked
+                    or packet['qualification'] != ('HOSTED_LOOPBACK_SOURCE_CONTRACTS_ONLY' if home=='loopback'
+                        else 'HOSTED_OFFLINE_SOURCE_CONTRACTS_ONLY')
+                    or packet['native_qualified'] is not False or packet['installed_qualified'] is not False
+                    or packet['python'].split()[0] != sys.version.split()[0]
+                    or packet['job_partition'] != dict(index=index,count=JOB_PARTITIONS,suites=selected)
+                    or not packet['owned_case_root_absent']
+                    or [row['suite'] for row in packet['suites']] != selected):
+                raise ValueError('partition identity, inventory or execution refused')
+            outcomes=[]
+            for row in packet['suites']:
+                suite=row['suite'];receipt=directory/row['receipt']
+                if receipt.parent != directory or receipt.suffix != '.json':raise ValueError('receipt path')
+                outcome=json.loads(receipt.read_bytes())
+                retired=[r for r in checked['retired'] if r['nodeid'].split('::')[0]==suite]
+                excluded=[r for r in checked['method_exclusions'] if r['nodeid'].split('::')[0]==suite]
+                pin=hashlib.sha256((ROOT/suite).read_bytes()).hexdigest()
+                if (not row['ok'] or not row['source_unchanged'] or row['source_sha256'] != pin
+                        or outcome['suite'] != suite or outcome['source_sha256'] != pin
+                        or outcome['python'].split()[0] != sys.version.split()[0]
+                        or not receipt_valid(outcome,row['process_exit'],retired=retired,
+                            replacements=checked['replacement_nodes'].get(suite,()),excluded=excluded)):
+                    raise ValueError('partition phase receipt refused: '+suite)
+                outcomes.append(outcome)
+            if index==0:
+                independent=packet['unpartitioned_collection']
+                if any(p['reports'] or p['pytest_exit']!=0 or p['gate_exit']!=1
+                        or p['python'].split()[0]!=sys.version.split()[0] for p in independent):
+                    raise ValueError('collection is not independent zero-credit evidence')
+            elif packet['unpartitioned_collection']:
+                raise ValueError('foreign independent collection')
+            parts.append(dict(index=index,suites=selected,outcomes=outcomes))
+        if not job_coverage(checked[home],parts,independent):
+            raise ValueError('partition node bijection refused: '+home)
+        result['homes'][home]=dict(suites=len(checked[home]),
+            nodes=sum(len(p['collected']) for p in independent), independent=independent,
+            partitions=[dict(index=p['index'],suites=p['suites'],
+                nodes=[n for outcome in p['outcomes'] for n in outcome['collected']]) for p in parts])
+    result['gate_exit']=0
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
@@ -758,14 +891,20 @@ def main():
     parser.add_argument('--loopback', action='store_true', help='required helper/seed source home; no installed credit')
     parser.add_argument('--force-skip', action='store_true', help='deliberately RED hosted control')
     parser.add_argument('--base-ref',default=ACCEPTED_BASE,help='independently supplied accepted Git base SHA')
+    parser.add_argument('--job-partition',type=int,choices=range(JOB_PARTITIONS),help='finite required whole-job selector')
+    parser.add_argument('--verify-job-partitions',type=Path,help='required join of all hosted partition artifacts')
     args = parser.parse_args()
+    if args.verify_job_partitions and (args.loopback or args.job_partition is not None or args.inventory_only or args.force_skip):
+        parser.error('partition verification cannot narrow or substitute a home')
     args.output.mkdir(parents=True, exist_ok=True)
     try:
         base=base_manifest_at(ROOT,args.base_ref)
         checked = inventory(ROOT, json.loads(MANIFEST.read_text()),base_manifest=base)
     except ValueError as error:
         checked=dict(ok=False,invalid=[str(error)],transitions=[])
-    packet = dict(inventory=checked, suites=[], gate_exit=1,
+    identity=source_identity()
+    packet = dict(inventory=checked, suites=[], gate_exit=1, source_identity=identity,
+                  job_partition=None,unpartitioned_collection=[],
                   manifest_sha256=hashlib.sha256(MANIFEST.read_bytes()).hexdigest(),
                   python=sys.version, qualification=('HOSTED_LOOPBACK_SOURCE_CONTRACTS_ONLY' if args.loopback
                       else 'HOSTED_OFFLINE_SOURCE_CONTRACTS_ONLY'),
@@ -779,12 +918,25 @@ def main():
     if not checked['ok']:
         print('NEXT_OFFLINE_INVENTORY_RED', flush=True)
         return 1
+    if args.verify_job_partitions:
+        try:
+            coverage=verify_job_partitions(args.verify_job_partitions,checked,identity,args.base_ref)
+        except (ValueError,KeyError,TypeError,OSError) as error:
+            packet['coverage_error']=str(error);write(result,packet)
+            print('NEXT_JOB_PARTITION_COVERAGE_RED',flush=True);return 1
+        write(result,coverage)
+        print('NEXT_JOB_PARTITION_COVERAGE_GREEN',flush=True);return 0
     if args.inventory_only:
         packet['gate_exit'] = 0
         write(result, packet)
         print('NEXT_OFFLINE_INVENTORY_GREEN', flush=True)
         return 0
     selected_suites = checked['loopback'] if args.loopback else checked['run']
+    full_suites=selected_suites
+    if args.job_partition is not None:
+        selected_suites=job_partition(full_suites,args.job_partition)
+        packet['job_partition']=dict(index=args.job_partition,count=JOB_PARTITIONS,suites=selected_suites)
+        write(result,packet)
     if args.loopback:
         interfaces = sorted(path.name for path in Path('/sys/class/net').iterdir())
         routes = Path('/proc/net/route').read_text().splitlines()[1:]
@@ -847,6 +999,20 @@ def main():
         if not all(row['ok'] for row in proofs):
             print('NEXT_OFFLINE_RETIREMENT_PROOF_RED',flush=True)
             return 1
+        if args.job_partition == 0:
+            try:
+                for index,suite in enumerate(full_suites):
+                    retired=[r for r in checked['retired'] if r['nodeid'].split('::')[0]==suite]
+                    excluded=[r for r in checked['method_exclusions'] if r['nodeid'].split('::')[0]==suite]
+                    name='collection-'+str(index)
+                    command=[sys.executable,'-B',str(worker),'--suite',suite,
+                        '--output',str(args.output/(name+'.json')),'--temporary',str(case/name),
+                        '--retired-json',json.dumps(retired),'--excluded-json',json.dumps(excluded)]
+                    packet['unpartitioned_collection'].append(collect_unpartitioned(command,ROOT,environment))
+                    write(result,packet)
+            except (ValueError,KeyError,TypeError,OSError,subprocess.SubprocessError) as error:
+                packet['collection_error']=str(error);write(result,packet)
+                print('NEXT_UNPARTITIONED_COLLECTION_RED',flush=True);return 1
         for index, suite in enumerate(selected_suites):
             retired = [row for row in checked['retired'] if row['nodeid'].split('::')[0] == suite]
             excluded=[row for row in checked['method_exclusions'] if row['nodeid'].split('::')[0]==suite]

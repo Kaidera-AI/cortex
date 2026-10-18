@@ -1,19 +1,21 @@
 {
   "schema_version": 1,
   "source": ".github/workflows/next-offline.yml",
-  "source_sha256": "f2c3a734d177ae701d07537487619f5da1d237b16f4d60a3ae14efde556c8299",
+  "source_sha256": "2bacca328350f86529858f0c12fd2fee0df025f559385f3ba1586c4d827d9e6c",
   "tests": {
     "next/tests/ci_gates/tests/test_loopback_home.py": "5ff049f5bb9884a59e27a5ea805e4f5e89d6075bd8f6e54f82ece828f313da57",
-    "next/tests/ci_gates/tests/test_sign_home.py": "328d6f34a36a624d4dfbdba555960434397bc9558080f9142a03420fbdab5061"
+    "next/tests/ci_gates/tests/test_sign_home.py": "328d6f34a36a624d4dfbdba555960434397bc9558080f9142a03420fbdab5061",
+    "next/tests/ci_gates/tests/test_current_home.py": "b364133e414459503a1465428faa50cda914adbd06a7cce6c9360978328a377b"
   },
   "expected_nodes": [
     "test_loopback_home.LoopbackHome.test_required_hosted_home_uses_existing_worker_and_private_loopback",
-    "test_sign_home.SigningHome.test_pinned_tool_is_prepared_before_the_network_isolated_worker"
+    "test_sign_home.SigningHome.test_pinned_tool_is_prepared_before_the_network_isolated_worker",
+    "test_current_home.CurrentHome.test_required_workflow_has_eight_partitions_and_independent_coverage_home"
   ],
   "kind": "inventory",
-  "invariant": "helper and seed have a required bounded loopback workflow home",
+  "invariant": "Both exact Pythons retain eight required ordinary and loopback partitions plus the independent strict coverage join",
   "mutation": {
-    "before": "name: required helper and seed source loopback home",
-    "after": "name: absent helper source home"
+    "before": "partition: [0, 1, 2, 3, 4, 5, 6, 7]",
+    "after": "partition: [0, 1, 2, 3, 4, 5, 6]"
   }
 }
