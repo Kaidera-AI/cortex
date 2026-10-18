@@ -10,6 +10,7 @@ from uuid import UUID
 
 from cortex_core.api.c11a import ConsumerGateway, C05Committed, _packet, _respond
 from cortex_core.api.c11b import C11bRecordPort
+from cortex_core.api.contract import BoundRegistry, export_bound_openapi
 from cortex_core.auth import AuthError
 from .catalog import _service
 from .resources import CoreResources, remaining_seconds
@@ -65,6 +66,15 @@ class _BoundServices:
             handlers={'C01-R102':self.port.write_memory,'C01-R013':self.port.ingest_session,
                 'C01-R121':self.port.session_ids},record_reader=self.port.read_record,
             allow_legacy_idempotency=True)
+        host=resources._config.publish['host'];host='['+host+']' if ':' in host else host
+        self._contract=BoundRegistry(self.gateway,
+            listener=f'http://{host}:{resources._config.publish["port"]}',
+            request_seconds=min(10,resources._config.limits['request_seconds']))
+
+    def export_bound_openapi(self,*,source_commit,version,profile,listener):
+        if not self._started:raise Refusal('contract_not_started')
+        return export_bound_openapi(self._contract,source_commit=source_commit,
+            version=version,profile=profile,listener=listener)
 
     def _current(self):
         current=_REQUEST.get()
@@ -78,6 +88,7 @@ class _BoundServices:
     def start(self):
         if self._started:raise Refusal('service_started')
         try:
+            self._contract.check()
             from cortex_core.schema.readiness import check_schema_ready
             with self._resources.transaction('api_request',_read_only=True,_repeatable=False) as connection:
                 if check_schema_ready(connection) is not True:raise Refusal('service_startup')

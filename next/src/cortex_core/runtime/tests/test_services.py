@@ -247,6 +247,82 @@ class ServiceTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'resources_tainted'):
                     with owned.request_connection('probe',deadline=time.monotonic()+1):pass
 
+    def test_bound_spec_exact_uses_actual_registry_and_serves_identical_bytes(self):
+        self.require_source()
+        with self.opened() as owned,self.bound(owned) as bound:
+            self.assertTrue(callable(getattr(bound,'export_bound_openapi',None)),
+                'actual bound Core OpenAPI owner export is missing')
+            bound.start()
+            identity=dict(source_commit='a'*40,version='0.1.004',profile='A',
+                listener=f'http://{self.config.publish["host"]}:{self.config.publish["port"]}')
+            raw=bound.export_bound_openapi(**identity)
+            document=json.loads(raw)
+            actual={(row['method'],row['path']) for row,pattern in bound.gateway.routes}
+            exported={(method.upper(),path) for path,item in document['paths'].items()
+                for method in item if method in ('get','post','put','patch','delete')}
+            self.assertEqual(exported,actual)
+            self.assertEqual(document['x-cortex-binding'],identity)
+            self.assertEqual(document['paths']['/health']['get']['security'],[])
+            self.assertFalse(any(key.startswith('2') for key in
+                document['paths']['/log']['post']['responses']))
+            self.assertFalse(any(key.startswith('2') for key in
+                document['paths']['/metrics']['get']['responses']))
+            self.assertNotIn('delete',document['paths']['/records/{id}'])
+            refused=document['paths']['/bootstrap/{agent}']['get']
+            self.assertEqual(refused['x-cortex-binding-state'],'unbound')
+            self.assertFalse(any(key.startswith('2') for key in refused['responses']))
+            write=document['paths']['/memory']['post']
+            self.assertEqual(write['responses']['200']['links']['read']['parameters'],
+                {'id':'$response.body#/id'})
+            messages=[]
+            async def receive():return {'type':'http.request','body':b''}
+            async def send(message):messages.append(message)
+            asyncio.run(bound(dict(type='http',method='GET',path='/openapi.json',
+                query_string=b'',headers=list(HEADERS)),receive,send))
+            self.assertEqual(messages[0]['status'],200)
+            self.assertEqual(messages[1]['body'],raw)
+            self.assertEqual(bound.export_bound_openapi(**identity),raw)
+
+    def test_contract_identity_is_explicit_and_unconfigured_refuses(self):
+        self.require_source()
+        with self.opened() as owned,self.bound(owned) as bound:
+            self.assertTrue(callable(getattr(bound,'export_bound_openapi',None)))
+            with self.assertRaisesRegex(ValueError,'contract_not_started'):
+                bound.export_bound_openapi(source_commit='a'*40,version='0.1.004',
+                    profile='A',listener='http://127.0.0.1:8501')
+            bound.start()
+            status,packet=self.request(bound,'GET','/openapi.json')
+            self.assertEqual(status,503)
+            self.assertEqual(packet['error']['reason'],'contract_identity_unbound')
+            identity=dict(source_commit='a'*40,version='0.1.004',profile='A',
+                listener=f'http://{self.config.publish["host"]}:{self.config.publish["port"]}')
+            for field,value in [('source_commit','not-a-commit'),('version','DRAFT'),
+                ('profile','enterprise'),('listener','http://127.0.0.1:1')]:
+                with self.subTest(field=field),self.assertRaises(ValueError):
+                    bound.export_bound_openapi(**{**identity,field:value})
+            bound.export_bound_openapi(**identity)
+            with self.assertRaisesRegex(ValueError,'contract_identity_changed'):
+                bound.export_bound_openapi(**{**identity,'source_commit':'b'*40})
+
+    def test_contract_auth_and_schema_drift_refuse_without_new_effects(self):
+        self.require_source()
+        with self.opened() as owned,self.bound(owned) as bound:
+            self.assertTrue(callable(getattr(bound,'export_bound_openapi',None)))
+            bound.start()
+            identity=dict(source_commit='a'*40,version='0.1.004',profile='A',
+                listener=f'http://{self.config.publish["host"]}:{self.config.publish["port"]}')
+            bound.export_bound_openapi(**identity)
+            self.assertEqual(self.request(bound,'GET','/openapi.json',headers=[])[0],401)
+            for extra in [(b'authorization',b'Bearer extra'),(b'x-project',b'other')]:
+                self.assertEqual(self.request(bound,'GET','/openapi.json',headers=HEADERS+[extra])[0],400)
+            self.assertEqual(self.writes,[])
+            row=next(row for row,pattern in bound.gateway.routes if row['path']=='/memory')
+            row['contract']['responses'].pop('503')
+            with self.assertRaisesRegex(ValueError,'contract_registry_changed'):
+                bound.export_bound_openapi(**identity)
+            self.assertEqual(self.request(bound,'GET','/openapi.json')[0],503)
+            self.assertEqual(self.writes,[])
+
     def test_oversized_request_refuses_before_any_driver_or_taint(self):
         self.require_source()
         with self.opened() as owned:
@@ -260,6 +336,63 @@ class ServiceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'resources_deadline'):
                 with owned.request_connection('api_request',deadline=start+0.15):time.sleep(1)
             self.assertLess(time.monotonic()-start,0.7)
+
+    def test_contract_digest_and_schema_binding_refuse_missing_descriptors(self):
+        import hashlib
+        from cortex_core.api import contract
+        from cortex_core.release.codec import canonical_bytes
+        original=contract._operation
+        for missing in ('503','input','output','reference'):
+            def incomplete(row,**kw):
+                value=original(row,**kw)
+                if row['id']=='C01-R102':
+                    if missing=='503':value['responses'].pop('503')
+                    elif missing=='input':value.pop('requestBody')
+                    elif missing=='output':value['responses']['200'].pop('content')
+                    else:value['responses']['200']['content']['application/json']['schema']={'$ref':'#/components/schemas/Missing'}
+                return value
+            with self.subTest(missing=missing),self.opened() as owned,patch.object(contract,'_operation',incomplete):
+                with self.assertRaisesRegex(ValueError,'contract_schemas_incomplete'):
+                    with self.bound(owned):pass
+        with self.opened() as owned,self.bound(owned) as bound:
+            bound.start()
+            identity=dict(source_commit='a'*40,version='0.1.004',profile='A',
+                listener=f'http://{self.config.publish["host"]}:{self.config.publish["port"]}')
+            raw=bound.export_bound_openapi(**identity);document=json.loads(raw)
+            digest=document.pop('x-cortex-contract-sha256')
+            self.assertEqual(digest,hashlib.sha256(canonical_bytes(document)).hexdigest())
+            for path,item in document['paths'].items():
+                for operation in item.values():
+                    self.assertEqual(operation['x-cortex-default-deadline-seconds'],
+                        min(10,self.config.limits['request_seconds']))
+            bound._contract.document['info']['version']='changed'
+            self.assertEqual(self.request(bound,'GET','/openapi.json')[0],503)
+
+    def test_contract_registry_drift_cannot_admit_startup_or_an_unknown_callback(self):
+        for change in ('schema','pattern','handler'):
+            with self.subTest(change=change),self.opened() as owned,self.bound(owned) as bound:
+                if change=='schema':bound._contract.schemas.pop('Health')
+                elif change=='pattern':
+                    row,pattern=bound.gateway.routes[0]
+                    bound.gateway.routes[0]=(row,__import__('re').compile('^/wrong$'))
+                else:bound.gateway.handlers['unknown']=bound.port.write_memory
+                with self.assertRaisesRegex(ValueError,'service_startup'):bound.start()
+                self.assertEqual(self.ledger,[])
+                self.assertEqual(self.writes,[])
+
+    def test_contract_export_checks_configured_project_and_tampered_credential(self):
+        with self.opened() as owned,self.bound(owned) as bound:
+            bound.start()
+            # Use the real C11b project parser, with a credential admission
+            # refusal at the existing auth port. No SQL/native fixture runs.
+            def project(port,scope):
+                port._project(scope)
+                raise AuthError('unauthenticated')
+            with patch.object(c11b.C11bRecordPort,'_principal',project):
+                wrong=[(key,b'other' if key==b'x-project' else value) for key,value in HEADERS]
+                self.assertEqual(self.request(bound,'GET','/openapi.json',headers=wrong)[0],403)
+                self.assertEqual(self.request(bound,'GET','/openapi.json')[0],401)
+            self.assertEqual(self.writes,[])
 
 
 if __name__=='__main__':unittest.main()
