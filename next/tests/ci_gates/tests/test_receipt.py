@@ -18,18 +18,51 @@ TREE = "b" * 40
 PROFILE = ROOT / ".github/next-offline-suites.json"
 
 
-def history():
+def history(count=3):
     runs = []
     attempts = []
-    for run_id in (11, 12):
+    for run_id in range(11, 11+count):
         runs.append(dict(id=run_id, head_sha=HEAD, run_attempt=1, name="offline",
                          status="completed", conclusion="success", updated_at="2026-10-17T12:01:00Z"))
         attempts.append(dict(run_id=run_id, attempt=1, status="completed", conclusion="success", head_sha=HEAD, total_count=2, jobs=[
             dict(id=run_id*10+i, name=name, status="completed", conclusion="success",
                  head_sha=HEAD, run_attempt=1)
             for i, name in enumerate(("py313", "py314"))]))
-    return dict(head=HEAD, pages=[dict(page=1, total_count=2, workflow_runs=runs)],
+    return dict(head=HEAD, pages=[dict(page=1, total_count=count, workflow_runs=runs)],
                 attempts=attempts, closures=[], accepted_gate=dict(commit="d"*40, accepted_at="2026-10-17T12:00:00Z", receipt_sha256="f"*64))
+
+
+def custody_history():
+    value = history()
+    old = dict(value['pages'][0]['workflow_runs'][0], id=10, head_sha='c'*40,
+        run_attempt=2, conclusion='cancelled', updated_at='2026-10-17T11:59:00Z')
+    value['pages'][0]['workflow_runs'].append(old)
+    value['pages'][0]['total_count'] += 1
+    value['attempts'].append(dict(run_id=10, attempt=1, status='completed',
+        conclusion='cancelled', head_sha='c'*40, total_count=0, jobs=[]))
+    value['attempts'].append(dict(run_id=10, attempt=2, status='completed',
+        conclusion='cancelled', head_sha='c'*40, total_count=1, jobs=[dict(id=100,
+            name='legacy-job-context', status='completed', conclusion='cancelled',
+            head_sha='c'*40, run_attempt=2)]))
+    return value
+
+
+def raw_history(directory, value):
+    # Synthetic provider responses exercise the existing collector, never hosted credit.
+    prefix = 'repos/fixture/project/actions/runs'
+    responses = {prefix+'?per_page=100&page=1':dict(value['pages'][0])}
+    for attempt in value['attempts']:
+        run = next(row for row in value['pages'][0]['workflow_runs']
+            if row['id']==attempt['run_id'])
+        endpoint = prefix+'/'+str(attempt['run_id'])+'/attempts/'+str(attempt['attempt'])
+        responses[endpoint] = dict(run, run_attempt=attempt['attempt'],
+            status=attempt['status'], conclusion=attempt['conclusion'])
+        responses[endpoint+'/jobs?per_page=100&page=1'] = dict(
+            total_count=attempt['total_count'], jobs=attempt['jobs'])
+    collected = gate.collect_history('fixture/project', HEAD, Path(directory)/'raw',
+        fetch=lambda endpoint:json.dumps(responses[endpoint]).encode())
+    collected['accepted_gate'] = copy.deepcopy(value['accepted_gate'])
+    return collected
 
 
 class Receipt(unittest.TestCase):
@@ -40,7 +73,7 @@ class Receipt(unittest.TestCase):
 
     def test_history_complete(self):
         value = history()
-        value["pages"][0]["total_count"] = 3
+        value["pages"][0]["total_count"] = 4
         with self.assertRaises(gate.ReceiptRefusal):
             gate.history_complete(value, HEAD, {"offline": ["py313", "py314"]})
 
@@ -51,7 +84,7 @@ class Receipt(unittest.TestCase):
                 if change == "missing_attempt":
                     value["pages"][0]["workflow_runs"][0]["run_attempt"] = 2
                 elif change == "old_timeout":
-                    value["pages"][0]["total_count"] = 3
+                    value["pages"][0]["total_count"] = 4
                     value["pages"][0]["workflow_runs"].append(dict(
                         id=10, head_sha="c"*40, run_attempt=1, name="offline",
                         status="completed", conclusion="timed_out", updated_at="2026-10-17T12:01:00Z"))
@@ -59,9 +92,7 @@ class Receipt(unittest.TestCase):
                         jobs=[dict(id=100, name="py313", status="completed",
                                    conclusion="timed_out", head_sha="c"*40, run_attempt=1)]))
                 elif change == "one_run":
-                    value["pages"][0]["workflow_runs"].pop()
-                    value["pages"][0]["total_count"] = 1
-                    value["attempts"].pop()
+                    value = history(count=1)
                 elif change == "missing_job":
                     value["attempts"][0]["jobs"].pop()
                 else:
@@ -69,9 +100,9 @@ class Receipt(unittest.TestCase):
                 with self.assertRaises(gate.ReceiptRefusal):
                     gate.history_complete(value, HEAD, {"offline": ["py313", "py314"]})
 
-    def test_two_independent_complete_runs(self):
+    def test_three_independent_complete_runs(self):
         self.assertEqual(gate.history_complete(history(), HEAD,
-            {"offline": ["py313", "py314"]})["clean_runs"], {"offline": [11, 12]})
+            {"offline": ["py313", "py314"]})["clean_runs"], {"offline": [11, 12, 13]})
 
 
     def test_old_accepted_history_is_preserved_but_rerun_red_blocks(self):
@@ -79,16 +110,85 @@ class Receipt(unittest.TestCase):
         old = dict(value["pages"][0]["workflow_runs"][0], id=10, head_sha="c"*40,
                    conclusion="timed_out", updated_at="2026-10-17T11:59:00Z")
         value["pages"][0]["workflow_runs"].append(old)
-        value["pages"][0]["total_count"] = 3
+        value["pages"][0]["total_count"] = 4
         value["attempts"].append(dict(run_id=10, attempt=1, status="completed",
             head_sha="c"*40, conclusion="timed_out", total_count=2, jobs=[
                 dict(job, head_sha="c"*40, conclusion="timed_out")
                 for job in value["attempts"][0]["jobs"]]))
         self.assertEqual(gate.history_complete(value, HEAD,
-            {"offline": ["py313", "py314"]})["run_count"], 3)
+            {"offline": ["py313", "py314"]})["run_count"], 4)
         old["updated_at"] = "2026-10-17T12:02:00Z"
         with self.assertRaises(gate.ReceiptRefusal):
             gate.history_complete(value, HEAD, {"offline": ["py313", "py314"]})
+
+    def test_history_cutoff_preserves_raw_zero_jobs_and_legacy_contexts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            value = raw_history(directory, custody_history())
+            try:
+                result = gate.history_complete(value, HEAD, {'offline':['py313','py314']})
+            except gate.ReceiptRefusal as error:
+                self.fail('complete pre-cutoff custody must admit only the current three greens: '+error.code)
+            self.assertEqual(result['run_count'],4)
+            self.assertEqual(result['attempt_count'],5)
+            self.assertEqual(result['clean_runs'],{'offline':[11,12,13]})
+            self.assertEqual(len([a for a in value['attempts'] if a['run_id']==10]),2)
+
+    def test_history_cutoff_missing_or_filtered_prior_custody_refuses(self):
+        for defect in ('attempt','run','raw'):
+            with self.subTest(defect=defect),tempfile.TemporaryDirectory() as directory:
+                value = raw_history(directory, custody_history())
+                if defect=='attempt':
+                    value['attempts']=[a for a in value['attempts']
+                        if (a['run_id'],a['attempt'])!=(10,1)]
+                elif defect=='run':
+                    value['pages'][0]['workflow_runs'].pop()
+                    value['pages'][0]['total_count']-=1
+                    value['attempts']=[a for a in value['attempts'] if a['run_id']!=10]
+                else:
+                    value['raw_artifacts']=[a for a in value['raw_artifacts']
+                        if '/10/attempts/1' not in a['endpoint']]
+                with self.assertRaises(gate.ReceiptRefusal):
+                    gate.history_complete(value, HEAD, {'offline':['py313','py314']})
+
+    def test_history_cutoff_post_cutoff_empty_or_legacy_jobs_refuse(self):
+        for defect in ('empty','legacy'):
+            with self.subTest(defect=defect):
+                value = history()
+                if defect=='empty':
+                    value['attempts'][0].update(total_count=0,jobs=[])
+                else:
+                    value['attempts'][0]['jobs'][0]['name']='legacy-job-context'
+                with self.assertRaises(gate.ReceiptRefusal):
+                    gate.history_complete(value, HEAD, {'offline':['py313','py314']})
+
+    def test_history_cutoff_post_cutoff_job_or_run_failure_refuses(self):
+        for defect in ('job','run'):
+            with self.subTest(defect=defect):
+                value = history()
+                if defect=='job':
+                    value['attempts'][0]['jobs'][0]['conclusion']='failure'
+                else:
+                    value['pages'][0]['workflow_runs'][0]['conclusion']='failure'
+                    value['attempts'][0]['conclusion']='failure'
+                with self.assertRaisesRegex(gate.ReceiptRefusal,'history_unresolved_red'):
+                    gate.history_complete(value, HEAD, {'offline':['py313','py314']})
+
+    def test_history_two_clean_runs_are_insufficient(self):
+        with self.assertRaisesRegex(gate.ReceiptRefusal,'history_three_clean_runs'):
+            gate.history_complete(history(count=2), HEAD, {'offline':['py313','py314']})
+
+    def test_history_three_clean_runs_must_be_consecutive_at_final_head(self):
+        value = history()
+        other = dict(value['pages'][0]['workflow_runs'][0],id=14,head_sha='c'*40,
+            updated_at='2026-10-17T12:02:00Z')
+        value['pages'][0]['workflow_runs'].append(other)
+        value['pages'][0]['total_count']+=1
+        attempt=copy.deepcopy(value['attempts'][0])
+        attempt.update(run_id=14,head_sha='c'*40)
+        for i,job in enumerate(attempt['jobs']):job.update(id=140+i,head_sha='c'*40)
+        value['attempts'].append(attempt)
+        with self.assertRaisesRegex(gate.ReceiptRefusal,'history_three_consecutive_runs'):
+            gate.history_complete(value, HEAD, {'offline':['py313','py314']})
 
     def test_empty_or_duplicate_inventory_refuses(self):
         for required in ({}, {"offline": []}, {"offline": ["py313", "py313"]}):

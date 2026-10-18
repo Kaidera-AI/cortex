@@ -119,7 +119,7 @@ def _raw_history(index):
 
 
 def history_complete(index, expected_head, required_jobs):
-    """Admit complete raw page/attempt inventories; require two distinct clean runs.
+    """Admit complete raw page/attempt inventories; require three consecutive clean runs.
 
     The collector/lead supplies the independently reviewed history window. This
     pure check cannot attest that the supplied provider responses are authentic.
@@ -160,6 +160,7 @@ def history_complete(index, expected_head, required_jobs):
         require(len(keys) == len(set(keys)), "history_complete")
         wanted = set()
         clean = {name: [] for name in required_jobs}
+        window = {name: [] for name in required_jobs}
         closures = index.get("closures", [])
         require(type(closures) is list, "history_complete")
         for run in runs:
@@ -168,6 +169,8 @@ def history_complete(index, expected_head, required_jobs):
             in_window = updated >= cutoff
             require(_pin(run["head_sha"]) and type(run["run_attempt"]) is int
                 and run["run_attempt"] >= 1 and run["status"] == "completed", "history_complete")
+            if in_window and run['name'] in window:
+                window[run['name']].append((updated,run['id'],run['head_sha']))
             for number in range(1, run["run_attempt"]+1):
                 key = (run["id"], number)
                 wanted.add(key)
@@ -176,7 +179,7 @@ def history_complete(index, expected_head, required_jobs):
                 require(attempt["status"] == "completed" and attempt["head_sha"] == run["head_sha"],
                         "history_complete")
                 jobs = attempt["jobs"]
-                require(type(jobs) is list and bool(jobs)
+                require(type(jobs) is list and (bool(jobs) or not in_window)
                     and type(attempt["total_count"]) is int
                     and len(jobs) == attempt["total_count"]
                     and len({job["id"] for job in jobs}) == len(jobs)
@@ -187,7 +190,8 @@ def history_complete(index, expected_head, required_jobs):
                 require(all(job["head_sha"] == run["head_sha"] and job["run_attempt"] == number
                     and job["status"] == "completed" for job in jobs), "history_complete")
                 required = set(required_jobs.get(run["name"], []))
-                require(required <= {job["name"] for job in jobs}, "history_complete")
+                # Pre-cutoff jobs remain raw custody, not today's context admission.
+                require(not in_window or required <= {job["name"] for job in jobs}, "history_complete")
                 bad = [job for job in jobs if job["conclusion"] != "success"]
                 # A run-level failure cannot be hidden behind green job records.
                 if attempt["conclusion"] != "success":
@@ -210,7 +214,9 @@ def history_complete(index, expected_head, required_jobs):
                     require(not bad and run["run_attempt"] == 1, "history_unresolved_red")
                     clean[run["name"]].append(run["id"])
         require(set(keys) == wanted, "history_complete")
-        require(all(len(set(values)) >= 2 for values in clean.values()), "history_two_clean_runs")
+        require(all(len(set(values)) >= 3 for values in clean.values()), "history_three_clean_runs")
+        require(all(all(head == expected_head for _, _, head in sorted(values)[-3:])
+                    for values in window.values()), "history_three_consecutive_runs")
         return dict(head=expected_head, run_count=total, attempt_count=len(attempts),
                     clean_runs={key: sorted(set(value)) for key, value in clean.items()},
                     qualification="history_metadata_only")
