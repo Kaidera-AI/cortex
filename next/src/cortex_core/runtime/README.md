@@ -30,9 +30,18 @@ drain and reverse cleanup; unresolved cleanup is failure. Status emits the
 existing `cortex.status.v1` JSON and returns ready=0, enrollment_required=1,
 unavailable/invalid=2. It never treats a ready fixture as installation proof.
 
-The currently bound API is the existing C11b memory write, record read and
-health gateway. Generated registry, daily-command and search capabilities are
-not implemented by this composition. Stock runtime dependencies and licenses
+The currently bound API is the existing C11b memory write, session ingest,
+session-ID read, record read and public health gateway. Its single actual
+registry now carries plain schema/auth/error/Link descriptors. The owner-only
+`export_bound_openapi` service port takes explicit source commit, version,
+profile A and the configured listener after readiness. It returns the exact
+bytes served by authenticated `GET /openapi.json`; the endpoint refuses with
+`contract_identity_unbound` until that port is called. The operator has no
+trusted release-identity join yet, so this does not claim automatic installed
+export. See [../api/contract.md](../api/contract.md) for identity and digest rules.
+Daily-command and search handlers remain unbound typed refusals, including
+inherited `/log` and `/metrics`; none advertises a success response.
+Stock runtime dependencies and licenses
 are recorded in [UPSTREAM.md](UPSTREAM.md). Unit/driver-policy fixtures and
 loopback/signal process receipts qualify source behavior only. Actual full-schema
 SQL, least-privilege grants, encrypted descriptor mounts, installed closure,
