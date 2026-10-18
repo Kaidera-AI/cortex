@@ -82,6 +82,54 @@ def _client(values):
         os.close(output)
 
 
+def _reload_seed_receipt(config, *, custody, operation_key, deadline, result):
+    """One post-SQL-close receipt predicate set for standalone seed and finite ACK."""
+    from .bootstrap_config import BootstrapConfig
+    from .custody import CustodyVault, _installer_at, _installer_fail
+    from .resources import remaining_seconds, _SEED
+    from cortex_core.release.codec import canonical_bytes
+    if (type(config) is not BootstrapConfig or type(custody) is not CustodyVault
+            or custody._config is not config or config.mode not in ('seed','install')):
+        raise Refusal('seed_receipt')
+    if _SEED.get() is not None:
+        raise Refusal('seed_receipt')
+    owner = None
+    if config.mode == 'install':
+        owner = _installer_at(config, custody, deadline, 'ACK')
+        if (owner._resources is not None or owner._record_open or owner._ack is not None
+                or operation_key != owner._operation_key):
+            _installer_fail(owner)
+            raise Refusal('seed_receipt')
+    remaining_seconds(deadline)
+    with custody._read_seed_receipt(deadline) as material:
+        keys={'installation_id','tenant_id','project_id','principal_id','credential_id',
+            'operation_key','credential_sha256','intent_sha256'}
+        if (material is None or material.state!='committed' or type(result) is not dict
+                or set(result)!=keys or material.receipt!=result):
+            raise Refusal('seed_receipt')
+        intent=material.intent
+        expected={name:intent.get(name) for name in keys-{'intent_sha256'}}
+        expected['intent_sha256']=hashlib.sha256(canonical_bytes(intent)).hexdigest()
+        if (result!=expected or result['operation_key']!=operation_key
+                or result['installation_id']!=config.installation_id
+                or result['tenant_id']!=config.tenant_id or result['project_id']!=config.project_id
+                or result['credential_sha256']!=hashlib.sha256(material.credential).hexdigest()):
+            raise Refusal('seed_receipt')
+        try:
+            for name in ('principal_id','credential_id'):
+                if type(result[name]) is not str or str(UUID(result[name]))!=result[name] or UUID(result[name]).int==0:
+                    raise ValueError
+        except (ValueError,TypeError,AttributeError):raise Refusal('seed_receipt') from None
+        remaining_seconds(deadline)
+        validated = canonical_bytes(result)
+    remaining_seconds(deadline)
+    if owner is not None:
+        _installer_at(config, custody, deadline, 'ACK')
+        object.__setattr__(owner, '_ack', validated)
+    from .contracts import decode
+    return decode(validated, limit=32000)
+
+
 def dispatch_operator_command(argv):
     command,values=_arguments(argv)
     if command=='client':
@@ -107,8 +155,7 @@ def dispatch_operator_command(argv):
             'installation_id':config.installation_id,'applied':applied},separators=(',',':')))
         return 0
     if command=='seed':
-        from .resources import open_seed_resources,remaining_seconds
-        from cortex_core.release.codec import canonical_bytes
+        from .resources import open_seed_resources
         config=read_config_file(values['--config'],mode='seed')
         key=values['--operation-key']
         try:
@@ -125,27 +172,8 @@ def dispatch_operator_command(argv):
                 result=seed_runtime_bindings(config,key,deadline)
             # A callable's return alone is not durable seed acknowledgement.
             # Reload only after all owned SQL connections have closed.
-            with vault.seed_record() as record:
-                material=record.load()
-                keys={'installation_id','tenant_id','project_id','principal_id','credential_id',
-                    'operation_key','credential_sha256','intent_sha256'}
-                if (material is None or material.state!='committed' or type(result) is not dict
-                        or set(result)!=keys or material.receipt!=result):
-                    raise Refusal('seed_receipt')
-                intent=material.intent
-                expected={name:intent.get(name) for name in keys-{'intent_sha256'}}
-                expected['intent_sha256']=hashlib.sha256(canonical_bytes(intent)).hexdigest()
-                if (result!=expected or result['operation_key']!=key
-                        or result['installation_id']!=config.installation_id
-                        or result['tenant_id']!=config.tenant_id or result['project_id']!=config.project_id
-                        or result['credential_sha256']!=hashlib.sha256(material.credential).hexdigest()):
-                    raise Refusal('seed_receipt')
-                try:
-                    for name in ('principal_id','credential_id'):
-                        if type(result[name]) is not str or str(UUID(result[name]))!=result[name] or UUID(result[name]).int==0:
-                            raise ValueError
-                except (ValueError,TypeError,AttributeError):raise Refusal('seed_receipt') from None
-                remaining_seconds(deadline)
+            result=_reload_seed_receipt(config,custody=vault,operation_key=key,
+                        deadline=deadline,result=result)
         print(json.dumps({'schema':'cortex.operator.v1','ok':True,'operation':'seed',
             'installation_id':config.installation_id,'receipt':result},separators=(',',':')))
         return 0

@@ -129,7 +129,7 @@ class InstallerStageTests(unittest.TestCase):
             config = self.config(mode)
             for opener in (resources.open_seed_resources, resources.open_migration_resources,
                            resources.open_bootstrap_resources, resources.open_core_resources):
-                expected = {'seed':'seed','migrate':'migrate','bootstrap':'seed','serve':'serve'}
+                expected = {'seed':'seed','migration':'migrate','bootstrap':'seed','core':'serve'}
                 desired = opener.__name__.split('_')[1]
                 if expected[desired] == mode: continue
                 with self.subTest(mode=mode, opener=desired), self.assertRaises(Refusal):

@@ -13,7 +13,7 @@ from types import MappingProxyType
 from cortex_core.driver_logging import private_driver_logs
 from .bootstrap_config import BootstrapConfig
 from .credentials import read_private_file
-from .custody import CustodyVault
+from .custody import CustodyVault, _current_installer, _installer_connect_password, _installer_fail
 from .signed_member import Refusal
 
 _SEED = ContextVar('cortex_option_a_seed_resources', default=None)
@@ -94,7 +94,8 @@ def _certificate(config):
 def _connect(config, custody, purpose, deadline,*,_shutdown=None):
     # Caller admits the mode and exact custody object before entering here.
     remaining = remaining_seconds(deadline, connecting=True)
-    password = custody.resolve(purpose)
+    password = (_installer_connect_password(config, custody, deadline, purpose)
+                if config.mode == 'install' else custody.resolve(purpose))
     try:
         password = password.decode('utf-8','strict')
         if not password or '\x00' in password:
@@ -119,6 +120,9 @@ def _connect(config, custody, purpose, deadline,*,_shutdown=None):
     except Exception:
         if connection is not None:_close({'opened':connection},deadline=_shutdown.deadline if _shutdown is not None else None)
         raise Refusal('resources_unavailable') from None
+    except BaseException:
+        if connection is not None:_close({'opened':connection},deadline=_shutdown.deadline if _shutdown is not None else None)
+        raise
     finally:
         del password
     return connection, digest
@@ -159,6 +163,12 @@ class _Resources:
             raise Refusal('resources_closed')
         if self._tainted:
             raise Refusal('resources_tainted')
+        if self._config.mode == 'install':
+            owner = _installer_resource_owner(self._config, self._custody, self._deadline,
+                        {BootstrapResources:'bootstrap', SeedResources:'seed',
+                         MigrationResources:'migrate'}.get(type(self)))
+            if owner._resources is not self:
+                raise Refusal('resources_unbound')
 
     def check_deadline(self):
         self._live()
@@ -314,15 +324,33 @@ def _close(connections,*,deadline=None):
     for connection in reversed(list(connections.values())):
         try:
             with private_driver_logs(),_driver_deadline(deadline):connection.close()
-        except Exception:
+        except BaseException:
             failed = True
     return failed
+
+
+def _installer_resource_owner(config, custody, deadline, mode):
+    owner = _current_installer(config, custody, deadline)
+    stages = {'bootstrap': ('PRE','POST','LEDGER','CLOSE'),
+              'migrate': ('MIGRATE',), 'seed': ('SEED',)}
+    if not owner._busy or owner._stage not in stages.get(mode, ()):
+        if owner._busy: _installer_fail(owner)
+        raise Refusal('resources_mode')
+    return owner
 
 
 @contextmanager
 def _open(config, *, custody, deadline, mode,_shutdown=None):
     config_mode='seed' if mode=='bootstrap' else mode
-    if type(config) is not BootstrapConfig or config.mode != config_mode:
+    if type(config) is not BootstrapConfig:
+        raise Refusal('resources_mode')
+    installer = None
+    if config.mode == 'install':
+        if mode == 'serve': raise Refusal('resources_mode')
+        installer = _installer_resource_owner(config, custody, deadline, mode)
+        if installer._resources is not None or installer._record_open:
+            raise Refusal('resources_bound')
+    elif config.mode != config_mode:
         raise Refusal('resources_mode')
     if _shutdown is not None and (type(_shutdown) is not ShutdownBudget or _shutdown._config is not config or mode!='serve'):
         raise Refusal('resources_shutdown')
@@ -335,6 +363,7 @@ def _open(config, *, custody, deadline, mode,_shutdown=None):
     if mode in ('seed','bootstrap') and _SEED.get() is not None:
         raise Refusal('resources_bound')
     connections = {};carrier=token=None;failed=False
+    if installer is not None: object.__setattr__(installer,'_resources',True)
     try:
         purposes={'bootstrap':('bootstrap',),'seed':_SEED_PURPOSES,'serve':_CORE_PURPOSES,'migrate':_MIGRATE_PURPOSES}[mode]
         for purpose in purposes:
@@ -347,20 +376,30 @@ def _open(config, *, custody, deadline, mode,_shutdown=None):
                 raise Refusal('resources_changed')
         cls = {'bootstrap':BootstrapResources,'seed':SeedResources,'serve':CoreResources,'migrate':MigrationResources}[mode]
         carrier = cls(config,custody,deadline,connections,token=_BIRTH)
+        if installer is not None: object.__setattr__(installer,'_resources',carrier)
         if mode=='seed':token=_SEED.set(carrier)
         yield carrier
+        if installer is not None: carrier.check_deadline()
     except BaseException:
         failed=True
+        if installer is not None: _installer_fail(installer)
         raise
     finally:
-        if token is not None:_SEED.reset(token)
+        reset_failed = False
+        if token is not None:
+            try: _SEED.reset(token)
+            except (ValueError,RuntimeError): reset_failed = True
         if carrier is not None:object.__setattr__(carrier,'_closed',True)
         cleanup_deadline=carrier._shutdown_deadline if carrier is not None else None
         if _shutdown is not None and _shutdown.deadline is not None:
             cleanup_deadline=_shutdown.deadline if cleanup_deadline is None else min(cleanup_deadline,_shutdown.deadline)
         if cleanup_deadline is None:cleanup_deadline=time.monotonic()+config.limits['shutdown_seconds']
-        cleanup_failed = _close(connections,deadline=cleanup_deadline)
-        if cleanup_failed and not failed:
+        try:
+            cleanup_failed = _close(connections,deadline=cleanup_deadline) or reset_failed
+        finally:
+            if installer is not None: object.__setattr__(installer,'_resources',None)
+        if cleanup_failed and installer is not None: _installer_fail(installer)
+        if cleanup_failed and (installer is not None or not failed):
             raise Refusal('resources_cleanup')
 
 

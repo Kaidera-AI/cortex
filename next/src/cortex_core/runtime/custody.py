@@ -20,6 +20,7 @@ _SEED = 'cortex.seed-custody.v1'
 _KEY_ID = re.compile(r'[A-Za-z0-9_-]{1,64}\Z')
 _SECRET = re.compile(rb'[0-9a-f]{64}\Z')
 _INSTALLER = ContextVar('cortex_installer_custody', default=None)
+_INSTALLER_PHASES = ('PRE', 'MIGRATE', 'POST', 'LEDGER', 'SEED', 'ACK', 'CLOSE')
 
 
 def _unbase(value, *, maximum):
@@ -96,7 +97,9 @@ class CustodyVault:
             raise Refusal('custody_closed')
         if self._config.mode == 'install':
             binding = _INSTALLER.get()
-            _current_installer(self._config, self, binding[3] if binding else None)
+            owner = _current_installer(self._config, self, binding[3] if binding else None)
+            if owner._stage not in ('IMPORT', *_INSTALLER_PHASES):
+                raise Refusal('installer_context')
         self._directory.check()
 
     def _reference(self, purpose):
@@ -168,18 +171,58 @@ class CustodyVault:
 
     @contextmanager
     def seed_record(self):
-        if self._config.mode != 'seed':
+        owner = None
+        if self._config.mode == 'install':
+            owner = _installer_seed_owner(self)
+            if owner._record_open: raise Refusal('installer_resources')
+        elif self._config.mode != 'seed':
             raise Refusal('purpose_not_admitted')
         self._live()
         reference = self._config.client_ref
         if type(reference) is not str:
             raise Refusal('custody_invalid')
-        with custody_fs.record_lock(self._directory, reference.rsplit('/',1)[1]):
-            record = _SeedRecord(self, reference)
-            try:
-                yield record
-            finally:
-                record._active = False
+        if owner is not None:
+            object.__setattr__(owner, '_record_open', True)
+        try:
+            with custody_fs.record_lock(self._directory, reference.rsplit('/',1)[1]):
+                record = _SeedRecord(self, reference)
+                try:
+                    yield record
+                finally:
+                    record._active = False
+        except BaseException:
+            if owner is not None: _installer_fail(owner)
+            raise
+        finally:
+            if owner is not None: object.__setattr__(owner, '_record_open', False)
+
+    @contextmanager
+    def _read_seed_receipt(self, deadline):
+        """Read-only existing encrypted record; no create/commit handle escapes."""
+        owner = None
+        if self._config.mode == 'install':
+            owner = _installer_at(self._config, self, deadline, 'ACK')
+            if owner._resources is not None or owner._record_open:
+                raise Refusal('installer_resources')
+        elif self._config.mode != 'seed':
+            raise Refusal('purpose_not_admitted')
+        self._live()
+        reference = self._config.client_ref
+        if type(reference) is not str: raise Refusal('custody_invalid')
+        if owner is not None: object.__setattr__(owner, '_record_open', True)
+        try:
+            with custody_fs.record_lock(self._directory, reference.rsplit('/',1)[1]):
+                saved = custody_fs.read_record(self._directory, reference.rsplit('/',1)[1])
+                if saved is None:
+                    yield None
+                else:
+                    value, generation = self._open(saved[0], reference, 'seed')
+                    yield self._seed_payload(value, generation)
+        except BaseException:
+            if owner is not None: _installer_fail(owner)
+            raise
+        finally:
+            if owner is not None: object.__setattr__(owner, '_record_open', False)
 
     def resolve(self, purpose):
         reference, kind = self._reference(purpose)  # admission BEFORE record access
@@ -206,7 +249,7 @@ class CustodyVault:
         if self._config.mode == 'install':
             binding = _INSTALLER.get()
             owner = _current_installer(self._config, self, binding[3] if binding else None)
-            if (not owner._busy or type(kind) is not str or kind not in ROLE_NAMES
+            if (owner._stage != 'IMPORT' or not owner._busy or type(kind) is not str or kind not in ROLE_NAMES
                     or reference != self._config.roles[kind].secret_ref):
                 raise Refusal('purpose_not_admitted')
         self._live()
@@ -302,7 +345,8 @@ def _bound_installer(config, custody, deadline, *, opening=False):
             or owner._config is not config or owner._vault is not vault
             or vault._config is not config or vault._closed != opening
             or owner._closed or owner._tainted
-            or owner._stage != ('OPENING' if opening else 'IMPORT')
+            or (owner._stage != 'OPENING' if opening else
+                owner._stage not in ('IMPORT', 'RUN', *_INSTALLER_PHASES))
             or owner._deadline is not original_deadline
             or type(deadline) is not type(original_deadline) or deadline != original_deadline):
         raise Refusal('installer_context')
@@ -316,9 +360,10 @@ def _bound_installer(config, custody, deadline, *, opening=False):
 
 
 class InstallerCustody:
-    """Private finite IMPORT owner. Core2 must supply the actual run sequence."""
+    """Private finite owner of the fixed shipped Nix sequence, never callbacks."""
     __slots__ = ('_config', '_vault', '_deadline', '_stage', '_imported',
-                 '_closed', '_tainted', '_busy', '_token')
+                 '_closed', '_tainted', '_busy', '_token', '_next',
+                 '_resources', '_record_open', '_ack', '_operation_key')
 
     def __new__(cls, *args, **kwargs):
         raise Refusal('installer_private')
@@ -350,11 +395,35 @@ class InstallerCustody:
 
     def run(self, operation_key):
         owner = _admit_installer(self)
-        object.__setattr__(owner, '_tainted', True)
-        if owner._imported != ROLE_NAMES:
-            raise Refusal('installer_imports_incomplete')
-        # No fake successful receipt/stage/ACK until the fixed Core2 sequence.
-        raise Refusal('installer_incomplete')
+        try:
+            if owner._imported != ROLE_NAMES:
+                raise Refusal('installer_imports_incomplete')
+            # Keep the existing seed operation contract; never execute a callback.
+            from cortex_core.schema.seed import _operation
+            _operation(operation_key)
+            object.__setattr__(owner, '_operation_key', operation_key)
+            object.__setattr__(owner, '_busy', True)
+            object.__setattr__(owner, '_stage', 'RUN')
+            try:
+                from cortex_ship.install.provision import provision_sequence
+            except ImportError:
+                raise Refusal('installer_incomplete') from None
+            result = provision_sequence(owner._config, custody=owner._vault,
+                        deadline=owner._deadline, operation_key=operation_key)
+            _current_installer(owner._config, owner._vault, owner._deadline)
+            if (owner._stage != 'RUN' or owner._next != len(_INSTALLER_PHASES)
+                    or owner._resources is not None or owner._record_open
+                    or owner._ack is None or type(result) is not dict
+                    or canonical_bytes(result) != owner._ack):
+                raise Refusal('installer_incomplete')
+            object.__setattr__(owner, '_stage', 'COMPLETE')
+            return decode(owner._ack, limit=32000)
+        except BaseException as error:
+            _installer_fail(owner)
+            if isinstance(error, (Refusal, KeyboardInterrupt, SystemExit)): raise
+            raise Refusal('installer_sequence') from None
+        finally:
+            object.__setattr__(owner, '_busy', False)
 
 
 def _admit_installer(owner):
@@ -362,13 +431,103 @@ def _admit_installer(owner):
         raise Refusal('installer_private')
     try:
         actual = _current_installer(owner._config, owner._vault, owner._deadline)
-        if actual is not owner or owner._busy:
+        if actual is not owner or owner._busy or owner._stage != 'IMPORT':
             raise Refusal('installer_context')
     except AttributeError:
         raise Refusal('installer_private') from None
     except BaseException:
         object.__setattr__(owner, '_tainted', True)
         raise
+    return owner
+
+
+def _installer_fail(owner):
+    object.__setattr__(owner, '_tainted', True)
+    object.__setattr__(owner, '_stage', 'ERROR')
+    object.__setattr__(owner, '_ack', None)
+
+
+def _installer_at(config, vault, deadline, phase):
+    owner = _current_installer(config, vault, deadline)
+    if not owner._busy or owner._stage != phase:
+        if owner._busy: _installer_fail(owner)
+        raise Refusal('installer_phase')
+    return owner
+
+
+@contextmanager
+def _installer_phase(config, *, custody, deadline, phase):
+    """Only fixed run call sites enter; no yielded authority or injected body."""
+    owner = _current_installer(config, custody, deadline)
+    try:
+        if (not owner._busy or owner._stage != 'RUN' or type(phase) is not str
+                or owner._next >= len(_INSTALLER_PHASES)
+                or phase != _INSTALLER_PHASES[owner._next]
+                or owner._resources is not None or owner._record_open
+                or (phase == 'CLOSE' and owner._ack is None)):
+            raise Refusal('installer_phase')
+        object.__setattr__(owner, '_stage', phase)
+        yield
+        _installer_at(config, custody, deadline, phase)
+        if (owner._resources is not None or owner._record_open
+                or (phase == 'ACK' and owner._ack is None)):
+            raise Refusal('installer_resources')
+        object.__setattr__(owner, '_next', owner._next + 1)
+        object.__setattr__(owner, '_stage', 'RUN')
+    except BaseException:
+        _installer_fail(owner)
+        raise
+
+
+def _installer_role_bytes(owner, purpose):
+    vault = owner._vault
+    vault._live()
+    reference = owner._config.roles[purpose].secret_ref
+    saved = custody_fs.read_record(vault._directory, reference.rsplit('/',1)[1])
+    if saved is None: raise Refusal('custody_missing')
+    value, _ = vault._open(saved[0], reference, purpose)
+    raw = _credential_bytes(value)
+    _current_installer(owner._config, vault, owner._deadline)
+    return raw
+
+
+def _installer_password(config, *, custody, deadline, purpose):
+    """Nix's four fixed bound PRE steps, inside actual bootstrap transaction."""
+    owner = _installer_at(config, custody, deadline, 'PRE')
+    from .resources import BootstrapResources
+    resource = owner._resources
+    if (type(purpose) is not str
+            or purpose not in ('migrator','installer_enrollment','api_request','probe')
+            or type(resource) is not BootstrapResources or resource._closed
+            or resource._custody is not custody or resource._config is not config
+            or not resource._in_transaction):
+        _installer_fail(owner)
+        raise Refusal('purpose_not_admitted')
+    resource.check_deadline()
+    return _installer_role_bytes(owner, purpose)
+
+
+def _installer_connect_password(config, vault, deadline, purpose):
+    owner = _current_installer(config, vault, deadline)
+    purposes = {'PRE': ('bootstrap',), 'MIGRATE': ('migrator',),
+                'POST': ('bootstrap',), 'LEDGER': ('bootstrap',),
+                'SEED': ('bootstrap','installer_enrollment','api_request'),
+                'CLOSE': ('bootstrap',)}
+    if (not owner._busy or owner._resources is not True or type(purpose) is not str
+            or purpose not in purposes.get(owner._stage, ())):
+        _installer_fail(owner)
+        raise Refusal('purpose_not_admitted')
+    return _installer_role_bytes(owner, purpose)
+
+
+def _installer_seed_owner(vault):
+    binding = _INSTALLER.get()
+    owner = _installer_at(vault._config, vault, binding[3] if binding else None, 'SEED')
+    from .resources import current_seed_resources
+    resource = current_seed_resources(vault._config, owner._deadline)
+    if resource._custody is not vault or owner._resources is not resource:
+        _installer_fail(owner)
+        raise Refusal('installer_resources')
     return owner
 
 
@@ -388,7 +547,9 @@ def open_installer_custody(config, *, unlock_fd, key_id, deadline):
     vault._closed, vault._directory, vault._cipher = True, None, None
     for name, value in [('_config', config), ('_vault', vault), ('_deadline', deadline),
                         ('_stage', 'OPENING'), ('_imported', frozenset()),
-                        ('_closed', False), ('_tainted', False), ('_busy', False)]:
+                        ('_closed', False), ('_tainted', False), ('_busy', False),
+                        ('_next', 0), ('_resources', None), ('_record_open', False),
+                        ('_ack', None), ('_operation_key', None)]:
         object.__setattr__(owner, name, value)
     object.__setattr__(owner, '_token', _INSTALLER.set((owner, config, vault, deadline)))
     try:
@@ -403,6 +564,8 @@ def open_installer_custody(config, *, unlock_fd, key_id, deadline):
         object.__setattr__(owner, '_closed', True)
         object.__setattr__(owner, '_stage', 'ERROR' if owner._tainted else 'EXIT')
         object.__setattr__(owner, '_imported', frozenset())
+        object.__setattr__(owner, '_ack', None)
+        object.__setattr__(owner, '_operation_key', None)
         cleanup_failed = False
         try:
             vault.close()
@@ -430,6 +593,9 @@ class _SeedRecord:
         return '<SeedRecord private>'
 
     def _live(self):
+        if self._vault._config.mode == 'install':
+            # Retained seed handles cannot cross a phase or active resource scope.
+            _installer_seed_owner(self._vault)
         self._vault._live()
         if not self._active or self._tainted:
             raise Refusal('custody_closed')
