@@ -283,6 +283,26 @@ class ServiceTests(unittest.TestCase):
             self.assertEqual(messages[1]['body'],raw)
             self.assertEqual(bound.export_bound_openapi(**identity),raw)
 
+    def test_openapi_wire_response_validates_its_own_closed_schema(self):
+        from jsonschema import Draft202012Validator
+        self.require_source()
+        with self.opened() as owned,self.bound(owned) as bound:
+            bound.start()
+            raw=bound.export_bound_openapi(source_commit='a'*40,version='0.1.004',
+                profile='A',listener=f'http://{self.config.publish["host"]}:{self.config.publish["port"]}')
+            document=json.loads(raw)
+            validator=Draft202012Validator({'$ref':'#/components/schemas/OpenAPI',
+                'components':document['components']})
+            errors=list(validator.iter_errors(document))
+            self.assertFalse(errors,'exported OpenAPI fails its own closed response schema: '+
+                '; '.join(error.message for error in errors))
+            self.assertTrue(list(validator.iter_errors({**document,'unreviewed_extension':True})),
+                'self-schema must keep rejecting unknown response properties')
+            status,served=self.request(bound,'GET','/openapi.json')
+            self.assertEqual(status,200)
+            self.assertEqual(served,document)
+            self.assertFalse(list(validator.iter_errors(served)))
+
     def test_contract_identity_is_explicit_and_unconfigured_refuses(self):
         self.require_source()
         with self.opened() as owned,self.bound(owned) as bound:

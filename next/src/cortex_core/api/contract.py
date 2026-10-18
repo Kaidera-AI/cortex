@@ -64,7 +64,8 @@ SCHEMAS = {
     'OpenAPI': _object(dict(openapi=dict(type='string', const='3.1.0'),
         info=dict(type='object'), paths=dict(type='object'), components=dict(type='object'),
         servers=dict(type='array', items=dict(type='object')),
-        **{'x-cortex-binding':dict(type='object'), 'x-cortex-contract-sha256':STRING}),
+        **{'x-cortex-binding':dict(type='object'), 'x-cortex-contract-sha256':STRING,
+            'x-cortex-duplicate-authority-headers':STRING}),
         ('openapi','info','paths','components','servers','x-cortex-binding','x-cortex-contract-sha256')),
 }
 OPENAPI_ROW = dict(id='CORE-OPENAPI', method='GET', path='/openapi.json',
