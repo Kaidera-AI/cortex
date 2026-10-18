@@ -1,9 +1,12 @@
 """Current Day-2 source homes; no native or installed acceptance."""
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
+import sys
 import unittest
 ROOT=Path(__file__).resolve().parents[4]
+PROFILE=ROOT/'.github/next-offline-suites.json'
 V2='next/modules/cli-v2/tests/'
 SCHEMA='next/src/cortex_core/schema/tests/'
 RUNTIME='next/src/cortex_core/runtime/tests/'
@@ -19,6 +22,22 @@ class CurrentHome(unittest.TestCase):
         self.assertFalse(set(value['loopback']) & set(value['run']))
     def test_latest_health_contract_has_explicit_loopback_home(self):
         self.assertIn(V2+'test_health_contract.py',self.manifest()['loopback'])
+    def test_new_pipe_identity_has_exact_loopback_admission(self):
+        value=self.manifest()
+        self.assertIn(V2+'test_pipe_identity.py',value['loopback'])
+        self.assertNotIn(V2+'test_pipe_identity.py',value['run'])
+        spec=importlib.util.spec_from_file_location('current_home_offline_gate',
+            ROOT/'.github/scripts/pytest_next_offline.py')
+        gate=importlib.util.module_from_spec(spec)
+        sys.modules[spec.name]=gate
+        spec.loader.exec_module(gate)
+        checked=gate.inventory(ROOT,value)
+        self.assertTrue(checked['ok'],checked)
+        # The new exact home grants no blanket helper/test-path admission.
+        value['loopback'].append(V2+'test_unreviewed_pipe.py')
+        refused=gate.inventory(ROOT,value)
+        self.assertFalse(refused['ok'])
+        self.assertIn("invalid explicit suite path: '"+V2+"test_unreviewed_pipe.py'",refused['invalid'])
     def test_seed_caller_has_explicit_loopback_home(self):
         self.assertIn(SCHEMA+'test_seed_operator.py',self.manifest()['loopback'])
         self.assertIn(SCHEMA+'test_seed_owner_contract.py',self.manifest()['run'])
