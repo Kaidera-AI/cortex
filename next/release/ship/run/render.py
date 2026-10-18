@@ -6,6 +6,7 @@ The config is read only by Core's private-file reader and closed decoder, once p
 view. Core containers run the actual `cortex_core.runtime.operator` with one explicitly
 inherited unlock descriptor and only their own encrypted records. Contract: contract.md.
 """
+import contextlib
 import fcntl
 import importlib.util
 import json
@@ -618,6 +619,19 @@ class PodmanEngine:
         args = ["pod", "rm", "--force", ident] if kind == "pod" else ["rm", "--force", ident]
         if self._run(args, deadline=deadline)[0] != 0:
             raise OSError("engine remove failed")
+
+
+# ---------------------------------------------------------------------------
+# S4: the fixed finite bootstrap (signature docs/handoffs/2026-10-18_bob_cox_day3-s4-signature.md).
+# ---------------------------------------------------------------------------
+@contextlib.contextmanager
+def finite_bootstrap(config_path, *, plan, unlock_fd, key_id, operation_key, record, engine, deadline):
+    raise Refusal("s4_not_implemented")
+    yield  # noqa: unreachable (the published context-manager shape)
+
+
+def receive_bootstrap(owner, bootstrap):
+    raise Refusal("s4_not_implemented")
 
 
 LIFECYCLE_FLAGS = ("--plan", "--prefix", "--release-id", "--unlock-fd", "--key-id", "--seconds")
