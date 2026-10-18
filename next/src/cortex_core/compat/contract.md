@@ -90,6 +90,72 @@ A runtime error must retain its real reason; it is not an unshipped-operation
 success substitute. CLI preserves packet and nonzero exit. Core enforces these
 guards even when the CLI is bypassed.
 
+## Day-2 owner conformance (H-D622)
+
+The `day2` section freezes obligations against the exact published owner heads
+and source hashes below. It records foundation behavior separately from proposed
+joins and missing implementation. These assertions compare documents, not a
+composed runtime. Source snapshots and independent extraction checks are in the
+same-row evidence receipt; no owner source is copied into runtime or executed by
+this module. A newer owner interface requires an explicit reconciliation receipt,
+new exact source pins and conformance check; these pins grant no future acceptance.
+
+Cox's actual bootstrap decoder requires explicit `mode=...`; use the one closed
+`config/cortex.json`, not the legacy signed-runtime config format. Mode views
+expose only the listed DB roles. Client has no DB roles and exposes only its own
+credential reference; status has no secret. No implicit mode, secret, provider or
+URL is admitted. Preserve private/no-follow/no-hardlink bounded stable-inode
+reads, configured integer request/shutdown bounds, explicit AI off and J08
+verify-full. Config has no key material or provider/model selection.
+
+Bob's render consumes those same Core views. Projections are disposable private
+single-file copies of the selected purpose references plus root certificate for
+DB access; never mount the whole vault. The frozen operator argv and client wire
+are published PROPOSALS: Day-1 config source delivers no dispatcher/listener or
+projector. In particular, Bob's provisional `CORTEX_CREDENTIAL_FILE` is not a
+ratified encrypted-custody or transport API. Cox/Finn/Bob must agree the private
+pipe/FD and lifetime before dependent integration. Credentials must never enter
+argv, logs or evidence. The wrapper must sanitize inherited Cortex environment,
+refuse malformed/duplicate/missing projections and stop before the client on
+failure. No legacy discovery, admin scan, URL fallback or second persisted config.
+
+The published J06 proposals are pinned below as PROPOSED. They differ on unlock
+FD admission, AAD identity, record layout and lock semantics. Cox must publish a
+NEW explicit reconciliation receipt with Finn before dependent source. Neither
+proposal is silently accepted here. Stable intent must be encrypted before SQL
+WRITES; fresh read-only absence admission is a separately reconciled owner choice.
+
+J06 now requires an explicit encrypted project-vault adapter design FIRST, owned
+by Cox/Finn and accepted before build. Their design names the existing crypto
+donor or exact dependency, unlock/key source, no-follow layout, crash/replay
+state machine, ownership and typed failures. This spec does not choose those
+facts. No inferred key, plaintext fallback, extra token store or sole-copy Podman
+secret is permitted. Encrypted canonical custody precedes disposable projections.
+
+Finn's published pin contains negative tests and unchanged helper; `seed.py` is
+absent. The required sole seed preserves stable intent/IDs/key/secret encrypted
+BEFORE SQL, validates actual role/database identities and safe flags/memberships,
+uses the existing protected binding/enrollment transaction, then atomically
+checkpoints. SQL and filesystem are separate transactions: every crash boundary
+must replay the identical credential/IDs or refuse missing custody, never mint a
+replacement. Changed intent, same-name/new-OID substitution, unsafe role flags,
+concurrent enrollment and serve/installer separation need adverse proof. Initial
+identity is human read/write with roles=[]; no request-time or header promotion.
+The old 21 migration bytes remain unchanged and migration precedes seed.
+
+The sole helper must refuse missing private projection before ANY HTTP request;
+keep typed refusals/nonzero exits, protected credential transmission, one deadline
+and explicit identical-key replay after uncertain writes. Existing legacy helper
+behavior and negative fixture results do not satisfy these future obligations.
+A .005 settings choice cannot change missing/unconfigured into success. No
+provider/model/vendor defaults, local AI or provider calls are introduced here.
+
+HALE-A1-NEMO-CI-001 stays OPEN until Mike publishes the existing compat test path
+as RUN in his manifest AND the exact composed inventory passes. All new tests
+remain in that one path. Inventory is admission, never suite/installed coverage;
+hosted results belong only to their exact tested head. Hale closes the finding
+in Cox's commissioned new-head round; the author cannot self-close it.
+
 ## Normative field map
 
 ```json
@@ -329,6 +395,478 @@ guards even when the CLI is bypassed.
       "all_401_accepted": false,
       "source": "Cox bound registry/OpenAPI"
     }
+  },
+  "day2": {
+    "published_heads": {
+      "cox": "8e1babb2118a7b2ecb11115babb4dd39c90750d6",
+      "bob": "887c4d6d3d9e1523d13297b5bab949edb7c48b7c",
+      "finn": "bc4514a66164c9a5cbee449d7ff5bd2dc839d74c"
+    },
+    "source_receipts": {
+      "cox_config": {
+        "owner": "cox",
+        "commit": "8e1babb2118a7b2ecb11115babb4dd39c90750d6",
+        "path": "next/src/cortex_core/runtime/bootstrap_config.py",
+        "git_blob": "9232c23285f2e27aa3dfd1583583d35623552774",
+        "sha256": "23343a2cc50c6a816724fcc027935e56bb2434faa9ef677cc539837a1c93abad"
+      },
+      "cox_contract": {
+        "owner": "cox",
+        "commit": "8e1babb2118a7b2ecb11115babb4dd39c90750d6",
+        "path": "next/src/cortex_core/runtime/contract.md",
+        "git_blob": "d4425bddcfe9026475ca6ca0271d45d534d8ff88",
+        "sha256": "248b3485913d4b6c1ad1a5928731e55de36f0c318fa3bb741b6e02afe5948cbe"
+      },
+      "cox_reader": {
+        "owner": "cox",
+        "commit": "8e1babb2118a7b2ecb11115babb4dd39c90750d6",
+        "path": "next/src/cortex_core/runtime/credentials.py",
+        "git_blob": "1b2d751a6cb6c23b84ccf0dec598f9758d7c5322",
+        "sha256": "71eb9d2853a1eaf1dea5df7df882da949a4d714272b93b2102fe401cd88ec389"
+      },
+      "bob_run": {
+        "owner": "bob",
+        "commit": "887c4d6d3d9e1523d13297b5bab949edb7c48b7c",
+        "path": "next/release/ship/run/contract.md",
+        "git_blob": "1ab50258e6491db074726de72025cd3344d149c3",
+        "sha256": "be6988414f525b0e94c3c794c08efb4aaab398497cbdcba0e1db8f4f0201638c"
+      },
+      "bob_cli": {
+        "owner": "bob",
+        "commit": "887c4d6d3d9e1523d13297b5bab949edb7c48b7c",
+        "path": "next/release/ship/cli/contract.md",
+        "git_blob": "ff14594b7b82d6d5c2c892ed16a0c9d3e5c0cdb3",
+        "sha256": "b52342683af3b4304b34d0e52c5d105c3239ea74d81b2d578da56174202d9ed1"
+      },
+      "finn_negative": {
+        "owner": "finn",
+        "commit": "bc4514a66164c9a5cbee449d7ff5bd2dc839d74c",
+        "path": "next/src/cortex_core/schema/tests/test_seed.py",
+        "git_blob": "5c506252374b4f7eafb703de591d24362c6f5e1e",
+        "sha256": "c7a1cb02442f0ba9718edbd43395c13198b64186870322ce732f6bef4e44e2ba"
+      },
+      "finn_helper": {
+        "owner": "finn",
+        "commit": "bc4514a66164c9a5cbee449d7ff5bd2dc839d74c",
+        "path": "packages/cli/_cortex_api.sh",
+        "git_blob": "0eb5fc0d6e52d288ec68a39638195e942574b430",
+        "sha256": "d78ad0c87ffdf286c69b2485d3224186decc81b37608a4ae92fe40806d84f636"
+      }
+    },
+    "evidence_class": "document assertions against pinned publications; not runtime integration",
+    "config": {
+      "path": "config/cortex.json",
+      "required": [
+        "version",
+        "installation_id",
+        "tenant_id",
+        "project_id",
+        "project_names",
+        "ai_mode",
+        "vault_root",
+        "bind",
+        "publish",
+        "client",
+        "database",
+        "roles",
+        "limits"
+      ],
+      "decoder": "runtime.bootstrap_config.decode_config(raw, mode=mode)",
+      "closed_keys": true,
+      "extra_parser_or_persisted_client_config": false,
+      "mode_purposes": {
+        "serve": [
+          "api_request",
+          "probe"
+        ],
+        "migrate": [
+          "migrator"
+        ],
+        "seed": [
+          "bootstrap",
+          "installer_enrollment",
+          "api_request"
+        ],
+        "status": [],
+        "client": []
+      },
+      "client_secret": "client.credential_ref only in client mode",
+      "unknown_or_missing_mode": "config_mode",
+      "ai_mode": "explicit off; missing=config_shape; other=unshipped_provider_refusal",
+      "tls": {
+        "mode": "verify-full",
+        "root_cert_ref": "database.tls.root_cert_ref",
+        "other_mode": "config_transport_unratified"
+      },
+      "bounds": {
+        "config_bytes": 65536,
+        "credential_bytes": 4096,
+        "request_seconds": [
+          1,
+          120
+        ],
+        "shutdown_seconds": [
+          1,
+          120
+        ]
+      }
+    },
+    "projections": {
+      "reference_pattern": "secrets/cortex/[a-zA-Z0-9_-]{1,96}",
+      "reader": [
+        "owned",
+        "private",
+        "regular",
+        "no_symlink_any_component",
+        "no_hardlinks",
+        "bounded",
+        "stable_inode"
+      ],
+      "purposes_source": "config.mode_purposes",
+      "add_root_cert_for_database": true,
+      "whole_vault_mount": false,
+      "authoritative_secret_copy": "encrypted project vault"
+    },
+    "operator": {
+      "state": "published proposal; dispatcher not delivered by foundation",
+      "argv": [
+        "/opt/cortex/python/bin/python3",
+        "-I",
+        "-B",
+        "-m",
+        "cortex_core.cli",
+        "<serve|migrate|seed|status>",
+        "--config",
+        "/run/cortex/config/cortex.json"
+      ],
+      "bootstrap_order": [
+        "core-init",
+        "temporary-db",
+        "roles-pre",
+        "migrate",
+        "roles-post",
+        "seed",
+        "roles-close",
+        "stop-temporary-db",
+        "serve"
+      ],
+      "retries": 0
+    },
+    "client_join": {
+      "state": "OPEN: Cox/Finn/Bob reconciliation before integration",
+      "bob_proposed_keys": [
+        "CORTEX_API_URL",
+        "CORTEX_PROJECT",
+        "CORTEX_CREDENTIAL_FILE"
+      ],
+      "core_command": "cortex config client --config FILE",
+      "secret_transport": "protected pipe/FD; no secret argv/log/temp evidence",
+      "installed_credit": 0,
+      "infer_credential_file_acceptance": false
+    },
+    "seed": {
+      "entry": "seed_runtime_bindings(config, operation_key, deadline)",
+      "published_implementation": "ABSENT at Finn Day-1 pin",
+      "owner": "finn",
+      "first_identity": {
+        "kind": "human",
+        "grant": "read/write",
+        "roles": []
+      },
+      "request_time_enrollment": false,
+      "migration_prefix": "unchanged 21; migrate before seed",
+      "sequence": [
+        "persist stable IDs/operation key/secret encrypted before SQL",
+        "validate actual login and database OIDs/owner/flags/memberships",
+        "bind and enroll through existing protected SQL",
+        "atomically checkpoint after commit"
+      ],
+      "lost_ack": "reuse identical intent/secret/IDs; no replacement credential",
+      "missing_custody": "custody_unavailable; no replacement credential",
+      "required_cases": [
+        "exact_retry",
+        "changed_intent",
+        "every_crash_boundary",
+        "same_name_new_oid",
+        "unsafe_role_or_membership",
+        "concurrent_seed",
+        "serve_separation"
+      ]
+    },
+    "custody": {
+      "gate": "Cox/Finn explicit encrypted-adapter design accepted before build",
+      "required_design": [
+        "crypto_donor_or_dependency",
+        "unlock_key_source",
+        "nofollow_layout",
+        "crash_replay_state_machine",
+        "ownership",
+        "typed_failures"
+      ],
+      "inferred_defaults": [],
+      "plaintext_fallback": false,
+      "second_store": false,
+      "design_state": "PROPOSED; accepted reconciliation receipt required",
+      "reconciliation_owner": "cox with finn",
+      "open_reconciliation": [
+        "unlock_protocol",
+        "AAD_identity",
+        "record_reference",
+        "lock_semantics",
+        "absence_observation",
+        "adapter_and_client_api"
+      ],
+      "pre_sql_scope": "before mutating SQL; fresh read-only admission needs owner ruling",
+      "drafts_authorize_build": false,
+      "design_receipts": {
+        "J06-custody-adapter.md": {
+          "path": "/Volumes/WD-B-4TB/DevVault/helix/review/cortex/design/J06-custody-adapter.md",
+          "sha256": "196c954b776ed4c032d762df5691f0f93bcbdba9bce78486ca4ea431081f21c6",
+          "status": "PROPOSED"
+        },
+        "J06-seed-replay.md": {
+          "path": "/Volumes/WD-B-4TB/DevVault/helix/review/cortex/design/J06-seed-replay.md",
+          "sha256": "3ce2cdf46638e4bfdd95292e8e2fe48698bd0afe82eea9a8b1b1e8d05ae15dfe",
+          "status": "PROPOSED"
+        }
+      }
+    },
+    "transport": {
+      "owner_path": "packages/cli/_cortex_api.sh",
+      "missing_projection_http_attempts": 0,
+      "discovery_admin_v1_fallback": false,
+      "mutation_retry": "explicit identical replay with same key only",
+      "refusal": "preserve typed packet; nonzero exit; no fabricated success",
+      "seed_or_helper_fixture_as_installed": false
+    },
+    "provider_settings": "deferred .005; missing/unconfigured remains typed refusal",
+    "ci": {
+      "finding": "HALE-A1-NEMO-CI-001",
+      "owner": "mike",
+      "manifest": ".github/next-offline-suites.json",
+      "required_run": "next/src/cortex_core/compat/tests/test_contract.py",
+      "closure": "published RUN addition AND exact composed inventory pass; Hale adjudicates",
+      "inventory_is_suite_or_installed_pass": false,
+      "hosted_acceptance_inherited": false
+    }
+  },
+  "accepted_j06_v1": {
+    "authority": {
+      "interface": "J06-interface-v1.md",
+      "sha256": "25f208b916fa71f7c42be52399c0a92b1be1b2241d412427ab395712893d6d49",
+      "disposition": "ACCEPT_FOR_BOUNDED_SOURCE_WITH_INTERFACE_RESOLUTIONS",
+      "controls_over_conflicting_proposals": true,
+      "historical_section": "day2",
+      "source_accepted": false,
+      "installed_accepted": false
+    },
+    "config_metadata": {
+      "immutable_all_modes": ["source_sha256", "role_logins", "client_ref"],
+      "source_sha256": "SHA256 of full canonical decoded config",
+      "role_logins": "read-only five-purpose nonsecret login map",
+      "client_ref": "nonsecret metadata retained in ALL modes",
+      "resolve_guard": "mode and purpose checked BEFORE filesystem access",
+      "metadata_grants_credential_access": false,
+      "combined_login_reference_uniqueness": true
+    },
+    "unlock": {
+      "crypto": "cryptography==50.0.0 AESGCM",
+      "key_bytes": 32,
+      "key_terminator": "EOF",
+      "key_id": "explicit",
+      "read_max_bytes": 33,
+      "absolute_seconds": 1,
+      "fd0": "explicit selection AND validated anonymous pipe",
+      "fd1_fd2": "refuse",
+      "private_regular_fd": "owned/private/single-link/read-only validation",
+      "recovery": "same operator-held key or refuse",
+      "fallbacks": []
+    },
+    "record": {
+      "reference": "existing client.credential_ref",
+      "second_seed_intent_file": false,
+      "states": ["prepared", "committed"],
+      "aad": [
+        "schema",
+        "installation_id",
+        "tenant_id",
+        "project_id",
+        "reference",
+        "purpose",
+        "key_id",
+        "clear authenticated generation"
+      ],
+      "physical_path_is_identity": false,
+      "offline_malicious_rollback_proof": false
+    },
+    "payload": {
+      "schema": "cortex.seed-custody.v1",
+      "closed_fields": ["schema", "intent", "credential", "state", "receipt"],
+      "credential": "strict base64 of private Bearer bytes INSIDE encryption",
+      "receipt_before_commit": null,
+      "secret_in_intent_result_log_receipt": false
+    },
+    "seed_order": [
+      "bounded authoritative read-only empty-state observation",
+      "durable encrypted prepared before ANY SQL writes",
+      "bootstrap anchors/bindings transaction",
+      "actual kaidera-runtime-core-installer login calls auth.first_identity",
+      "api_request confirms current readiness",
+      "durable encrypted committed checkpoint",
+      "finite close/serve"
+    ],
+    "seed_refusals": {
+      "missing_custody_existing_or_partial_sql": "refuse; no replacement",
+      "ambiguous_commit": "replay/reconcile same intent and credential; never assume rollback",
+      "db_filesystem_atomicity": false,
+      "local_lock_replaces_sql_guards": false
+    },
+    "adapter": {
+      "import": "cortex_core.runtime.custody",
+      "open": "open_custody(config, *, unlock_fd, key_id)",
+      "seed_record": "seed mode only; owned stable nonblocking lock",
+      "methods": ["load()", "create(intent=..., credential=...)", "commit(receipt=...)"],
+      "load_none": "absent leaf ONLY",
+      "create": "absent only",
+      "commit": "retain intent/credential; verify loaded identity/digest/generation; generation+1",
+      "same_committed_receipt": "idempotent no-write",
+      "changed_receipt": "refuse",
+      "durability_unknown": "stop SQL/closure; later reload and reconcile",
+      "material": "frozen/repr-suppressed; defensive intent/receipt copies; private credential",
+      "after_close": "refuse",
+      "unlink_live_lock": false,
+      "public_injectable_authority": false
+    },
+    "resources": {
+      "open": "runtime.resources.open_seed_resources(config, *, custody, deadline)",
+      "connections": ["bootstrap", "installer_enrollment", "api_request"],
+      "connector": "actual psycopg; verify-full and admitted root certificate",
+      "accessor": "current_seed_resources(config, deadline)",
+      "requires": [
+        "SAME config object",
+        "SAME absolute monotonic deadline",
+        "live context",
+        "actual fixed SeedResources type"
+      ],
+      "carrier": "private context variable; actual carrier.custody",
+      "cleanup": "partial-open cleanup; reverse close; reset context on every exit",
+      "public_seed": "seed_runtime_bindings(config, operation_key, deadline)",
+      "serve_only": ["api_request", "probe"],
+      "driver_exception_text": false,
+      "unit_doubles_grant_production_authority": false
+    },
+    "projection": {
+      "argv": [
+        "python",
+        "-m",
+        "cortex_core.runtime.operator",
+        "config",
+        "client",
+        "--config",
+        "FILE",
+        "--unlock-fd",
+        "N",
+        "--key-id",
+        "ID",
+        "--projection-fd",
+        "M",
+        "[--project NAME]"
+      ],
+      "output_fd": "explicit owned anonymous pipe; no tty/regular file/default stdout",
+      "selection": "ONE admitted config map; default selected project UUID",
+      "prefix_before_full_validation": false,
+      "fields": [
+        "cortex.client.v1",
+        "admitted loopback URL",
+        "installation UUID",
+        "selected project UUID",
+        "admitted project name",
+        "committed client credential",
+        "integer total request seconds"
+      ],
+      "framing": "exactly seven UTF-8 fields, EACH NUL-terminated, then EOF",
+      "reject_in_every_field": ["NUL", "CR", "LF"],
+      "request_seconds": "min(config.request_seconds, 10)",
+      "helper": "packages/cli/_cortex_api.sh; fixed framing only; no config/decryption"
+    },
+    "credential": {
+      "format": "64 lower-case ASCII hex",
+      "entropy_bytes": 32,
+      "generate": "once",
+      "sha256_input": "raw ASCII Bearer bytes",
+      "base64_is_storage_encoding_only": true
+    },
+    "intent": {
+      "fields": [
+        "operation_key",
+        "installation_id",
+        "tenant_id",
+        "project_id",
+        "principal_id",
+        "credential_id",
+        "client_ref",
+        "schema_prefix_sha256",
+        "credential_sha256",
+        "database",
+        "roles"
+      ],
+      "operation_key_bound": "nonempty; <=256 UTF-8 characters and <=1024 bytes",
+      "database_fields": ["name", "oid", "owner_oid"],
+      "role_fields": ["login", "oid", "revision", "flags", "memberships"]
+    },
+    "receipt": {
+      "fields": [
+        "installation_id",
+        "tenant_id",
+        "project_id",
+        "principal_id",
+        "credential_id",
+        "operation_key",
+        "credential_sha256",
+        "intent_sha256"
+      ],
+      "intent_sha256": "SHA256 of Core canonical JSON bytes of intent",
+      "readiness_is_reusable_authority": false,
+      "retry": "reconcile exact SQL receipt, actual purpose identity and CURRENT readiness"
+    },
+    "closure": {
+      "pure_config_render": "stdlib only",
+      "encrypted_projection": "actual installed Core cryptography closure; Nix qualifies BOTH targets",
+      "ad_hoc_install_bootstrap": false,
+      "bob_transfer": "actual private FD transfer and minimal selected record mount; no whole-vault/finite-role serve mount",
+      "old_env_or_credential_file_wire_fallback": false,
+      "plaintext_host_client_fallback": false,
+      "secret_in_argv_env_temp_log": false,
+      "missing_uncommitted_unsafe_custody": "typed refusal before networking",
+      "failure_output": "one sanitized typed JSON line; no driver/OS details"
+    },
+    "open_proofs": [
+      "exact published Cox resources source before Finn integration",
+      "Nix executable/native cryptography closure",
+      "Bob actual private FD/mount transfer",
+      "Mike published RUN addition AND exact composed inventory",
+      "Cox commissions ONE Hale exact-final-head review",
+      "paired native/installed proof"
+    ],
+    "runtime_implementation_pin": null,
+    "fixture_as_live_credit": false,
+    "ai": "off; .005 deferred; no provider/model defaults or calls"
+  },
+  "versioned_cli": {
+    "ruling": {"file": "2026-10-17_cox_a-day2-versioned-cli-ruling-v1.md", "sha256": "11d7ebce3a3f0ebac0ae4f3b85eb5a0a6a5c0e2190a712269ac6231a64ebf1a5", "authority": "Kai Option A accepted by Cox", "scope": "SPEC only"},
+    "supersedes_helper_paths": ["day2.transport.owner_path", "accepted_j06_v1.projection.helper"],
+    "home": "next/modules/cli-v2",
+    "helper": "next/modules/cli-v2/_cortex_api.sh",
+    "transport_tests": ["next/modules/cli-v2/tests/test_transport_admission.py", "next/modules/cli-v2/tests/test_transport_composition.py", "next/modules/cli-v2/tests/test_transport_processes.py", "next/modules/cli-v2/tests/test_transport_projection.py", "next/modules/cli-v2/tests/test_transport_results.py"],
+    "module_docs": ["next/modules/cli-v2/README.md", "next/modules/cli-v2/UPSTREAM.md"],
+    "commands": {"cortex-v2-boot": {"source": "next/modules/cli-v2/cortex-v2-boot", "capability": "boot"}, "cortex-v2-log": {"source": "next/modules/cli-v2/cortex-v2-log", "capability": "log"}, "cortex-v2-search": {"source": "next/modules/cli-v2/cortex-v2-search", "capability": "search"}},
+    "new_API_capability_from_rename": false,
+    "v1": {"baseline": "7a1078213ac2497d6219e7778c7866001f97f30b", "manifest": "tests/v1_baseline.json", "manifest_sha256": "5b11c1c0e3dd5f3b22d39db7359ac1cb1e9f06d3dda1a57fd08736b3db594445", "helper_sha256": "d78ad0c87ffdf286c69b2485d3224186decc81b37608a4ae92fe40806d84f636", "preserve": "every manifest path, name, mode and exact baseline bytes", "live_contract_tests": "retained unchanged; Mike owns actual v1 regression admission/execution"},
+    "transport": {"helper_owner": "finn", "launcher_owner": "bob", "order": ["projector", "wait/reap", "exec same reader FD"], "readers": 1, "private_projection": "same accepted seven NUL-terminated fields then EOF", "new_HTTP_config_token_parser": false, "v1_authority_fallback": false, "secret_argv_env_file": false},
+    "capability_guard": "existing accepted mapping and typed unshipped refusals; no capability from rename",
+    "provider_calls": 0,
+    "live_effects": {"installed": 0, "PATH": 0, "v1_service_DB": 0},
+    "acceptance": {"old_head_inherited": false, "author_self_merge": false, "Mike": "v1 regression plus v2 RUN and exact composed inventory/CI", "Cox": "decides ONE bounded final exact-head Hale review", "fixtures_as_installed": false}
   }
 }
 ```
@@ -355,3 +893,75 @@ Source reuse and licence are recorded in UPSTREAM.md. Runtime implementation,
 old migration edits, v1 service/DB/PATH, provider/settings work, local AI, merge,
 signing and release are outside this slice. Hale reviews the exact pushed head;
 Cox owns ordered composition and reruns. No author release/merge approval.
+
+
+## Accepted J06 v1 reconciliation — 17 October 2026
+
+`accepted_j06_v1` controls conflicting proposals in the historical `day2`
+section. Historical fields, source pins and proposed APIs above remain the
+receipt of what was published then; their pending design status is preserved.
+Cox's accepted J06-interface-v1.md and frozen reconciliation receipt authorize
+bounded source work. They do not accept any implementation, CI, native install,
+actual descriptor transfer or runtime result. No implementation pin is invented.
+
+The accepted design adds immutable nonsecret snapshot metadata in all modes,
+while credential resolution checks mode/purpose before filesystem access.
+One encrypted first-console record uses existing client.credential_ref; there
+is no second seed-intent store. Explicit operator-held key bytes and key ID,
+authenticated UUID identity/generation and a stable owned lock protect the
+prepared/committed replay protocol. Unknown/malformed/key/tag failures refuse.
+There is no KDF, passphrase, key generation, implicit stdin/env/keychain, HTTP
+key provision or inferred recovery; the operator keeps and backs up the same
+key outside the adapter. Credential/principal UUIDs remain stable in intent.
+
+Bounded authoritative read-only emptiness admission may precede creation;
+EVERY mutating SQL operation follows durable encrypted prepared custody.
+Bootstrap and actual installer enrollment are separate purpose transactions.
+Current api_request readiness precedes durable committed custody and serve.
+The local lock supplies neither DB/filesystem atomicity nor authority over a
+remote installer. Ambiguous SQL commit reconciles the same intent/credential.
+The accepted fixed custody/resources seams preserve actual config identity,
+absolute deadline, purpose and lifetime; test doubles grant source-only credit.
+The seed material exposes defensive copies and no automatic secret serialization.
+The adapter also retains mode-bound resolve and explicit absent-only role import.
+Serve exposes only api_request/probe; no migrator credentials reach the seed.
+Finn v2 supplies exact database OIDs and owner, five role snapshots with revision,
+login/superuser/createdb/createrole/inherit/replication/bypassrls boolean flags and
+sorted exact OID/set/inherit/admin membership observations. Existing authoritative
+Cox/Nix validation remains required; the old unbound role_grants is no binder.
+
+The explicit projection descriptor carries exactly seven fully validated UTF-8
+fields, EACH NUL-terminated, then EOF. It is an owned anonymous pipe, and emits
+no partial prefix. The existing helper consumes framing only. It cannot select
+another config, credential source, decryptor, server-derived project or v1.
+Pure config admission/render remains stdlib-only; encrypted projection requires
+Nix's actual installed Core cryptography closure on both targets and Bob's real
+private FD/selected-record transfer. No pip/uv bootstrap or plaintext host client
+fallback follows from the older proposal. Until this operational join exists,
+helper/installation remains OPEN and refuses. No fixture supplies live credit.
+
+Mike's published RUN entry AND exact composed inventory, followed by ONE
+Cox-commissioned Hale exact-final-head review, remain separate open receipts.
+The public API, SQL/migrations, runtime modules and CI manifest are unchanged by
+this spec slice. AI remains off; .005 and provider/model defaults/calls deferred.
+
+
+## Versioned CLI amendment — Kai Option A, 17 October 2026
+
+`versioned_cli` controls helper path/entry naming over historical sections,
+including accepted_j06_v1.projection.helper; the accepted private wire and
+capability semantics remain in force. Finn moves the one helper, its five tests
+and docs to next/modules/cli-v2 and supplies cortex-v2-boot/log/search adapters.
+Bob's sole launcher/install owner uses ONLY those names and this source home,
+retaining projector -> wait/reap -> exec the SAME reader FD. No new reader,
+HTTP/config/token parser, v1 authority fallback or secret transport is admitted.
+A command rename supplies no API capability: existing boot/log/search mapping
+and provider/unshipped typed refusals still govern the versioned entries.
+The frozen v1 baseline manifest records every packages/cli and packages/api/tests
+blob path, mode and SHA256 (183 files); restore the helper exactly and keep the
+other v1 paths/names/bytes unchanged. Byte conformance is distinct from running
+live v1 contracts. Mike admits/runs actual v1 regressions and v2 tests and the
+exact composed inventory/CI; source fixtures supply no installed credit.
+Prior proposals, returned notes and reviews remain history. No changed-head
+acceptance is inherited; Cox decides any ONE bounded final Hale review. This
+SPEC changes no installed PATH, v1 service/DB or other owner's runtime source.
