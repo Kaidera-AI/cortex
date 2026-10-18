@@ -7,6 +7,7 @@ view. Core containers run the actual `cortex_core.runtime.operator` with one exp
 inherited unlock descriptor and only their own encrypted records. Contract: contract.md.
 """
 import contextlib
+from contextvars import ContextVar
 import fcntl
 import importlib.util
 import json
@@ -22,8 +23,9 @@ import termios
 import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "src"))
-from cortex_core.release.codec import sha256  # noqa: E402
-from cortex_core.runtime.bootstrap_config import MODE_PURPOSES, decode_config  # noqa: E402
+from cortex_core.release.codec import canonical_bytes, sha256  # noqa: E402
+from cortex_core.runtime import custody  # noqa: E402
+from cortex_core.runtime.bootstrap_config import MODE_PURPOSES, ROLE_NAMES, decode_config  # noqa: E402
 from cortex_core.runtime.contracts import (MAX_CONFIG_BYTES, MAX_LOCK_BYTES,  # noqa: E402
                                            RC0_SHA256, decode)
 from cortex_core.runtime.credentials import read_private_file  # noqa: E402
@@ -316,20 +318,28 @@ BOOTSTRAP_DONE = {"kind": "bootstrap", "name": BOOTSTRAP_POD}
 ENGINE_ID = re.compile(r"[0-9a-f]{64}")
 
 
-def _serve_creates(plan):
-    """The rendered serve step's three creates, exactly as rendered: pod, DB, API."""
+def _step(plan, name):
     steps = plan.get("steps") if isinstance(plan, dict) else None
-    step = next((s for s in steps or () if isinstance(s, dict) and s.get("name") == "serve"), None)
+    return next((s for s in steps or () if isinstance(s, dict) and s.get("name") == name), None)
+
+
+def _creates(plan, name, names):
+    """A rendered step's creates, exactly as rendered: the pod, then its containers."""
     creates = []
-    for argv in (step or {}).get("podman") or ():
+    for argv in (_step(plan, name) or {}).get("podman") or ():
         kind = ("pod" if argv[:3] == ["podman", "pod", "create"]
                 else "container" if argv[:2] == ["podman", "run"] else None)
         if kind is None or "--name" not in argv:
-            raise Refusal("plan_invalid:serve")
+            raise Refusal(f"plan_invalid:{name}")
         creates.append((kind, argv[argv.index("--name") + 1], argv))
-    if [name for _kind, name, _argv in creates] != list(SERVE_NAMES):
-        raise Refusal("plan_invalid:serve")
+    if [n for _kind, n, _argv in creates] != list(names):
+        raise Refusal(f"plan_invalid:{name}")
     return creates
+
+
+def _serve_creates(plan):
+    """The rendered serve step's three creates, exactly as rendered: pod, DB, API."""
+    return _creates(plan, "serve", SERVE_NAMES)
 
 
 def _with_inputs(argv, key_id):
@@ -397,7 +407,7 @@ def _remaining(deadline, reserve):
     return deadline - reserve
 
 
-def _inverse(owned, record, engine, deadline):
+def _inverse(owned, record, engine, deadline, *, unit="serve"):
     """Remove owned objects API -> DB -> pod; forget each only after its removal succeeded.
 
     Uses what remains of the ORIGINAL deadline (the cleanup reserve), never a new budget. A
@@ -414,13 +424,13 @@ def _inverse(owned, record, engine, deadline):
         if recorded:
             record.forget(name)
     if failed:
-        raise Refusal("serve_cleanup_failed")
+        raise Refusal(f"{unit}_cleanup_failed")
 
 
-def _start(creates, record, engine, *, key_id, unlock_fd, deadline, reserve):
+def _start(creates, record, engine, *, key_id, unlock_fd, deadline, reserve, unit="serve"):
     for kind, name, _argv in creates:
         if engine.lookup(kind, name) is not None:
-            raise Refusal(f"serve_collision:{name}")
+            raise Refusal(f"{unit}_collision:{name}")
     owned = []
     try:
         for kind, name, argv in creates:
@@ -428,16 +438,16 @@ def _start(creates, record, engine, *, key_id, unlock_fd, deadline, reserve):
                                   unlock_fd=unlock_fd if name == SERVE_NAMES[-1] else None,
                                   deadline=_remaining(deadline, reserve))
             if type(ident) is not str or not ident:
-                raise Refusal("serve_create_unrecognised")
+                raise Refusal(f"{unit}_create_unrecognised")
             owned.append([kind, name, ident, False])
             record.record(kind, name, ident)
             owned[-1][3] = True
     except BaseException as error:
         # Cleanup runs on refusal, failure AND interrupt; an interrupt still propagates.
-        _inverse(owned, record, engine, deadline)
+        _inverse(owned, record, engine, deadline, unit=unit)
         if isinstance(error, Refusal) or not isinstance(error, Exception):
             raise
-        raise Refusal("serve_start_failed") from None
+        raise Refusal(f"{unit}_start_failed") from None
     return owned
 
 
@@ -588,6 +598,13 @@ class PodmanEngine:
         return os.waitstatus_to_exitcode(status), output.decode("utf-8", "replace")
 
     def lookup(self, kind, name):
+        if kind == "volume":
+            code, _out = self._run(["volume", "exists", name], deadline=time.monotonic() + 30)
+            if code == 1:
+                return None
+            if code != 0:
+                raise Refusal("engine_unavailable")
+            return name  # a volume's identity is its name
         noun = ["pod"] if kind == "pod" else ["container"]
         code, _out = self._run([*noun, "exists", name], deadline=time.monotonic() + 30)
         if code == 1:
@@ -616,22 +633,169 @@ class PodmanEngine:
             raise OSError("engine stop failed")
 
     def remove(self, kind, ident, *, deadline):
-        args = ["pod", "rm", "--force", ident] if kind == "pod" else ["rm", "--force", ident]
+        args = {"pod": ["pod", "rm", "--force", ident], "volume": ["volume", "rm", ident]}.get(
+            kind, ["rm", "--force", ident])
         if self._run(args, deadline=deadline)[0] != 0:
             raise OSError("engine remove failed")
+
+    def run(self, argv, *, input_fd, deadline):
+        """One bounded foreground container (core-init); the input descriptor is its fd 3."""
+        if argv[:2] != ["podman", "run"]:
+            raise Refusal("plan_invalid:core-init")
+        return self._run(argv[1:], deadline=deadline, unlock_fd=input_fd)[0]
 
 
 # ---------------------------------------------------------------------------
 # S4: the fixed finite bootstrap (signature docs/handoffs/2026-10-18_bob_cox_day3-s4-signature.md).
+# One bounded invocation, config first: the actual Core installer owner, the SAME bootstrap bytes
+# into the finite prelude, the actual owner.run once (Nix's fixed provision_sequence), reverse
+# cleanup, custody exit, and only then the completion object in the one install record.
 # ---------------------------------------------------------------------------
+BOOTSTRAP_NAMES = (BOOTSTRAP_POD, f"{BOOTSTRAP_POD}-core")
+CORE_INIT = f"{PRODUCT}-core-init"
+# U2-A (PROPOSED in the signature): the pinned pwfile path is a read-only bind of the inherited
+# descriptor, so the pinned core-init vector bytes stay unchanged and no secret store exists.
+PWFILE = "/run/cortex/bootstrap/initdb-password"
+_BOOTSTRAP = ContextVar("cortex_ship_finite_bootstrap", default=None)
+
+
+class _Bootstrap:
+    """The one bound finite bootstrap: its exact owner, config, vault, deadline and objects."""
+
+    def __init__(self, owner, config, deadline, reserve, init_argv, creates, record, engine):
+        self.owner, self.config, self.vault = owner, config, owner._vault
+        self.deadline, self.reserve = deadline, reserve
+        self.init_argv, self.creates, self.record, self.engine = init_argv, creates, record, engine
+        self.open, self.delivered, self.volume, self.owned = True, False, False, None
+
+
+def _core_init_argv(plan):
+    """core-init exactly as rendered, network-less, its one pwfile fed by the inherited descriptor."""
+    step = _step(plan, "core-init") or {}
+    argv, image = step.get("argv"), step.get("image")
+    if (type(argv) is not list or not argv or any(type(arg) is not str for arg in argv)
+            or type(image) is not str or argv.count(f"--pwfile={PWFILE}") != 1):
+        raise Refusal("plan_invalid:core-init")
+    return ["podman", "run", "--rm", "--name", CORE_INIT, "--label", f"ai.kaidera.product={PRODUCT}",
+            *LOCKED, "--network=none", "-v", f"{DATA_VOLUME}:{DATA}", "-v", f"/dev/fd/3:{PWFILE}:ro",
+            image, *argv]
+
+
+def _plan_config(plan):
+    """The one config file the plan was rendered with (its read-only config mount source)."""
+    sources = {arg[:-len(f":{CONFIG_MOUNT}:ro")]
+               for step in (plan.get("steps") or () if isinstance(plan, dict) else ())
+               if isinstance(step, dict) for argv in step.get("podman") or ()
+               for arg in argv if type(arg) is str and arg.endswith(f":{CONFIG_MOUNT}:ro")}
+    return sources.pop() if len(sources) == 1 else None
+
+
+def _admit_owner(state):
+    """Core's private current-owner admission: the original owner, config, vault, deadline and
+    context, live at IMPORT with all five credentials imported and nothing running."""
+    owner = state.owner
+    if (custody._current_installer(state.config, state.vault, state.deadline) is not owner
+            or owner._stage != "IMPORT" or owner._busy or owner._tainted or owner._imported != ROLE_NAMES):
+        raise Refusal("bootstrap_owner")
+
+
+def _prelude(state, bootstrap):
+    """core-init with the SAME bytes on ONE anonymous pipe (its fd 3), then the temporary DB."""
+    read_end, write_end = os.pipe()
+    try:
+        try:
+            view = memoryview(bootstrap)
+            while view:
+                view = view[os.write(write_end, view):]
+        finally:
+            os.close(write_end)
+        code = state.engine.run(state.init_argv, input_fd=read_end,
+                                deadline=_remaining(state.deadline, state.reserve))
+    finally:
+        os.close(read_end)
+    if code != 0:
+        raise Refusal("bootstrap_init_failed")
+    state.volume = True  # created by this core-init: removed again if the bootstrap fails
+    state.owned = _start(state.creates, state.record, state.engine, key_id=None, unlock_fd=None,
+                         deadline=state.deadline, reserve=state.reserve, unit="bootstrap")
+
+
+def _unwind(state):
+    """Reverse cleanup after a failure: the finite objects, then the data this call created."""
+    owned = [("volume", DATA_VOLUME, DATA_VOLUME, False)] if state.volume else []
+    _inverse(owned + list(state.owned or ()), state.record, state.engine, state.deadline, unit="bootstrap")
+
+
 @contextlib.contextmanager
 def finite_bootstrap(config_path, *, plan, unlock_fd, key_id, operation_key, record, engine, deadline):
-    raise Refusal("s4_not_implemented")
-    yield  # noqa: unreachable (the published context-manager shape)
+    """S4: one finite bootstrap over the ACTUAL Core installer owner; yields that owner (IMPORT).
+
+    Inside the block S1 imports the five credentials and calls receive_bootstrap(owner, bytes)
+    once. After it: owner.run(operation_key) once, reverse cleanup of the finite objects, custody
+    exit, and only then the completion object. Any failure taints the owner, cleans up within
+    the original deadline and records nothing."""
+    if type(deadline) not in (int, float):
+        raise Refusal("input_missing:deadline")
+    if type(operation_key) is not str or not operation_key:
+        raise Refusal("input_missing:operation_key")
+    reserve = min(1.0, max(0.0, deadline - time.monotonic()) / 4)
+    _remaining(deadline, reserve)
+    init_argv = _core_init_argv(plan)
+    creates = _creates(plan, "temporary-db", BOOTSTRAP_NAMES)
+    if not isinstance(config_path, (str, pathlib.PurePath)) or _plan_config(plan) != str(config_path):
+        raise Refusal("plan_config_mismatch")
+    _writable(record)
+    for entry in record.objects():
+        if isinstance(entry, dict) and entry.get("kind") == BOOTSTRAP_DONE["kind"]:
+            raise Refusal("bootstrap_complete")
+        if isinstance(entry, dict) and entry.get("name") in BOOTSTRAP_NAMES:
+            raise Refusal("bootstrap_recorded")
+    for kind, name, _argv in [*creates, ("container", CORE_INIT, init_argv)]:
+        if engine.lookup(kind, name) is not None:
+            raise Refusal(f"bootstrap_collision:{name}")
+    if engine.lookup("volume", DATA_VOLUME) is not None:
+        raise Refusal("bootstrap_data_present")
+    config = decode_config(read_private_file(pathlib.Path(config_path), limit=MAX_CONFIG_BYTES), mode="install")
+    with custody.open_installer_custody(config, unlock_fd=unlock_fd, key_id=key_id, deadline=deadline) as owner:
+        state = _Bootstrap(owner, config, deadline, reserve, init_argv, creates, record, engine)
+        token = _BOOTSTRAP.set(state)
+        try:
+            yield owner
+            _admit_owner(state)
+            if not state.delivered or state.owned is None:
+                raise Refusal("bootstrap_not_delivered")
+            receipt = owner.run(operation_key)
+        except BaseException:
+            custody._installer_fail(owner)
+            _unwind(state)
+            raise
+        finally:
+            state.open = False
+            _BOOTSTRAP.reset(token)
+        _inverse(state.owned, record, engine, deadline, unit="bootstrap")
+    record.record(BOOTSTRAP_DONE["kind"], BOOTSTRAP_DONE["name"], sha256(canonical_bytes(receipt)))
 
 
 def receive_bootstrap(owner, bootstrap):
-    raise Refusal("s4_not_implemented")
+    """The fixed S1 data receiver: the SAME imported bootstrap bytes, once, into the prelude.
+
+    S1 calls it after all five imports; nothing passes a callable. Core's private admission runs
+    before and after the engine boundary; any refusal or interrupt taints the bound owner."""
+    state = _BOOTSTRAP.get()
+    if state is None or not state.open:
+        raise Refusal("bootstrap_receiver_unbound")
+    try:
+        if state.owner is not owner or state.delivered:
+            raise Refusal("bootstrap_receiver_unbound")
+        state.delivered = True
+        _admit_owner(state)
+        if type(bootstrap) is not bytes or not 1 <= len(bootstrap) <= 4096:
+            raise Refusal("bootstrap_input")
+        _prelude(state, bootstrap)
+        _admit_owner(state)
+    except BaseException:
+        custody._installer_fail(state.owner)
+        raise
 
 
 LIFECYCLE_FLAGS = ("--plan", "--prefix", "--release-id", "--unlock-fd", "--key-id", "--seconds")
