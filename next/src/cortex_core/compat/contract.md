@@ -867,6 +867,245 @@ in Cox's commissioned new-head round; the author cannot self-close it.
     "provider_calls": 0,
     "live_effects": {"installed": 0, "PATH": 0, "v1_service_DB": 0},
     "acceptance": {"old_head_inherited": false, "author_self_merge": false, "Mike": "v1 regression plus v2 RUN and exact composed inventory/CI", "Cox": "decides ONE bounded final exact-head Hale review", "fixtures_as_installed": false}
+  },
+  "project_enrollment": {
+    "version": "cortex.project-enrollment.v1",
+    "authority": {
+      "handoff": "75a5353b-1c4f-4e73-bd64-86f2aefeab0f",
+      "accepted_interim_sha256": "c33c1c63bb716bb8f8aa78d5b168a643dd3b98efde9f04f89572a51ba07cde1c",
+      "persistent_amendment_sha256": "dd103ff41092e973552f47794e99680e4a687d383f39b386651a47378b200be1"
+    },
+    "implementation": "pending_finn_j2_j3",
+    "runtime_reads_this_map": false,
+    "operations": {
+      "claim": {
+        "method": "POST",
+        "path": "/enrollment/claim",
+        "route_id": "J3-CLAIM",
+        "success_status": 200,
+        "current_bound": false,
+        "request": "ClaimRequest",
+        "response": "LeadReceipt",
+        "auth": "claim"
+      },
+      "register": {
+        "method": "POST",
+        "path": "/agents",
+        "route_id": "C01-R108",
+        "success_status": 200,
+        "current_bound": false,
+        "request": "WorkerRequest",
+        "response": "WorkerReceipt",
+        "auth": "ordinary"
+      },
+      "rotate": {
+        "method": "POST",
+        "path": "/agents/{principal_id}/credentials/rotate",
+        "route_id": "J3-ROTATE",
+        "success_status": 200,
+        "current_bound": false,
+        "request": ["LeadRotateRequest", "WorkerRotateRequest"],
+        "response": ["LeadReceipt", "WorkerReceipt"],
+        "auth": "ordinary"
+      },
+      "revoke": {
+        "method": "POST",
+        "path": "/agents/{principal_id}/credentials/{credential_id}/revoke",
+        "route_id": "J3-REVOKE",
+        "success_status": 200,
+        "current_bound": false,
+        "request": "RevokeRequest",
+        "response": "RevokeReceipt",
+        "auth": "ordinary"
+      }
+    },
+    "public_policy": "unchanged D1/D2/D3; no J3 public operations",
+    "auth": {
+      "claim": "finite J2 project-claim Bearer capability only",
+      "ordinary": "current project lead C04 control; target same project",
+      "scope_source": "authoritative installation/tenant/project binding",
+      "headers_create_membership": false,
+      "claim_capability_on_data_routes": false,
+      "installer_login_in_serve": false,
+      "duplicate_authority_headers": 400
+    },
+    "headers": {
+      "idempotency_key": "required canonical UUID; maps to operation_key",
+      "project": "X-Project; must match authenticated project",
+      "writer": "X-Agent-Name equals enrolled actor; claim uses J2 approved name, never header promotion",
+      "writer_name_form": "project-qualified canonical name; claim body name is the exact J2-approved unqualified suffix"
+    },
+    "lifetime": {
+      "lead": "until explicit revoke/rotation; expires_at=null",
+      "lead_rotation": "self only, preserves nonexpiry and project control",
+      "worker_ttl_seconds": [60, 2592000],
+      "worker_permissions": ["read", "write"],
+      "server_selects_target_policy": true,
+      "reboot_or_old_backup_restores_revoked_authority": false
+    },
+    "commit": "same Identity SQL transaction commits scope, credential digest, idempotency receipt, audit and non-null c06 event before 200",
+    "replay": {
+      "same_intent": "same committed receipt; only replayed may change; no new principal/credential/event",
+      "changed_intent_or_target": 409,
+      "claim_consumed": "exact committed replay only while currently admitted; never new enrollment",
+      "expired_or_revoked_claim": 401,
+      "revoked_lead_or_old_backup": "401; consumed claim cannot restore authority",
+      "lost_response": "retain encrypted PREPARED preimage, stable IDs and key; reconcile exact receipt; never mint replacement",
+      "intent_scope": ["operation", "installation_id", "tenant_id", "project_id", "actor_or_claim_id", "path_targets", "validated_request", "operation_key"]
+    },
+    "denials": {
+      "invalid_input": 400,
+      "unauthenticated": 401,
+      "forbidden": 403,
+      "not_found": 404,
+      "conflict": 409,
+      "core_unavailable": 503
+    },
+    "names": {
+      "canonical": "<project UUID>:<exact name>",
+      "name_max_characters": 219,
+      "canonical_max_characters": 256,
+      "normalize_or_fixed_roster": false,
+      "collision": 409
+    },
+    "first_console": {
+      "kind": "human",
+      "permissions": ["read", "write"],
+      "roles": [],
+      "promoted_by_claim": false
+    },
+    "lead_permissions": ["read", "write", "control"],
+    "project_creation": false,
+    "ownership": {
+      "contract": "nemo",
+      "handlers_identity_runtime": "finn",
+      "acceptance": "cox; Kai merge only"
+    },
+    "actual_bound_checks": "NOT RUN until Finn J2/J3 exact source; no fixture/export/installed credit",
+    "schemas": {
+      "ClaimRequest": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "principal_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+          "credential_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+          "credential_sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"},
+          "name": {"type": "string", "minLength": 1, "maxLength": 219, "pattern": "^[^:\\u0000\\r\\n]+(?![\\s\\S])"}
+        },
+        "required": ["principal_id", "credential_id", "credential_sha256", "name"],
+        "additionalProperties": false
+      },
+      "WorkerRequest": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "principal_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+          "credential_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+          "credential_sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"},
+          "name": {"type": "string", "minLength": 1, "maxLength": 219, "pattern": "^[^:\\u0000\\r\\n]+(?![\\s\\S])"},
+          "permissions": {"type": "array", "items": {"enum": ["read", "write"]}, "minItems": 1, "maxItems": 2, "uniqueItems": true},
+          "ttl_seconds": {"type": "integer", "minimum": 60, "maximum": 2592000}
+        },
+        "required": ["principal_id", "credential_id", "credential_sha256", "name", "permissions", "ttl_seconds"],
+        "additionalProperties": false
+      },
+      "LeadRotateRequest": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "old_credential_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+          "credential_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+          "credential_sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"},
+          "ttl_seconds": {"type": "null"}
+        },
+        "required": ["old_credential_id", "credential_id", "credential_sha256", "ttl_seconds"],
+        "additionalProperties": false
+      },
+      "WorkerRotateRequest": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "old_credential_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+          "credential_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+          "credential_sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"},
+          "ttl_seconds": {"type": "integer", "minimum": 60, "maximum": 2592000}
+        },
+        "required": ["old_credential_id", "credential_id", "credential_sha256", "ttl_seconds"],
+        "additionalProperties": false
+      },
+      "RevokeRequest": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "LeadReceipt": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "receipt": {"type": "object", "properties": {"schema": {"const": "cortex.enrollment.receipt.v1"}, "operation": {"enum": ["claim", "rotate"]}, "installation_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "tenant_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "project_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "principal_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "credential_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "operation_key": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "intent_sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"}, "credential_sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"}, "audit_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "event_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "replayed": {"type": "boolean"}, "revoked": {"const": false}, "name": {"type": "string", "minLength": 38, "maxLength": 256, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[^:\\u0000\\r\\n]+(?![\\s\\S])"}, "generation": {"type": "integer", "minimum": 1}, "permissions": {"const": ["read", "write", "control"]}, "expires_at": {"type": "null"}}, "required": ["schema", "operation", "installation_id", "tenant_id", "project_id", "principal_id", "credential_id", "operation_key", "intent_sha256", "credential_sha256", "audit_id", "event_id", "replayed", "revoked", "name", "generation", "permissions", "expires_at"], "additionalProperties": false}
+        },
+        "required": ["receipt"],
+        "additionalProperties": false
+      },
+      "WorkerReceipt": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "receipt": {"type": "object", "properties": {"schema": {"const": "cortex.enrollment.receipt.v1"}, "operation": {"enum": ["register", "rotate"]}, "installation_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "tenant_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "project_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "principal_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "credential_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "operation_key": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "intent_sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"}, "credential_sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"}, "audit_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "event_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "replayed": {"type": "boolean"}, "revoked": {"const": false}, "name": {"type": "string", "minLength": 38, "maxLength": 256, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[^:\\u0000\\r\\n]+(?![\\s\\S])"}, "generation": {"type": "integer", "minimum": 1}, "permissions": {"type": "array", "items": {"enum": ["read", "write"]}, "minItems": 1, "maxItems": 2, "uniqueItems": true}, "expires_at": {"type": "string", "format": "date-time"}}, "required": ["schema", "operation", "installation_id", "tenant_id", "project_id", "principal_id", "credential_id", "operation_key", "intent_sha256", "credential_sha256", "audit_id", "event_id", "replayed", "revoked", "name", "generation", "permissions", "expires_at"], "additionalProperties": false}
+        },
+        "required": ["receipt"],
+        "additionalProperties": false
+      },
+      "RevokeReceipt": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "receipt": {"type": "object", "properties": {"schema": {"const": "cortex.enrollment.receipt.v1"}, "operation": {"const": "revoke"}, "installation_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "tenant_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "project_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "principal_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "credential_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "operation_key": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "intent_sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"}, "credential_sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"}, "audit_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "event_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}, "replayed": {"type": "boolean"}, "revoked": {"const": true}, "name": {"type": "string", "minLength": 38, "maxLength": 256, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[^:\\u0000\\r\\n]+(?![\\s\\S])"}, "generation": {"type": "integer", "minimum": 1}, "permissions": {"anyOf": [{"type": "array", "items": {"enum": ["read", "write"]}, "minItems": 1, "maxItems": 2, "uniqueItems": true}, {"const": ["read", "write", "control"]}]}, "expires_at": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]}}, "required": ["schema", "operation", "installation_id", "tenant_id", "project_id", "principal_id", "credential_id", "operation_key", "intent_sha256", "credential_sha256", "audit_id", "event_id", "replayed", "revoked", "name", "generation", "permissions", "expires_at"], "additionalProperties": false, "oneOf": [{"properties": {"permissions": {"const": ["read", "write", "control"]}, "expires_at": {"type": "null"}}}, {"properties": {"permissions": {"type": "array", "items": {"enum": ["read", "write"]}, "minItems": 1, "maxItems": 2, "uniqueItems": true}, "expires_at": {"type": "string", "format": "date-time"}}}]}
+        },
+        "required": ["receipt"],
+        "additionalProperties": false
+      }
+    },
+    "transport": {
+      "nonlocal": "admitted protected transport required; absent refuses before enrollment",
+      "local": "preserve existing explicit authority boundary; loopback HTTP is not encrypted delivery",
+      "postgres": "verify-full with exact CA/server identity; no downgrade",
+      "deadline": "one existing original request deadline; no reset for replay or reconciliation"
+    },
+    "prepared": {
+      "credential": "private caller generation with at least 256 bits of OS cryptographic randomness; hash exact credential bytes",
+      "digest": "SHA-256 lowercase hex; server receives no preimage",
+      "storage": "same encrypted PREPARED record mechanism before request; reconcile all scope/identity/digest fields before COMMITTED"
+    },
+    "intent_encoding": {
+      "codec": "existing Identity canonical JSON: UTF-8, ensure_ascii=false, sorted keys, comma/colon separators, allow_nan=false; SHA-256",
+      "object_keys": ["operation", "installation_id", "tenant_id", "project_id", "actor_or_claim_id", "path_targets", "validated_request", "operation_key"],
+      "operation": "claim|register|rotate|revoke",
+      "actor_or_claim_id": "authoritative current principal UUID, or J2 claim UUID",
+      "path_targets": {
+        "claim": [],
+        "register": [],
+        "rotate": ["principal_id"],
+        "revoke": ["principal_id", "credential_id"]
+      },
+      "path_targets_shape": "object with exactly the listed canonical UUID keys; empty object for no targets",
+      "validated_request": "exact closed request object, including explicit null for lead rotation; no omitted defaults",
+      "operation_key": "canonical UUID from Idempotency-Key"
+    },
+    "errors": {
+      "envelope": "existing error{code,capability?,state?,reason?,retryable}",
+      "status_codes": {
+        "invalid_input": 400,
+        "unauthenticated": 401,
+        "forbidden": 403,
+        "not_found": 404,
+        "conflict": 409,
+        "core_unavailable": 503
+      },
+      "unavailable": "retain real typed reason; no fabricated unshipped success or claim of no commit"
+    }
   }
 }
 ```
@@ -965,3 +1204,85 @@ exact composed inventory/CI; source fixtures supply no installed credit.
 Prior proposals, returned notes and reviews remain history. No changed-head
 acceptance is inherited; Cox decides any ONE bounded final Hale review. This
 SPEC changes no installed PATH, v1 service/DB or other owner's runtime source.
+
+
+## J3 project enrollment amendment — 19 October 2026
+
+The `project_enrollment` member above is the ONE frozen J3 request/auth/receipt
+vocabulary for Cox and Finn. It supplements the pending runtime; it does not
+claim a bound operation, publish a second registry, or change D1/D2/D3 public
+membership. Its canonical JSON SHA-256 is `ce78b63ac79d245df7f473676d2b57edbbfd37de646eb8396770a9483f3d9d65`.
+Hash exactly that member using UTF-8, ensure_ascii=false, sorted keys, separators
+comma/colon and allow_nan=false; surrounding prose and historical sections are
+outside this vocabulary digest. Schemas are standalone JSON Schema 2020-12;
+validate date-time with a format checker, strict JSON (no duplicate keys,
+non-finite numbers or invalid Unicode), and existing ingress size/deadline bounds.
+
+Initial claim accepts only the finite one-project J2 Bearer capability, whose
+authoritative installation/tenant/project and approved lead name must match.
+It is not a data credential. X-Project must match that binding; X-Agent-Name
+asserts the approved name and cannot create or promote identity. This is the
+explicit bootstrap exception to the enrolled-writer rule above, not general
+request-time enrollment. First-console human read/write remains separate and
+never becomes lead through a claim. No project creation or installer login is
+exposed. Missing/invalid/revoked/expired capability is 401; a valid authority
+lacking the required project control is 403. Malformed/duplicate authority
+headers are 400. Denials and unavailable Core perform no enrollment effects.
+
+POST /agents registers an ordinary read/write worker under the currently
+authenticated project's lead with C04 control. Workers always have a finite
+60..2592000-second TTL, counted from the committed issuance time. They cannot
+request control, owner or admin. Only the claimed project lead is nonexpiring.
+Rotate resolves the target in the authenticated project and chooses its schema
+from stored identity policy: a lead can rotate only itself with ttl_seconds=null;
+a worker rotation requires a finite TTL and preserves its existing permissions.
+Rotation atomically revokes the old credential and activates the prepared new
+credential. Revoke targets exactly the path credential of that same-project
+principal; its empty body cannot request revoke-all. An absent or foreign target
+returns the existing non-disclosing 404. No target may be selected by a body role
+or by headers, and no self-renewal may elevate a worker into lead.
+
+Before a request, the caller generates its credential privately and durably
+stores an encrypted PREPARED bundle containing its preimage, operation key,
+scope, IDs and exact intent. HTTP carries only the digest and stable identifiers;
+neither requests, responses nor errors contain a secret/preimage/unlock key.
+Names use the exact supplied Unicode string without normalization, with 1..219
+characters excluding colon, NUL, CR and LF. Stored names are project UUID, colon,
+then that exact name (at most 256 characters). A repeated display name is allowed
+in another project; a different intent colliding in the same project is 409.
+
+Idempotency-Key is required for all four operations, a canonical lowercase
+hyphenated UUID mapped to operation_key. Intent hashing covers exactly the map's
+intent_scope, using the existing canonical JSON codec and SHA-256. Path target
+UUIDs are canonical; auth supplies actor_or_claim_id and all scope IDs. Recheck
+current authorization at the commit/replay boundary: no cached lead, consumed
+claim, restored backup or earlier admission can revive revoked authority.
+The durable consumed-claim ledger must allow only exact committed replay while
+the claim remains currently admitted, never a second enrollment. A changed key
+intent or target collision is 409; an expired/revoked capability remains 401
+even when a matching receipt exists. A lost response retains the same encrypted
+PREPARED state and reconciles the exact receipt, never a replacement credential.
+
+200 is emitted only after the SAME Identity SQL transaction has committed scope,
+credential digest, idempotency receipt, audit_id and a non-null c06 event_id.
+This is an Identity receipt, not C05Committed: no record_id/payload_sha256 or
+fabricated verified=true. event_id/audit_id refer to that real commit. A replay
+returns those same fields and IDs; only replayed may change. expires_at is null
+for lead issuance/self-rotation and RFC3339 for ordinary issuance/rotation;
+revoke reports the stored target lifetime. Receipt name's project prefix and
+target IDs must agree with the authoritative scope and path. Generation is the
+stored credential generation, never a client-selected counter. 503 and uncertain
+acknowledgement retain their real typed reason and do not assert no commit.
+
+Finn owns canonical registry/handler binding and Identity implementation. These
+schema and refusal controls grant no actual-bound, export, native, installed,
+restart/revocation or persistence credit. Those checks are NOT RUN until Finn's
+exact J2/J3 source exists. The pending catalog entry references this member only;
+the historical catalog remains truthful until Finn amends the ONE bound registry.
+
+A nonlocal enrollment client requires an admitted protected transport; absence
+refuses before effects. Preserve the existing explicit local authority boundary;
+loopback HTTP is not encrypted delivery. PostgreSQL remains verify-full with the
+exact CA/server identity. Keep one original deadline across admission, commit
+and reconciliation. TTL uses the existing strict integer check (no bool, float
+or string) in addition to the structural JSON Schema. No second parser is added.
