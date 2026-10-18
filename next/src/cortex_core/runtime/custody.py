@@ -212,10 +212,16 @@ class CustodyVault:
         if owner is not None: object.__setattr__(owner, '_record_open', True)
         try:
             with custody_fs.record_lock(self._directory, reference.rsplit('/',1)[1]):
+                # Lock acquisition may consume the original admission budget.
+                if owner is not None and _installer_at(self._config, self, deadline, 'ACK') is not owner:
+                    raise Refusal('installer_context')
                 saved = custody_fs.read_record(self._directory, reference.rsplit('/',1)[1])
                 if saved is None:
                     yield None
                 else:
+                    # Re-admit the same owner/deadline before a new decrypt.
+                    if owner is not None and _installer_at(self._config, self, deadline, 'ACK') is not owner:
+                        raise Refusal('installer_context')
                     value, generation = self._open(saved[0], reference, 'seed')
                     yield self._seed_payload(value, generation)
         except BaseException:

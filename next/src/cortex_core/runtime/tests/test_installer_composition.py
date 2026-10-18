@@ -419,4 +419,94 @@ class InstallerCompositionTests(unittest.TestCase):
             self.assertEqual(len([e for e in self.fixture.events if e[:2]==('connect','PRE')]),1)
 
 
+class InstallerAckAdmissionTests(unittest.TestCase):
+    """Actual finite ACK, original admission at named NONSECRET IO boundaries."""
+    setUp = InstallerCompositionTests.setUp
+    opened = InstallerCompositionTests.opened
+    password = InstallerCompositionTests.password
+    complete = InstallerCompositionTests.complete
+
+    def stopped(self, owner, *, before):
+        self.assertTrue(owner._tainted)
+        self.assertIsNone(owner._ack)
+        self.assertNotEqual(owner._stage,'COMPLETE')
+        self.assertFalse(any(e[:2]==('connect',before) for e in self.fixture.events))
+        self.assertTrue(all(x.closed for x in self.fixture.connections))
+
+    def test_ack_lock_expiry_must_not_start_record_read_after_deadline(self):
+        lock=self.adapters.lock;read=custody_fs.read_record;after=[]
+        @contextmanager
+        def expires(directory,name):
+            with lock(directory,name):
+                binding=custody._INSTALLER.get()
+                if binding and binding[0]._stage=='ACK':self.adapters.clock=200.0
+                yield
+        def observed(directory,name):
+            if self.adapters.clock>=200.0:
+                after.append(dict(stage=custody._INSTALLER.get()[0]._stage,name=name,clock=self.adapters.clock))
+            return read(directory,name)
+        with self.opened() as owner,patch.object(custody_fs,'record_lock',expires),patch.object(custody_fs,'read_record',observed):
+            with self.assertRaises(Refusal):owner.run('NONSECRET-operation')
+            self.stopped(owner,before='CLOSE')
+            print('ACK_LOCK_EXPIRY_WITNESS='+json.dumps(after),flush=True)
+            self.assertEqual(after,[],'ACK starts a new record read after original deadline elapsed while entering the lock')
+
+    def test_ack_read_expiry_must_not_start_decrypt_after_deadline(self):
+        read = custody_fs.read_record
+        decrypt = self.adapters.cipher_class.decrypt
+        after = []
+        fired = []
+        def expires(directory, name):
+            saved = read(directory, name)
+            if self.fixture.owner._stage == 'ACK' and name == 'client':
+                fired.append(name)
+                self.adapters.clock = 200.0
+            return saved
+        def observed(cipher, nonce, token, aad):
+            if self.adapters.clock >= 200.0:
+                after.append(('DECRYPT', self.adapters.clock))
+            return decrypt(cipher, nonce, token, aad)
+        with self.opened() as owner, patch.object(custody_fs, 'read_record', expires), patch.object(self.adapters.cipher_class, 'decrypt', observed):
+            with self.assertRaises(Refusal): owner.run('NONSECRET-operation')
+            self.stopped(owner, before='CLOSE')
+            self.assertEqual(fired, ['client'])
+            print('ACK_READ_EXPIRY_WITNESS='+json.dumps(after), flush=True)
+            self.assertEqual(after, [], 'ACK starts a new decrypt after its original deadline elapsed during record read')
+            self.assertFalse(owner._record_open)
+            self.assertIsNone(resources._SEED.get())
+        self.assertTrue(owner._closed)
+        self.assertTrue(owner._vault._closed)
+        self.assertTrue(all(d.closed for d in self.adapters.directories))
+        self.assertIsNone(custody._INSTALLER.get())
+
+    def test_ack_read_reentry_must_not_start_decrypt_after_owner_tainted(self):
+        read = custody_fs.read_record
+        decrypt = self.adapters.cipher_class.decrypt
+        after = []
+        fired = []
+        def taints(directory, name):
+            saved = read(directory, name)
+            if self.fixture.owner._stage == 'ACK' and name == 'client':
+                fired.append(name)
+                with self.assertRaises(Refusal):
+                    self.fixture.owner.run('NONSECRET-operation')
+            return saved
+        def observed(cipher, nonce, token, aad):
+            if self.fixture.owner._tainted:
+                after.append(('DECRYPT', 'tainted'))
+            return decrypt(cipher, nonce, token, aad)
+        with self.opened() as owner, patch.object(custody_fs, 'read_record', taints), patch.object(self.adapters.cipher_class, 'decrypt', observed):
+            with self.assertRaises(Refusal): owner.run('NONSECRET-operation')
+            self.stopped(owner, before='CLOSE')
+            self.assertEqual(fired, ['client'])
+            print('ACK_READ_OWNER_WITNESS='+json.dumps(after), flush=True)
+            self.assertEqual(after, [], 'ACK starts a new decrypt after actual reentry taints the original owner during record read')
+            self.assertFalse(owner._record_open)
+            self.assertIsNone(resources._SEED.get())
+        self.assertTrue(owner._closed)
+        self.assertTrue(owner._vault._closed)
+        self.assertTrue(all(d.closed for d in self.adapters.directories))
+        self.assertIsNone(custody._INSTALLER.get())
+
+
 if __name__=='__main__':unittest.main()
