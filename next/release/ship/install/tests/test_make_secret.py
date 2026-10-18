@@ -164,6 +164,55 @@ class Component(unittest.TestCase):
         self.assertNotIn('SYNTHETIC', text)
 
 
+class FixtureReachability(unittest.TestCase):
+    """FIXTURE-ONLY (HALE-S1-NONE-001). A labeled recording spy replaces `M.make_secret`, so these tests prove only what the FIXTURE hands the callee. They are not S1 acceptance and earn no
+    implementation credit. The first test reproduces the observation of the S1 review: the purported None owner reaches the callee as an OwnerDouble."""
+
+    def run_unchanged(self, method_name):
+        seen = []
+
+        def spy(owner, **kwargs):
+            seen.append((owner, kwargs))
+            raise M.MakeSecretRefusal('custody_owner_type' if method_name.startswith('test_only_the_exact_owner_type') else 'j06_producer_undefined')
+        result = unittest.TestResult()
+        with mock.patch.object(M, 'make_secret', spy):
+            Component(method_name).run(result)
+        return seen, result
+
+    def test_the_owner_denial_cases_deliver_a_dict_none_a_subclass_and_a_plain_object_to_the_callee(self):
+        seen, result = self.run_unchanged('test_only_the_exact_owner_type_is_authority_and_the_producer_is_not_asked_first')
+        self.assertTrue(result.wasSuccessful(), result.failures + result.errors)
+        self.assertEqual([type(owner).__name__ for owner, _ in seen], ['dict', 'NoneType', 'Sub', 'object'])
+        self.assertEqual([owner is None for owner, _ in seen], [False, True, False, False])
+
+    def test_an_explicit_none_owner_reaches_the_callee_as_none_with_the_producer_and_sink_untouched(self):
+        seen = []
+
+        def spy(owner, **kwargs):
+            seen.append((owner, kwargs))
+            raise M.MakeSecretRefusal('custody_owner_type')
+        fixture = Component('call')
+        with mock.patch.object(M, 'make_secret', spy):
+            self.assertEqual(fixture.call(owner=None), ('refused', 'custody_owner_type'))
+        self.assertEqual(len(seen), 1)
+        self.assertIsNone(seen[0][0])
+        self.assertEqual((fixture.producer.asked, fixture.sink.got), ([], []))
+
+    def test_an_omitted_owner_is_the_valid_owner_double_and_the_undefined_producer_cases_stay_direct(self):
+        seen = []
+
+        def spy(owner, **kwargs):
+            seen.append((owner, kwargs))
+            raise M.MakeSecretRefusal('j06_producer_undefined')
+        fixture = Component('call')
+        with mock.patch.object(M, 'make_secret', spy):
+            fixture.call()
+        self.assertIsInstance(seen[0][0], OwnerDouble)
+        seen, result = self.run_unchanged('test_an_undefined_j06_producer_is_a_typed_refusal_with_no_default')
+        self.assertTrue(result.wasSuccessful(), result.failures + result.errors)
+        self.assertEqual([type(kwargs['producer']).__name__ for _, kwargs in seen], ['NoneType', 'object'])
+
+
 class CallerUnsigned(unittest.TestCase):
     """CALLER (actual install.sh, no signing, no key): expected to PASS today and to stay passing. The signed-caller control is NOT RUN."""
 
