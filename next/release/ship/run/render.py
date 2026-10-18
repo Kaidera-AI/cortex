@@ -7,6 +7,7 @@ view. Core containers run the actual `cortex_core.runtime.operator` with one exp
 inherited unlock descriptor and only their own encrypted records. Contract: contract.md.
 """
 import fcntl
+import importlib.util
 import json
 import os
 import pathlib
@@ -303,7 +304,7 @@ def publish(out, files):
 
 # ---------------------------------------------------------------------------
 # S5: the supported ordinary serve lifecycle - start, stop, explicit restart, uninstall.
-# Ownership authority is the ONE installer record (install.sh `record_object`, Nix): every
+# Ownership authority is the ONE installer record (install/record.py, Nix): every
 # serve object is recorded with the exact ID its create returned, immediately after that
 # create. A name, label, tag or PID never authenticates an object the record does not hold.
 # ---------------------------------------------------------------------------
@@ -493,34 +494,59 @@ def serve_lifecycle(verb, *, plan, record, engine, deadline, key_id=None, unlock
     return {"verb": verb, "objects": objects}
 
 
-class InstallRecord:
-    """The one installer record, read-only here: install.sh `record_object` (Nix) is its only
-    writer, and it has no supported entry this lifecycle can call yet, so every write refuses
-    before any engine effect (`record_owner_unbound`)."""
+RECORD_MODULE = pathlib.Path(__file__).resolve().parents[1] / "install" / "record.py"
+RECORD_API = ("read_record", "record_object", "forget_object")
 
-    writable = False
+
+def _record_module():
+    """The ONE installer record module (install/record.py, Nix), from the selected source only.
+
+    Absent, failing or incomplete refuses before any effect. Its signed release membership and
+    import closure are a later gate (package_closure), not proven by this source path."""
+    try:
+        spec = importlib.util.spec_from_file_location("cortex_ship_install_record", RECORD_MODULE)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    except Exception:
+        raise Refusal("record_module_unavailable") from None
+    refusal = getattr(module, "RecordRefusal", None)
+    if not (isinstance(refusal, type) and issubclass(refusal, Exception)
+            and all(callable(getattr(module, name, None)) for name in RECORD_API)):
+        raise Refusal("record_module_unavailable")
+    return module
+
+
+class InstallRecord:
+    """The one installer record port over install/record.py, the only reader and writer of
+    `<prefix>/install-record.json`; install.sh `record_object` writes the same file through it.
+    Bound to one release: a record of another release is refused, never adopted or rewritten."""
 
     def __init__(self, prefix, release_id):
-        self.path = pathlib.Path(prefix) / "install-record.json"
-        self.release_id = release_id
+        if type(release_id) is not str or not release_id:
+            raise Refusal("input_missing:release_id")
+        self._module = _record_module()
+        self.prefix, self.release_id = str(prefix), release_id
+        self.writable = True
+
+    def _call(self, entry, *args):
+        try:
+            return entry(self.prefix, *args)
+        except self._module.RecordRefusal as refusal:
+            raise Refusal(refusal.reason) from None
 
     def objects(self):
-        try:
-            raw = self.path.read_bytes()
-        except FileNotFoundError:
+        doc = self._call(self._module.read_record)
+        if doc is None:
             return []
-        except OSError:
-            raise Refusal("record_unreadable") from None
-        doc = decode(raw, limit=MAX_CONFIG_BYTES)
-        if not isinstance(doc, dict) or not isinstance(doc.get("objects"), list):
-            raise Refusal("record_invalid")
+        if doc["release_id"] != self.release_id:
+            raise Refusal("record_foreign_release")
         return doc["objects"]
 
     def record(self, kind, name, ident):
-        raise Refusal("record_owner_unbound")
+        self._call(self._module.record_object, self.release_id, kind, name, ident)
 
     def forget(self, name):
-        raise Refusal("record_owner_unbound")
+        self._call(self._module.forget_object, name)
 
 
 class PodmanEngine:
@@ -598,7 +624,8 @@ LIFECYCLE_FLAGS = ("--plan", "--prefix", "--release-id", "--unlock-fd", "--key-i
 
 
 def lifecycle_main(argv):
-    """render.py lifecycle VERB --plan PLAN --prefix DIR --seconds N [--unlock-fd FD --key-id ID]"""
+    """render.py lifecycle VERB --plan PLAN --prefix DIR --release-id ID --seconds N
+    [--unlock-fd FD --key-id ID]"""
     if not argv or argv[0] not in LIFECYCLE_VERBS:
         raise Refusal(f"bad_argument:{argv[0] if argv else 'lifecycle'}")
     verb, values, pending = argv[0], {}, list(argv[1:])
@@ -607,7 +634,7 @@ def lifecycle_main(argv):
         if flag not in LIFECYCLE_FLAGS or flag in values or not pending:
             raise Refusal(f"bad_argument:{flag}")
         values[flag] = pending.pop(0)
-    for flag in ("--plan", "--prefix", "--seconds"):
+    for flag in ("--plan", "--prefix", "--release-id", "--seconds"):
         if flag not in values:
             raise Refusal(f"input_missing:{flag}")
     if not re.fullmatch(r"[1-9][0-9]{0,4}", values["--seconds"]):
@@ -617,7 +644,7 @@ def lifecycle_main(argv):
         raise Refusal("bad_argument:--unlock-fd")
     plan_doc = decode(read_bytes(values["--plan"], "plan"), limit=MAX_LOCK_BYTES)
     result = serve_lifecycle(verb, plan=plan_doc,
-                             record=InstallRecord(values["--prefix"], values.get("--release-id")),
+                             record=InstallRecord(values["--prefix"], values["--release-id"]),
                              engine=PodmanEngine(),
                              deadline=time.monotonic() + int(values["--seconds"]),
                              key_id=values.get("--key-id"),

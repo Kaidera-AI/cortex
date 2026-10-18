@@ -89,13 +89,9 @@ def test_start_needs_the_finite_bootstrap_completion_object(lifecycle):
     assert log == []
 
 
-def test_production_record_refuses_every_write_before_any_engine_effect(lifecycle, tmp_path):
-    render, _plan, log, call = lifecycle
-    prefix = tmp_path / "prefix"
-    prefix.mkdir(mode=0o700)
-    (prefix / "install-record.json").write_text(json.dumps({"release_id": "r", "objects": [BOOTSTRAP]}))
-    record, engine = render.InstallRecord(prefix, "r"), EngineDouble(log)
-    assert record.objects() == [BOOTSTRAP]
+def test_a_read_only_record_port_refuses_every_write_before_any_engine_effect(lifecycle):
+    _render, _plan, log, call = lifecycle
+    record, engine = RecordDouble(log, objects=[BOOTSTRAP], writable=False), EngineDouble(log)
     for verb in ("start", "restart", "uninstall"):
         with unlock_pipe() as unlock:
             assert refused(lambda: call(verb, record, engine, unlock=unlock)) == "record_owner_unbound"
@@ -276,13 +272,18 @@ def test_podman_engine_drives_the_supported_command_path_with_unlock_as_fd3(life
     assert ("pod", "stop") in verbs and ("rm", "--force") in verbs and ("pod", "rm") in verbs
 
 
-def test_cli_lifecycle_refuses_typed_while_the_record_writer_is_unbound(inputs, tmp_path):
+def test_cli_lifecycle_needs_the_release_identity_and_refuses_typed_before_any_engine(inputs, tmp_path):
     _serve, _plan, _inventory = rendered(inputs)
     prefix = tmp_path / "prefix"
     prefix.mkdir(mode=0o700)
-    proc = subprocess.run([sys.executable, "-I", str(RENDER), "lifecycle", "start",
-                           "--plan", str(inputs["out"] / "bootstrap.plan.json"), "--prefix", str(prefix),
-                           "--seconds", "30", "--key-id", "kid-fixture", "--unlock-fd", "9"],
-                          capture_output=True, text=True, timeout=60, env={"PATH": "/nonexistent"})
-    assert proc.returncode == 2, proc.stderr
-    assert json.loads(proc.stderr.strip()) == {"reason": "record_owner_unbound", "unit": "ship/run"}
+    argv = [sys.executable, "-I", "-B", str(RENDER), "lifecycle", "start",
+            "--plan", str(inputs["out"] / "bootstrap.plan.json"), "--prefix", str(prefix),
+            "--seconds", "30", "--key-id", "kid-fixture", "--unlock-fd", "9"]
+    # No default release; with one, the actual record holds no finite completion object yet.
+    for extra, reason in (([], "input_missing:--release-id"),
+                          (["--release-id", "rel-s5-fixture"], "bootstrap_incomplete")):
+        proc = subprocess.run(argv + extra, capture_output=True, text=True, timeout=60,
+                              env={"PATH": "/nonexistent"})
+        assert proc.returncode == 2, proc.stderr
+        assert json.loads(proc.stderr.strip()) == {"reason": reason, "unit": "ship/run"}
+    assert list(prefix.iterdir()) == []
