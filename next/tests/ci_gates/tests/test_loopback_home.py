@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[4]
-SUITES = ['next/src/cortex_core/schema/tests/test_seed.py', 'next/modules/cli-v2/tests/test_transport_admission.py', 'next/modules/cli-v2/tests/test_transport_composition.py', 'next/modules/cli-v2/tests/test_transport_processes.py', 'next/modules/cli-v2/tests/test_transport_projection.py', 'next/modules/cli-v2/tests/test_transport_results.py', 'next/modules/cli-v2/tests/test_namespace.py', 'next/modules/cli-v2/tests/test_health_join.py', 'next/src/cortex_core/schema/tests/test_seed_operator.py', 'next/modules/cli-v2/tests/test_health_contract.py']
+SUITES = ['next/src/cortex_core/schema/tests/test_seed.py', 'next/modules/cli-v2/tests/test_transport_admission.py', 'next/modules/cli-v2/tests/test_transport_composition.py', 'next/modules/cli-v2/tests/test_transport_processes.py', 'next/modules/cli-v2/tests/test_transport_projection.py', 'next/modules/cli-v2/tests/test_transport_results.py', 'next/modules/cli-v2/tests/test_namespace.py', 'next/modules/cli-v2/tests/test_health_join.py', 'next/src/cortex_core/schema/tests/test_seed_operator.py', 'next/modules/cli-v2/tests/test_health_contract.py', 'next/modules/cli-v2/tests/test_pipe_identity.py']
 
 spec = importlib.util.spec_from_file_location('loopback_home_inventory', ROOT/'.github/scripts/pytest_next_offline.py')
 offline = importlib.util.module_from_spec(spec)
