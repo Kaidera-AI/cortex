@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": ".github/scripts/tests/test_u13_gate.py",
+  "source_sha256": "ebd3ba8ee6018fca6c1bef8dbbc0ad10980c5d6909134f572b3c0cf99065a365",
+  "tests": {
+    "next/tests/ci_gates/tests/test_native_home.py": "84af1e097b0bd8d141a5e5c97ae54e9c4783a95f1c0a235705c2761796f3ff2a"
+  },
+  "expected_nodes": [
+    "test_native_home.NativeHome.test_u13_receipt_double_survives_driver_probe_without_weakening_admission"
+  ],
+  "kind": "tool",
+  "invariant": "receipt test double answers exact selected driver probe, then preserves valid/absent receipt admission",
+  "mutation": {
+    "before": "'Python '+self.driver_version+'\\n'",
+    "after": "'Python '+('0.0.0' if mode=='json' else self.driver_version)+'\\n'"
+  }
+}

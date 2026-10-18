@@ -138,6 +138,8 @@ class HostReceiptAdmission(unittest.TestCase):
                 if arguments[0]=='unshare':
                     return subprocess.CompletedProcess(arguments, 0, '', '')
                 owner.assertEqual(arguments[:3], ['exec','owned-mock-driver','python'])
+                if arguments[3:]==['--version']:
+                    return subprocess.CompletedProcess(arguments, 0, 'Python '+self.driver_version+'\n', '')
                 path=self.results/'outcomes.json'
                 packet=owner.packet(self.run_id)
                 if change: change(packet)

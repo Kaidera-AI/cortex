@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "source": ".github/scripts/pytest_pg.py",
+  "source_sha256": "f6f5772a9d85ca5bc7ce18cd5df2a6d727d70699549c3f35880e2750fa1b904d",
+  "tests": {
+    "next/tests/ci_gates/tests/test_native_home.py": "84af1e097b0bd8d141a5e5c97ae54e9c4783a95f1c0a235705c2761796f3ff2a"
+  },
+  "expected_nodes": [
+    "test_native_home.NativeHome.test_legacy_driver_matches_host_abi_and_versioned_wheels",
+    "test_native_home.NativeHome.test_driver_refuses_unsupported_host_and_runtime_mismatch"
+  ],
+  "kind": "tool",
+  "invariant": "host wheel ABI matches the finite exact-version pinned driver before test work",
+  "mutation": {
+    "before": "(self.deps, self.driver_site, True)",
+    "after": "(self.deps, \"/usr/local/lib/python3.14/site-packages\", True)"
+  }
+}

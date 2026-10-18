@@ -8,6 +8,8 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
+import subprocess
 import yaml
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -37,6 +39,17 @@ def load(name, path):
 
 worker = load('day2_pg_worker', '.github/scripts/pytest_pg_worker.py')
 offline = load('day2_offline', '.github/scripts/pytest_next_offline.py')
+with mock.patch.object(sys, 'path', [str(ROOT / '.github/scripts'), *sys.path]):
+    pg = load('pytest_pg', '.github/scripts/pytest_pg.py')
+    u13 = load('day2_u13', '.github/scripts/pytest_u13_pg.py')
+
+# Independent upstream registry/config witnesses are retained in the G5 return.
+DRIVERS = {
+    (3, 13, 7): 'docker.io/library/python:3.13.7-trixie@sha256:a7f3b1fe09b0845ef2e7b675ea3539062dc286bdc82d17da0caae58b03b67543',
+    (3, 14, 0): 'docker.io/library/python:3.14.0-trixie@sha256:d88b1201e20b36976ff9d779cf1705cfa3598540a81bc31f0eee70a1e1f318e3',
+    (3, 14, 7): 'docker.io/library/python:3.14.7-trixie@sha256:608322fe51a9b889eee5ed6015c854e77dc44d00c116435f56b69bf6f14c88f4',
+}
+
 
 
 def evidence(root=ROOT):
@@ -123,6 +136,71 @@ class NativeHome(unittest.TestCase):
                     bad['jobs'][name]['steps'][index]['with']['name'] = 'shared-receipts'
                     with self.assertRaisesRegex(AssertionError, 'distinct Python receipt names'):
                         self.assert_dual_python_exact_head(bad)
+
+    def test_legacy_driver_matches_host_abi_and_versioned_wheels(self):
+        for version, image in DRIVERS.items():
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                with mock.patch.object(pg.sys, 'version_info', version):
+                    fixture = pg.Fixture(root, root / 'site', root / 'source')
+                fixture.deps = 'owned-deps'
+                fixture.results = root / 'cold'; fixture.results.mkdir()
+                fixture.tls = dict(app='owned-app', admin='owned-admin')
+                fixture.secrets = dict(admin='owned-admin', password='owned-password')
+                reply = subprocess.CompletedProcess([], 0, 'Python '+'.'.join(map(str, version))+'\n', '')
+                with mock.patch.object(fixture, 'run', return_value='owned-driver') as run, \
+                     mock.patch.object(fixture, 'command', return_value=reply) as command, \
+                     mock.patch.object(fixture, 'remove_container'):
+                    self.assertEqual(fixture.driver('general-driver', 'general'), 0)
+                self.assertEqual(run.call_args.args[1], image, 'host wheel ABI must match driver')
+                self.assertIn(('owned-deps', '/usr/local/lib/python'+'.'.join(map(str, version[:2]))+'/site-packages', True),
+                              run.call_args.kwargs['mounts'])
+                command.assert_any_call(['exec', 'owned-driver', 'python', '--version'])
+                self.assertEqual(fixture.receipt['images']['python'], image)
+
+    def test_u13_reuses_the_same_host_abi_driver(self):
+        for version, image in DRIVERS.items():
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                with mock.patch.object(pg.sys, 'version_info', version):
+                    fixture = u13.U13Fixture(root, root / 'site', root / 'source')
+                reply = subprocess.CompletedProcess([], 0, 'Python '+'.'.join(map(str, version))+'\n', '')
+                with mock.patch.object(fixture, 'run', return_value='owned-u13') as run, \
+                     mock.patch.object(fixture, 'command', return_value=reply) as command, \
+                     mock.patch.object(fixture, 'create_u13'), \
+                     mock.patch.object(u13, 'expected_receipt', return_value={}), \
+                     mock.patch.object(u13, 'admit_receipt', return_value={'ok':True}):
+                    self.assertEqual(fixture.execute_u13('normal'), 0)
+                self.assertEqual(run.call_args.args[1], image, 'U13 must reuse selected legacy driver')
+                self.assertIn((fixture.site, '/deps', True), run.call_args.kwargs['mounts'])
+                self.assertEqual(run.call_args.kwargs['env']['PYTHONPATH'], '/deps:/source/next/src')
+                command.assert_any_call(['exec', 'owned-u13', 'python', '--version'])
+
+    def test_driver_refuses_unsupported_host_and_runtime_mismatch(self):
+        for version in ((3, 13, 8), (3, 14, 1), (3, 15, 0)):
+            with self.subTest(version=version), mock.patch.object(pg.sys, 'version_info', version), \
+                 mock.patch.object(pg.subprocess, 'run') as native:
+                with self.assertRaisesRegex(RuntimeError, 'unsupported host Python'):
+                    pg.Fixture(Path('/unused'), Path('/unused/site'), Path('/unused/source'))
+                native.assert_not_called()
+        with mock.patch.object(pg.sys, 'version_info', (3, 13, 7)):
+            fixture = pg.Fixture(Path('/unused'), Path('/unused/site'), Path('/unused/source'))
+        for reported in ('Python 3.14.7\n', 'Python 3.13.8\n', ''):
+            with self.subTest(reported=reported), mock.patch.object(fixture, 'command',
+                    return_value=subprocess.CompletedProcess([], 0, reported, '')):
+                with self.assertRaisesRegex(RuntimeError, 'driver Python mismatch'):
+                    fixture.check_driver('owned-driver')
+
+    def test_u13_receipt_double_survives_driver_probe_without_weakening_admission(self):
+        controls = load('day2_u13_controls', '.github/scripts/tests/test_u13_gate.py')
+        for method in ('test_valid_complete_receipt_is_accepted',
+                       'test_early_zero_without_receipt_is_typed_host_failure'):
+            with self.subTest(method=method):
+                result = unittest.TestResult()
+                controls.HostReceiptAdmission(method).run(result)
+                self.assertEqual(result.errors, [], 'source double must answer driver probe')
+                self.assertEqual(result.failures, [])
+                self.assertEqual(result.testsRun, 1)
 
     def test_deleted_data_directory_cannot_hide_an_owned_postmaster(self):
         scan = getattr(worker, 'owned_native_postmasters', None)
