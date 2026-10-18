@@ -37,3 +37,13 @@ are recorded in [UPSTREAM.md](UPSTREAM.md). Unit/driver-policy fixtures and
 loopback/signal process receipts qualify source behavior only. Actual full-schema
 SQL, least-privilege grants, encrypted descriptor mounts, installed closure,
 paired-platform proof, independent review and release remain separate gates.
+
+Kai's bounded P1 plan (2026-10-18, row
+`c03024e3-1d32-46c2-8c6a-6c861a03fe57`) changes only lifecycle carrier
+publication and its regression here: reconcile a shutdown received during
+ExitStack transfer before binding/starting services, reuse the first absolute
+cap, and preserve unresolved cleanup failure. The unchanged test
+`test_sigterm_at_carrier_transfer_stops_next_sql_under_first_cap` must fail
+against the prior source before the fix, then pass for normal and blocked
+cleanup on both supported Python versions. J06 and all P2 work stay frozen;
+Hale alone reviews/closes this finding at the exact pushed correction head.

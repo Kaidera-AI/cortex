@@ -56,7 +56,11 @@ class RuntimeApp:
             vault=self._stack.enter_context(open_custody(self.config,unlock_fd=self._unlock_fd,key_id=self._key_id))
             if self._shutdown_deadline is not None:raise Refusal('runtime_draining')
             owned=self._stack.enter_context(open_core_resources(self.config,custody=vault,deadline=deadline,_shutdown=self._shutdown))
-            self.resources=owned;bound=bind_core_services(owned);bound.start()
+            self.resources=owned
+            if self._shutdown_deadline is not None:
+                owned.begin_shutdown(self._shutdown_deadline)
+                raise Refusal('runtime_draining')
+            bound=bind_core_services(owned);bound.start()
             if self._shutdown_deadline is not None:raise Refusal('runtime_draining')
             self._bound=bound;self.started=True
             yield
