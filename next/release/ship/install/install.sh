@@ -1,14 +1,16 @@
 #!/bin/sh
 # install.sh (ship/install, nix): verify the signed release BEFORE any effect, then the effect phases in order.
-#   install.sh --vault DIR --project KEY [--prefix DIR] [--platform linux-arm64] [--trust-key-file FILE] [--only load]
-# Phases wired in this build: check_tools, verify (E0, read-only), load_images (E1). Later phases (make_secret, write_config, provision_roles, bootstrap, serve)
+#   install.sh --vault DIR --project KEY [--prefix DIR] [--platform linux-arm64] [--trust-key-file FILE] [--port N] [--only load|write_config]
+# Phases wired in this build: check_tools, verify (E0, read-only), load_images (E1), write_config (unit entry `--only write_config`, S2). Later phases (make_secret, provision_roles, bootstrap, serve)
 # depend on Bob's render, Cox's custody and Finn's seed: until they are wired the run refuses install_not_wired:<phase> BEFORE any effect, so a half install
-# cannot happen. `--only load` is the explicit unit entry (no installed credit). Typed refusals: stderr {"reason":..,"unit":"install"}, exit 2.
+# cannot happen. `--only load` and `--only write_config` are the explicit unit entries (no installed credit). Typed refusals: stderr {"reason":..,"unit":"install"}, exit 2.
 set -u
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PINNED_PUBKEY='RWQuhegMfku7e4RltjV64sZmxXHEETzAntDePCQsJPYvXXujVMqKIvHL'   # release key 7BBB4B7E0CE8852E (CTO 6 Oct); --trust-key-file is explicit and printed
 PODMAN_FLOOR='6.0.2'
-UNWIRED='make_secret write_config provision_roles bootstrap serve'
+# Full order: make_secret, write_config, provision_roles, bootstrap, serve. make_secret stays first and unwired, so a full run refuses before ANY effect (no half install);
+# write_config runs only through its unit entry until make_secret is wired.
+UNWIRED='make_secret provision_roles bootstrap serve'
 # The verifier lives HERE, in the trusted bootstrap, and is the ONLY verification authority (HALE-A2-NIX-SIGN-001): nothing selected from the release folder is
 # sourced or executed before the signature of SHA256SUMS is authenticated. Read-only: no podman, nothing written. verify_release DIR [--trust-key-file F] [--platform P].
 # 1 minisign signature of SHA256SUMS (key: --trust-key-file, else $PINNED_PUBKEY), 2 every file THIS platform needs matches SHA256SUMS (release.json included).
@@ -43,7 +45,7 @@ verify_release() {
   return 0
 }
 refuse() { printf '{"reason":"%s","unit":"install"}\n' "$1" >&2; exit 2; }
-verify_only=""; release_dir=$HERE vault=""; project=""; prefix="${HOME:-/tmp}/.local/share/kaidera/cortex-v2"; keyfile=""; platform=""; only=""
+verify_only=""; release_dir=$HERE vault=""; project=""; prefix="${HOME:-/tmp}/.local/share/kaidera/cortex-v2"; keyfile=""; platform=""; only=""; port=""
 while [ $# -gt 0 ]; do
   case $1 in
     --release-dir) release_dir=$2; shift 2 ;;
@@ -53,6 +55,7 @@ while [ $# -gt 0 ]; do
     --trust-key-file) keyfile=$2; shift 2 ;;
     --platform) platform=$2; shift 2 ;;
     --only) only=$2; shift 2 ;;
+    --port) port=$2; shift 2 ;;
     --verify-only) verify_only=1; shift ;;
     *) refuse "bad_argument:$1" ;;
   esac
@@ -102,9 +105,21 @@ load_images() {  # E1: this platform's two archives only, tagged by id, recorded
   done
 }
 
+write_config() {  # S2: the ONE installer writer of <vault>/<project>/config/cortex.json. The helper beside this script must BE a signed member (its bytes equal a line of the
+  # authenticated SHA256SUMS) and runs only with the Core source two levels above this script's tree (source layout next/release/ship/install -> next/src); no release-selected code.
+  case $port in ''|*[!0-9]*) refuse missing_argument:port ;; esac
+  helper="$HERE/config_writer.py"; core_src="$HERE/../../../src"
+  line=$(grep "  config_writer\.py\$" "$release_dir/SHA256SUMS") || refuse artifact_missing:config_writer.py
+  [ -f "$helper" ] && [ "$(sha_of "$helper")" = "${line%%  *}" ] || refuse artifact_digest_mismatch:config_writer.py
+  [ -d "$core_src/cortex_core" ] || refuse write_config_core_missing
+  core_src=$(CDPATH= cd -- "$core_src" && pwd)
+  python3 -I -B "$helper" --core-src "$core_src" --vault "$vault" --project "$project" --port "$port" >/dev/null || exit 2
+}
+
 check_tools
 if [ -n "$keyfile" ]; then printf 'trust key file: %s\n' "$keyfile" >&2; verify_release "$release_dir" --trust-key-file "$keyfile" --platform "$platform" || exit 2
 else verify_release "$release_dir" --platform "$platform" || exit 2; fi
 if [ "$only" = load ]; then load_images; exit 0; fi
+if [ "$only" = write_config ]; then write_config; exit 0; fi
 [ -z "$only" ] || refuse "bad_argument:--only $only"
 for phase in $UNWIRED; do refuse "install_not_wired:$phase"; done

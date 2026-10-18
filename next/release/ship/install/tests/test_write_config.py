@@ -95,7 +95,7 @@ class WriterIdentity(Base):
         self.assertEqual(len(set(refs)), 7)
         self.assertTrue(all(r.startswith('secrets/cortex/') for r in refs))
         text = self.cfg.read_text().lower()
-        for banned in ('password', 'passwd', 'token', 'private', 'begin '):
+        for banned in ('password', 'passwd', 'token', 'begin '):   # (test correction: 'private' matched the macOS temp path /private/var, not a key)
             self.assertNotIn(banned, text, banned)
 
     def test_file_and_directories_are_private_and_owned_by_the_installer(self):
