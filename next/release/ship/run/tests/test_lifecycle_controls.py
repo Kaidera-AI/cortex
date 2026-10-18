@@ -94,7 +94,7 @@ def test_production_record_refuses_every_write_before_any_engine_effect(lifecycl
     prefix = tmp_path / "prefix"
     prefix.mkdir(mode=0o700)
     (prefix / "install-record.json").write_text(json.dumps({"release_id": "r", "objects": [BOOTSTRAP]}))
-    record, engine = render.InstallRecord(prefix), EngineDouble(log)
+    record, engine = render.InstallRecord(prefix, "r"), EngineDouble(log)
     assert record.objects() == [BOOTSTRAP]
     for verb in ("start", "restart", "uninstall"):
         with unlock_pipe() as unlock:

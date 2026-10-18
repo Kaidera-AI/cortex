@@ -500,8 +500,9 @@ class InstallRecord:
 
     writable = False
 
-    def __init__(self, prefix):
+    def __init__(self, prefix, release_id):
         self.path = pathlib.Path(prefix) / "install-record.json"
+        self.release_id = release_id
 
     def objects(self):
         try:
@@ -593,7 +594,7 @@ class PodmanEngine:
             raise OSError("engine remove failed")
 
 
-LIFECYCLE_FLAGS = ("--plan", "--prefix", "--unlock-fd", "--key-id", "--seconds")
+LIFECYCLE_FLAGS = ("--plan", "--prefix", "--release-id", "--unlock-fd", "--key-id", "--seconds")
 
 
 def lifecycle_main(argv):
@@ -615,7 +616,8 @@ def lifecycle_main(argv):
     if unlock is not None and not re.fullmatch(r"[3-9]|[1-9][0-9]{1,5}", unlock):
         raise Refusal("bad_argument:--unlock-fd")
     plan_doc = decode(read_bytes(values["--plan"], "plan"), limit=MAX_LOCK_BYTES)
-    result = serve_lifecycle(verb, plan=plan_doc, record=InstallRecord(values["--prefix"]),
+    result = serve_lifecycle(verb, plan=plan_doc,
+                             record=InstallRecord(values["--prefix"], values.get("--release-id")),
                              engine=PodmanEngine(),
                              deadline=time.monotonic() + int(values["--seconds"]),
                              key_id=values.get("--key-id"),
