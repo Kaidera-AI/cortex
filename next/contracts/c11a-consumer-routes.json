@@ -1,5 +1,5 @@
 {
-  "c01_matrix_sha256": "d4086bba3c54f3864f9b7a110c731792dd1179c2e592e8defa58162234d83980",
+  "c01_matrix_sha256": "df3d5d23dd83e16c54bf2acef852d4f4272b80ba7f9ace5d9cd85022e7edeef2",
   "format": "c11a-consumer-routes-v1",
   "includes_metrics_guard": true,
   "observed_legacy_count": 82,
@@ -888,5 +888,11 @@
       "openkai_production": false,
       "path": "/records/{id}"
     }
-  ]
+  ],
+  "pending_j3_contract": {
+    "source": "next/src/cortex_core/compat/contract.md",
+    "pointer": "/project_enrollment",
+    "sha256": "ce78b63ac79d245df7f473676d2b57edbbfd37de646eb8396770a9483f3d9d65",
+    "binding": "pending_finn_j2_j3"
+  }
 }

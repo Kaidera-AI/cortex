@@ -192,3 +192,25 @@ Do not infer a script consumes an HTTP route from its name. These sources were i
 ## Transition gates
 
 Retire is a proposal, except `/admin/redis` whose pinned handler already raises 410. Preserve arbitrary-SQL clients until approved typed replacements exist. Preserve lifecycle method aliases and disabled graph/media capability responses until the exact transition is accepted. Every row still needs response/middleware/consumer fixture freeze in C02. Descriptor, enrollment, full backup/restore and new OpenKai seams need versioned contracts beyond these 128 operations.
+
+
+## J3 pending contract amendment
+
+Contract-only, 19 October 2026; current_bound=false for every operation below.
+The historical C01 inventory rows and observed-consumer counts above are unchanged.
+The ONE normative vocabulary is `next/src/cortex_core/compat/contract.md`, JSON
+pointer `/project_enrollment`, canonical SHA-256 `ce78b63ac79d245df7f473676d2b57edbbfd37de646eb8396770a9483f3d9d65`.
+Finn owns actual registry/handler binding; no source fixture earns runtime credit.
+
+| Pending reference | Method | Path | Authority | Current binding |
+|---|---|---|---|---|
+| J3-CLAIM | POST | `/enrollment/claim` | finite J2 project-claim capability | proposed; absent from runtime catalog |
+| Existing C01-R108 | POST | `/agents` | current project lead C04 control | catalogued; handler unbound |
+| J3-ROTATE | POST | `/agents/{principal_id}/credentials/rotate` | current project lead C04 control; lead self only | proposed; absent from runtime catalog |
+| J3-REVOKE | POST | `/agents/{principal_id}/credentials/{credential_id}/revoke` | current project lead C04 control | proposed; absent from runtime catalog |
+
+No public operations are added; existing D1/D2/D3 membership is unchanged. Initial
+claim is capability-protected, not anonymous. Until-revoked lead and finite worker
+lifetimes, committed Identity receipts, replay/conflict and denial semantics come
+only from the referenced vocabulary. Actual-bound/export checks: NOT RUN until
+Finn J2/J3 exact source. This table is pending design, not a second runtime registry.
