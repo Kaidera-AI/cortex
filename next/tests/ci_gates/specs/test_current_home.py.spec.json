@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "source": "next/tests/ci_gates/tests/test_current_home.py",
-  "source_sha256": "3dd38a8e788f0a8fb08f8336176d55c2bf8ab1c2b4a8f61c3de991352e2e51cd",
+  "source_sha256": "fed3bfa18fbfec45e20a4d35e878320bb0b51397d8fba6c1fe2336edccc6d0d3",
   "tests": {
-    "next/tests/ci_gates/tests/test_current_home.py": "3dd38a8e788f0a8fb08f8336176d55c2bf8ab1c2b4a8f61c3de991352e2e51cd"
+    "next/tests/ci_gates/tests/test_current_home.py": "fed3bfa18fbfec45e20a4d35e878320bb0b51397d8fba6c1fe2336edccc6d0d3"
   },
   "expected_nodes": [
     "test_current_home.CurrentHome.test_current_runtime_bindings_and_lifecycle_are_admitted"
