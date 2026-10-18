@@ -245,6 +245,25 @@ class DirectoryDescriptor(Base):
         self.assertEqual(len(opened), 1)
         self.assertEqual(self.leaked(opened), [])
 
+    def test_a_directory_check_failure_on_an_existing_directory_is_typed_and_its_descriptor_is_closed(self):   # added after the mutant run: the existing-directory path of the same check
+        (self.vault / PROJECT).mkdir(mode=0o700)
+        (self.vault / PROJECT / 'config').mkdir(mode=0o700)
+        target = os.stat(self.vault / PROJECT / 'config').st_ino
+        real = os.fstat
+        opened = []
+
+        def fstat(fd):
+            st = real(fd)
+            if stat.S_ISDIR(st.st_mode) and st.st_ino == target and sys._getframe(1).f_code.co_name == '_check_dir':
+                opened.append(fd)
+                raise OSError(errno.EIO, 'injected directory check EIO')
+            return st
+        with mock.patch.object(W.os, 'fstat', fstat):
+            outcome = self.call()
+        self.assertEqual(outcome, ('refused', 'config_write_failed'))
+        self.assertEqual(len(opened), 1)
+        self.assertEqual(self.leaked(opened), [])
+
     def test_the_cli_keeps_its_typed_exit_two_contract_under_the_same_fault(self):
         opened, patch = self.inject_fchmod()
         err = io.StringIO()
