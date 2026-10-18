@@ -54,7 +54,7 @@ class Release:
             for n in names:
                 (self.dir / n).write_bytes(os.urandom(64) + n.encode())
         (self.dir / 'runtime-operations-v1.json').write_bytes((NEXT / 'contracts/runtime/runtime-operations-v1.json').read_bytes())
-        for n, src in (('install.sh', INSTALL_SH),):
+        for n, src in (('install.sh', INSTALL_SH), ('record.py', INSTALL / 'record.py')):
             (self.dir / n).write_bytes(src.read_bytes() if src.is_file() else b'#!/bin/sh\n')
         for n, data in (extra or {}).items():
             (self.dir / n).write_bytes(data)

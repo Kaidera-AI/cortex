@@ -225,7 +225,9 @@
     "next/release/ship/cli/tests/test_install_cli.py",
     "next/release/ship/run/tests/test_render.py",
     "next/release/ship/run/tests/test_lifecycle_deciding.py",
-    "next/release/ship/run/tests/test_lifecycle_controls.py"
+    "next/release/ship/run/tests/test_lifecycle_controls.py",
+    "next/release/ship/run/tests/test_lifecycle_record_deciding.py",
+    "next/release/ship/run/tests/test_lifecycle_record_controls.py"
   ],
   "excluded": [
     {

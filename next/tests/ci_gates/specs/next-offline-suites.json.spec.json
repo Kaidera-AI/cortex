@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "source": ".github/next-offline-suites.json",
-  "source_sha256": "c3fe7af6966cacc627d2152a720c01b906c5e9ff938f60e9082a89d597ea94b9",
+  "source_sha256": "84dd387fd657f7f51fa4bc698ae0e11a967e7c371fbc9308ffece5ac18db354f",
   "tests": {
     "next/tests/ci_gates/tests/test_ledger_home.py": "b3a13ee9409a311ba23429348427159a3bc95abedb3d35bdae8879854a4321b6",
     "next/tests/ci_gates/tests/test_current_home.py": "b364133e414459503a1465428faa50cda914adbd06a7cce6c9360978328a377b"
