@@ -25,7 +25,10 @@ REFUSALS (`KeyRefusal.reason`, never a path or a byte): unlock_reference_invalid
 unlock_key_unsafe, unlock_acl_present, unlock_mount_unsafe, unlock_key_mismatch, unlock_key_installation, unlock_io_failed, unlock_session_closed, unlock_session_expired, unlock_session_foreign_process,
 unlock_session_copy, unlock_deadline_invalid; this skeleton alone returns install_not_wired:<name>.
 NOT CLAIMED: native isolation, a second OS user, reboot, Linux, any admitted host identity. Fixtures are not native credit."""
+import os
+import pwd
 import re
+import time
 
 KIND = 'project-key-file'
 REFERENCE_KEYS = frozenset({'kind', 'path', 'key_id', 'identity', 'project_id'})
@@ -66,3 +69,49 @@ class UnlockSession:
 
     def close(self):
         _not_wired('UnlockSession.close')
+
+
+# Injection points (trusted-code composition; tests replace these, no caller passes them). The cheap plumbing is real; the two probes are wired in the GREEN commit.
+def _euid():
+    return os.geteuid()
+
+
+def _account(uid):
+    return pwd.getpwuid(uid).pw_name
+
+
+def _pid():
+    return os.getpid()
+
+
+def _now():
+    return time.monotonic()
+
+
+def _acl_present(fd):
+    _not_wired('_acl_present')
+
+
+def _mount_ignores_ownership(fd):
+    _not_wired('_mount_ignores_ownership')
+
+
+def _after_read():
+    """Hook point between the single key read and the final name re-check; a no-op in production."""
+    return None
+
+
+def _mount_honours_ownership_linux(mountinfo, st_dev):
+    _not_wired('_mount_honours_ownership_linux')
+
+
+def _darwin_flags_ignore_ownership(f_flags):
+    _not_wired('_darwin_flags_ignore_ownership')
+
+
+def _leaf_safe(st, euid):
+    _not_wired('_leaf_safe')
+
+
+def _dir_safe(st, euid, *, private):
+    _not_wired('_dir_safe')
