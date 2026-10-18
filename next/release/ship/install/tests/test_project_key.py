@@ -403,6 +403,21 @@ class Admission(Harness):
                 if check:
                     check()
 
+    def test_directory_swapped_after_the_read_is_refused(self):
+        """The key's parent directory is replaced (same name, new inode, same key bytes) between the read and the return: the chain is re-checked and the call refuses."""
+        ref, folder, path = self.tree()
+
+        def swap():
+            os.rename(folder, folder + '.old')
+            os.mkdir(folder, 0o700)
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            os.write(fd, KEY_A)
+            os.fchmod(fd, 0o400)
+            os.close(fd)
+        with mock.patch.object(PK, '_after_read', swap):
+            result = self.open_it(ref)
+        self.assert_clean_refusal(result, 'unlock_path_unsafe', path, folder)
+
     def test_sticky_world_writable_ancestor_is_admitted_like_a_tmp_directory(self):
         shared = os.path.join(self.base, 'tmp-like')
         os.mkdir(shared, 0o700)
