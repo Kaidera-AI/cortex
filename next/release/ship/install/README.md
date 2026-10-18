@@ -23,7 +23,7 @@ Causal controls for the join: `python3 tests/mutate_join.py [out.json]` (five mu
 
 ## Day 2 continued: signature before effects, installer spine (source-level only)
 `sign/write_release.py` writes `release.json` + `SHA256SUMS` (payload = every file of a clean folder; index files and signatures are never payload, exit 3) from
-one identity file and one images file; the CTO signs with one `minisign -S -s KEY -m release.json SHA256SUMS`. `sign/verify.sh` (POSIX sh, read-only) checks the
+one identity file and one images file; the CTO signs with one `minisign -S -s KEY -m release.json SHA256SUMS`. The verifier is INLINED in `install.sh` (the trusted bootstrap; HALE-A2-NIX-SIGN-001: nothing selected from the release folder is sourced or executed before the signature is authenticated; `sign/verify.sh` was removed so there is ONE verification authority; read-only entry: `install.sh --verify-only --release-dir DIR [--trust-key-file F] [--platform P]`). It (POSIX sh, read-only) checks the
 minisign signature of `SHA256SUMS` and then every file THIS platform needs, `release.json` included, before any effect; typed refusals (stderr JSON, exit 2):
 `release_signature_missing`, `release_signature_invalid`, `artifact_missing:<name>`, `artifact_digest_mismatch:<name>`, `platform_not_in_release`, `missing_tool:*`.
 `install.sh` (one POSIX file, <= 400 lines) = check_tools (podman >= 6.0.2 by effect, python3) -> verify -> load_images (this platform's two archives, tagged

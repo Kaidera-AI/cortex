@@ -1,15 +1,17 @@
-"""Causal controls for signature-before-effects: each mutant of sign/write_release.py, sign/verify.sh or install.sh must be killed by an assertion of the
+"""Causal controls for signature-before-effects: each mutant of sign/write_release.py or install.sh (the verifier is inlined in install.sh) must be killed by an assertion of the
 UNCHANGED test_sign.py; the healthy and the restored source pass. Run: python3 mutate_sign.py [out.json]  (works on a temp copy; the source is untouched)."""
 import json, os, shutil, subprocess, sys, tempfile
 from pathlib import Path
 HERE = Path(__file__).resolve().parent
 INSTALL = HERE.parent
 MUTANTS = [
-    ('verify_skips_signature_check', 'sign/verify.sh', 'minisign -V -q -p "$keyfile" -m "$dir/SHA256SUMS" >/dev/null 2>&1 ||', 'true ||'),
-    ('verify_skips_digest_compare', 'sign/verify.sh', '[ "$(sha_of "$dir/$name")" = "$want" ] ||', 'true ||'),
-    ('verify_checks_other_platform_too', 'sign/verify.sh', '*linux-arm64*|*linux-amd64*) case $name in *"$platform"*) ;; *) continue ;; esac ;;', '*linux-arm64*|*linux-amd64*) ;;'),
-    ('verify_ignores_missing_archive', 'sign/verify.sh', '[ -f "$dir/$name" ] || { verify_refuse "artifact_missing:$name"; return 2; }', ':'),
-    ('verify_accepts_unknown_platform', 'sign/verify.sh', '|| { verify_refuse platform_not_in_release; return 2; }', '|| true'),
+    ('verify_skips_signature_check', 'install.sh', 'minisign -V -q -p "$v_key" -m "$v_dir/SHA256SUMS" >/dev/null 2>&1 ||', 'true ||'),
+    ('verify_skips_digest_compare', 'install.sh', '[ "$(sha_of "$v_dir/$name")" = "$want" ] ||', 'true ||'),
+    ('verify_checks_other_platform_too', 'install.sh', '*linux-arm64*|*linux-amd64*) case $name in *"$v_plat"*) ;; *) continue ;; esac ;;', '*linux-arm64*|*linux-amd64*) ;;'),
+    ('verify_ignores_missing_archive', 'install.sh', '[ -f "$v_dir/$name" ] || { verify_refuse "artifact_missing:$name"; return 2; }', ':'),
+    ('verify_accepts_unknown_platform', 'install.sh', '|| { verify_refuse platform_not_in_release; return 2; }', '|| true'),
+    ('install_sources_the_release_selected_helper_first', 'install.sh', 'check_tools\nif [ -n "$keyfile" ]; then printf', 'check_tools\n[ ! -f "$release_dir/verify.sh" ] || . "$release_dir/verify.sh"\nif [ -n "$keyfile" ]; then printf'),
+    ('install_runs_the_release_selected_helper_first', 'install.sh', 'check_tools\nif [ -n "$keyfile" ]; then printf', 'check_tools\n[ ! -f "$release_dir/verify.sh" ] || sh "$release_dir/verify.sh"\nif [ -n "$keyfile" ]; then printf'),
     ('install_does_not_verify', 'install.sh', 'else verify_release "$release_dir" --platform "$platform" || exit 2; fi', 'else true; fi'),
     ('install_ignores_trust_key_refusal', 'install.sh', '--trust-key-file "$keyfile" --platform "$platform" || exit 2', '--trust-key-file "$keyfile" --platform "$platform" || true'),
     ('install_runs_effects_without_wiring_check', 'install.sh', 'for phase in $UNWIRED; do refuse "install_not_wired:$phase"; done', ':'),
