@@ -75,6 +75,11 @@ class InstallCatalog(TC.Base):
         with mock.patch.object(RESOURCES, 'current_seed_resources', side_effect=Refusal('resources_unbound')):
             self.assertEqual(self.outcome(self.install, self.healthy(), phase='seed', live=self.live), ('refused', 'catalog_live'))
 
+    def test_live_resources_bound_to_another_config_are_refused_even_if_core_is_lenient(self):   # added after the mutant run: the config identity check must stand on its own
+        other = SeedResourcesDouble(read_config_file(self.vault / 'config/cortex.json', mode='install'))
+        with mock.patch.object(RESOURCES, 'current_seed_resources', lambda config, deadline: other):
+            self.assertEqual(self.outcome(self.install, self.healthy(), phase='seed', live=other), ('refused', 'catalog_live'))
+
     def test_an_install_config_is_never_admitted_for_serve_or_by_a_live_argument_alone(self):
         self.assertEqual(self.outcome(self.install, self.healthy(), phase='serve', live=self.live), ('refused', 'catalog_config'))
         self.assertEqual(self.outcome(self.cfg, self.healthy(), phase='serve', live=self.live)[0], 'refused', 'the serve view stays the serve view')

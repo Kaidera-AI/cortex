@@ -63,7 +63,9 @@ class Package(unittest.TestCase):
                 "from cortex_ship.install import provision as P\n"
                 "from cortex_ship.install import roles as R\n"
                 "assert P.R is R\n"
-                "try:\n    P._open(None, custody=None, deadline=1.0)\nexcept R.RoleRefusal as e:\n    print(e.reason)\n")
+                "from types import SimpleNamespace as N\n"
+                "cfg = N(mode='install', role_logins={'bootstrap': 'a', 'migrator': 'b', 'api_request': 'c', 'probe': 'd', 'installer_enrollment': R.INSTALLER_LOGIN}, vault_root='/v')\n"
+                "try:\n    P.provision_sequence(cfg, custody=None, deadline=1.0, operation_key='op')\nexcept R.RoleRefusal as e:\n    print(e.reason)\n")
         r = subprocess.run([sys.executable, '-I', '-c', code, str(self.out)], capture_output=True, text=True)
         self.assertEqual((r.returncode, r.stdout.strip()), (0, 'provision_core_missing'), r.stderr)
 

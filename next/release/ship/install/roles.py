@@ -5,6 +5,7 @@ J07). Names and secret references: from the published Core config carrier (corte
 vault_root); a reference resolves to vault_root/secret_ref. No second config parser here."""
 import copy
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from pathlib import Path
@@ -272,7 +273,19 @@ def _members(value):
 SERVICE_READINESS = ('ready', 'enrollment_required', 'unavailable')
 
 
-def validate_catalog(config, observation, *, phase='seed'):
+def _live_seed(config, live):
+    """Install config, phase seed: `live` must be the actual current Core SeedResources of THIS config (Core's own current_seed_resources check, which also covers the live SEED stage,
+    vault and original deadline). No flag, snapshot or caller value is authority."""
+    try:
+        resources = sys.modules['cortex_core.runtime.resources']   # a live SeedResources can only exist if Core's module is already loaded; nothing is imported here
+        if (type(live) is not resources.SeedResources or live._config is not config
+                or resources.current_seed_resources(config, live._deadline) is not live):
+            raise ValueError
+    except Exception:
+        raise RoleRefusal('catalog_live') from None
+
+
+def validate_catalog(config, observation, *, phase='seed', live=None):
     """Admit (a detached dict) or refuse (RoleRefusal catalog_*) one raw catalog observation for the seed or serve phase: same policy and flags as render_*, the actual session (seed:
     bootstrap, serve: the configured API login; name AND oid) and database, five roles, the two fixed NOLOGIN groups, EVERY edge incident on them (foreign incoming too) equal to the one
     set-only api_request membership, no service ownership of the database or protected objects. Seed: bindings absent (fresh) or exactly the three revision-1 rows of ONE operation (replay).
@@ -283,7 +296,9 @@ def validate_catalog(config, observation, *, phase='seed'):
         raise RoleRefusal('catalog_phase')
     serve = phase == 'serve'
     try:
-        if config.mode != phase:
+        if phase == 'seed' and config.mode == 'install':
+            _live_seed(config, live)   # day 3: the finite installer's config is admitted for seed ONLY with the actual live Core SEED resources, before any observation field is read
+        elif config.mode != phase:
             raise RoleRefusal('catalog_config')
         logins = dict(config.role_logins)
         installation, db_name = str(config.installation_id), config.database['name']
