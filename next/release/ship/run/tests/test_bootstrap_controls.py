@@ -212,8 +212,15 @@ def test_a_block_that_never_delivers_the_bootstrap_bytes_runs_nothing(boot):
 
 
 # ---- failure at each finite stage: taint, reverse cleanup, never a completion ----
-def test_a_failed_core_init_creates_nothing_further(boot):
-    boot.engine.run_exit = 1
+@pytest.mark.parametrize("failure", ["exit-status", "engine-error"])
+def test_a_failed_core_init_creates_nothing_further(boot, failure):
+    if failure == "exit-status":
+        boot.engine.run_exit = 1
+    else:
+        def broken(argv, *, input_fd, deadline):
+            boot.events.append(("run", "cortex-v2-core-init", tuple(argv), True))
+            raise OSError("engine unavailable (double)")
+        boot.engine.run = broken
     with pytest.raises(Refusal) as error:
         completed(boot)
     assert error.value.reason == "bootstrap_init_failed"

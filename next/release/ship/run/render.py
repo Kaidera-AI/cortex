@@ -709,8 +709,13 @@ def _prelude(state, bootstrap):
                 view = view[os.write(write_end, view):]
         finally:
             os.close(write_end)
-        code = state.engine.run(state.init_argv, input_fd=read_end,
-                                deadline=_remaining(state.deadline, state.reserve))
+        try:
+            code = state.engine.run(state.init_argv, input_fd=read_end,
+                                    deadline=_remaining(state.deadline, state.reserve))
+        except Refusal:
+            raise
+        except Exception:
+            raise Refusal("bootstrap_init_failed") from None
     finally:
         os.close(read_end)
     if code != 0:
