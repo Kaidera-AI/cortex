@@ -70,8 +70,8 @@ def future(seconds=60.0):
 class Component(unittest.TestCase):
     """COMPONENT-ONLY: replaces `_owner_type` with the double's type; supported-caller proof is NOT claimed."""
 
-    def call(self, owner=None, producer=None, sink=None, deadline=_UNSET, real_type=False, **kw):
-        self.owner = OwnerDouble(**kw) if owner is None else owner
+    def call(self, owner=_UNSET, producer=None, sink=None, deadline=_UNSET, real_type=False, **kw):
+        self.owner = OwnerDouble(**kw) if owner is _UNSET else owner  # omitted -> the valid double; an explicit None stays None (HALE-S1-NONE-001)
         self.producer = ProducerDouble() if producer is None else producer
         self.sink = SinkDouble() if sink is None else sink
         patch = mock.patch.object(M, '_owner_type', return_value=OwnerDouble) if not real_type else mock.patch.object(M, '_owner_type', M._owner_type)
