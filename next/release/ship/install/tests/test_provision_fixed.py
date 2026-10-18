@@ -205,7 +205,7 @@ class FixedSequence(Base):
         binding = R.bind_logins(dict(LOGINS), '/vault')
         pre = [e for e in w.events if e[0] == 'sql' and e[1] == 'PRE']
         self.assertEqual([e[2] for e in pre], [sql for sql, _ in R.provision_steps(binding, 'pre')])
-        self.assertEqual([e[3] for e in pre if e[3] is not None], [(PW[p],) for p in FOUR])
+        self.assertEqual([e[3] for e in pre if e[3] is not None], [(PW[p].decode(),) for p in FOUR])   # bound as text, like the real-PG proven set_config(%s, true) step
         self.assertEqual([e[1] for e in w.events if e[0] == 'password'], list(FOUR))
         self.assertEqual(sum(1 for e in w.events if e == ('tx_begin', 'bootstrap')), 4, 'PRE, POST, LEDGER and CLOSE each own exactly one bootstrap transaction')
         for secret in PW.values():
