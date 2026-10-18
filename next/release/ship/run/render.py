@@ -431,8 +431,9 @@ def _start(creates, record, engine, *, key_id, unlock_fd, deadline, reserve):
             record.record(kind, name, ident)
             owned[-1][3] = True
     except BaseException as error:
+        # Cleanup runs on refusal, failure AND interrupt; an interrupt still propagates.
         _inverse(owned, record, engine, deadline)
-        if isinstance(error, Refusal):
+        if isinstance(error, Refusal) or not isinstance(error, Exception):
             raise
         raise Refusal("serve_start_failed") from None
     return owned
