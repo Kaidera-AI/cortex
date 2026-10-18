@@ -222,7 +222,9 @@
     "next/tests/schema/test_mutation_receipts.py",
     "next/tests/test_x3_secret_resolver.py",
     "next/release/ship/cli/tests/test_install_cli.py",
-    "next/release/ship/run/tests/test_render.py"
+    "next/release/ship/run/tests/test_render.py",
+    "next/release/ship/run/tests/test_lifecycle_deciding.py",
+    "next/release/ship/run/tests/test_lifecycle_controls.py"
   ],
   "excluded": [
     {
