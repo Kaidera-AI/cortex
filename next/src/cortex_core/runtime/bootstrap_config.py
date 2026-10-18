@@ -15,7 +15,8 @@ from cortex_core.release.codec import canonical_bytes
 MODE_PURPOSES = MappingProxyType({
     'serve': ('api_request', 'probe'), 'migrate': ('migrator',),
     'seed': ('bootstrap', 'installer_enrollment', 'api_request'),
-    'status': (), 'client': (),
+    # Install retains metadata below; it grants no public credential resolution.
+    'status': (), 'client': (), 'install': (),
 })
 ROLE_NAMES = frozenset({'bootstrap', 'migrator', 'api_request', 'probe', 'installer_enrollment'})
 NAME = re.compile(r'[a-zA-Z_][a-zA-Z_0-9-]{0,62}\Z')
@@ -151,7 +152,8 @@ def validate_bootstrap(value, *, mode):
     limits = value['limits']; _shape(limits, {'request_seconds', 'shutdown_seconds'})
     for seconds in limits.values():
         _integer(seconds, 1, 120)
-    admitted = MappingProxyType({name: Role(**roles[name]) for name in MODE_PURPOSES[mode]})
+    purposes = sorted(ROLE_NAMES) if mode == 'install' else MODE_PURPOSES[mode]
+    admitted = MappingProxyType({name: Role(**roles[name]) for name in purposes})
     return BootstrapConfig(*ids, MappingProxyType(dict(names)), 'off', root, bind, publish,
                            MappingProxyType({**database, 'tls': MappingProxyType(dict(tls))}),
                            admitted, MappingProxyType(dict(limits)), mode,

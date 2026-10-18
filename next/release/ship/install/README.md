@@ -56,3 +56,12 @@ The ledger step is ACCEPTED (Kai Option A, relayed in Cox's rework5; consult fb3
 USAGE is retained, migration bytes unchanged. It is never skipped: a ledger failure (or `LEDGER_ACCEPTED=False`) stops before seed and close. Real-PG proof so far is the FIRST TEN migrations only (`CORTEX_ACL_THROUGH`); the full 21 run stays a separate gate.
 Packaging: `provision.py` ships with `roles.py` as `cortex_ship.install.provision` (package_closure, the API/Core-Python Containerfile; the database-only image grows nothing).
 Open: `bootstrap_init_custody_unbuilt` (the `bootstrap` login is created by the stock initdb with a password from the encrypted custody over the private descriptor discipline; Bob owns the init/run wiring and there is no supported descriptor caller in this slice), the real Core opener/TLS/custody run, Finn's real seed and Bob's real invocation.
+
+## Day 3 S3: fixed provision + catalog compatibility (source-only)
+`provision.provision_sequence(config, *, custody, deadline, operation_key)` is the one fixed sequence Core's `owner.run` imports (Core2 private join, INTERFACE.md sha256 34797c35…c703): each stage = the complete actual body
+and its resource cleanup inside `custody._installer_phase(...)`, in the order PRE, MIGRATE, POST, LEDGER, SEED, ACK, CLOSE, once. The four PRE passwords come only from Core's private `_installer_password`; MIGRATE is the actual
+`open_migration_resources(...).migrate()`; SEED is the actual `open_seed_resources` plus the unchanged `seed_runtime_bindings`; ACK is `operator._reload_seed_receipt`; the close SQL is rendered with `seed_ack=True` only inside the
+admitted CLOSE guard. No callback, no caller acknowledgement, no default, no fallback import: a missing Core name is `provision_core_missing`. `roles.validate_catalog(..., live=)` admits an `install` config for `phase='seed'` only with the
+actual current Core `SeedResources` of that config; every other predicate and the ordinary seed/serve denials are unchanged. Tests: `test_provision_fixed.py` (16), `test_catalog_install.py` (9), causal controls `mutate_provision.py`
+(14). All Core2 names are NAMED DOUBLES in the tests (Core2's source is not at this base): the composed Nix+Core2 path, real custody, real openers and any PostgreSQL are NOT RUN. The retired callback-API tests are listed in
+`tests/test_provision.py`'s docstring.

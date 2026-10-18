@@ -1,40 +1,55 @@
-"""Causal controls for provision.py: each mutant must make tests/test_provision.py FAIL (assertion failure). Run: python3 mutate_provision.py"""
+"""Causal controls for the day-3 fixed provision + catalog compatibility. Each mutant breaks ONE rule in place (restored in `finally`); the UNCHANGED test_provision_fixed and
+test_catalog_install must then fail. Author-run counts, not an independent replay. (The retired callback-API mutants of the old test_provision.py are replaced by these.)
+usage: python3 mutate_provision.py [out.json]"""
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-SRC = HERE.parent / 'provision.py'
-LED = "    run_phase(config, custody=custody, deadline=deadline, phase='ledger')  # never skipped: a guard turned off refuses here, before seed and close\n"
+INSTALL = HERE.parent
+SRC = HERE.parents[3] / 'src'
+PROV, ROLES, CATALOG = INSTALL / 'provision.py', INSTALL / 'roles.py', SRC / 'cortex_core/runtime/catalog.py'
 MUTANTS = [
-    ('secret_into_statement_text', "connection.execute(sql, (_secret(custody, purpose),))", "connection.execute(sql % _secret(custody, purpose))"),
-    ('secret_resolved_eagerly_outside_txn', "with resources.transaction('bootstrap') as connection:", "[_secret(custody, p) for _, p in steps if p]\n        with resources.transaction('bootstrap') as connection:"),
-    ('wrong_transaction_purpose', "resources.transaction('bootstrap')", "resources.transaction('migrator')"),
-    ('ledger_flag_default_off', "LEDGER_ACCEPTED = True  #", "LEDGER_ACCEPTED = False  #"),
-    ('ledger_skipped_in_sequence', LED, ''),
-    ('ledger_skipped_when_flag_off', LED, '    if LEDGER_ACCEPTED:\n    ' + LED.lstrip()),
-    ('ledger_moved_after_seed', LED + "    if seed() is not True:\n        raise R.RoleRefusal('seed_not_acknowledged')\n", "    if seed() is not True:\n        raise R.RoleRefusal('seed_not_acknowledged')\n" + LED),
-    ('ledger_for_wrong_phase_name', "phase='ledger')  # never", "phase='post')  # never"),
-    ('close_without_seed_true', "if seed() is not True:", "if seed() is None:"),
-    ('seed_checked_after_close', "    if seed() is not True:\n        raise R.RoleRefusal('seed_not_acknowledged')\n    run_phase(config, custody=custody, deadline=deadline, phase='close', seed_ack=True)",
-     "    run_phase(config, custody=custody, deadline=deadline, phase='close', seed_ack=True)\n    if seed() is not True:\n        raise R.RoleRefusal('seed_not_acknowledged')"),
-    ('migrate_skipped', "    migrate()\n", ""),
-    ('non_seed_config_accepted', "if getattr(config, 'mode', None) != 'seed':", "if False:"),
-    ('empty_secret_accepted', "if type(raw) is not bytes or not raw:", "if type(raw) is not bytes:"),
-    ('nul_secret_accepted', "    if '\\x00' in text:\n        raise R.RoleRefusal('provision_secret')\n", ""),
-    ('swallow_step_error', "                    connection.execute(sql, (_secret(custody, purpose),))", "                    try:\n                        connection.execute(sql, (_secret(custody, purpose),))\n                    except RuntimeError:\n                        pass"),
-    ('env_read_added', "def _secret(custody, purpose):", "import os\n\n\ndef _secret(custody, purpose):\n    os.environ.get('X')"),
+    ('password_through_the_public_resolve', PROV, "core._installer_password(config, custody=custody, deadline=deadline, purpose=purpose)", "custody.resolve(purpose)"),
+    ('migrate_before_post_order_swapped', PROV, "for phase in ('PRE', 'MIGRATE', 'POST', 'LEDGER'):", "for phase in ('PRE', 'POST', 'MIGRATE', 'LEDGER'):"),
+    ('ledger_flag_ignored', PROV, "if phase == 'LEDGER' and not LEDGER_ACCEPTED:", "if False:"),
+    ('config_mode_not_checked', PROV, "if getattr(config, 'mode', None) != 'install':", "if False:"),
+    ('returns_the_raw_seed_result_not_the_validated_receipt', PROV, "    return receipt\n", "    return result\n"),
+    ('ack_skipped', PROV, "receipt = core._reload_seed_receipt(config, custody=custody, operation_key=operation_key, deadline=deadline, result=result)", "receipt = result"),
+    ('seed_gets_another_operation_key', PROV, "core.seed_runtime_bindings(config, operation_key, deadline)", "core.seed_runtime_bindings(config, 'other-key', deadline)"),
+    ('close_rendered_without_the_acknowledgement', PROV, "seed_ack=True if phase == 'CLOSE' else False", "seed_ack=False"),
+    ('close_runs_outside_the_stage_guard', PROV, "    with core._installer_phase(config, custody=custody, deadline=deadline, phase=phase):\n        steps =", "    if True:\n        steps ="),
+    ('phase_guard_wrong_phase_name', PROV, "phase='SEED'", "phase='ACK'"),
+    ('catalog_accepts_live_resources_of_another_config', ROLES, "or live._config is not config", "or False"),
+    ('catalog_admits_an_install_config_for_any_phase', ROLES, "        elif config.mode != phase:\n", "        elif False:\n"),
+    ('catalog_install_without_the_core_current_check', ROLES, "\n                or resources.current_seed_resources(config, live._deadline) is not live):", "):"),
+    ('validated_seed_does_not_pass_the_live_resources', CATALOG, "**({'live':resources} if resources._config.mode=='install' else {})", ""),
 ]
-original = SRC.read_text()
-results = []
-try:
-    for name, old, new in MUTANTS:
-        assert original.count(old) == 1, name
-        SRC.write_text(original.replace(old, new))
-        r = subprocess.run([sys.executable, '-m', 'unittest', 'test_provision'], cwd=HERE, capture_output=True, text=True)
-        results.append({'mutant': name, 'killed': r.returncode != 0})
-finally:
-    SRC.write_text(original)
-print(json.dumps(results, indent=1))
-sys.exit(0 if all(x['killed'] for x in results) else 1)
+
+
+def main(out=None):
+    rows = []
+    for name, path, old, new in MUTANTS:
+        original = path.read_bytes()
+        text = original.decode()
+        assert text.count(old) == 1, f'{name}: pattern must occur once ({text.count(old)})'
+        try:
+            path.write_bytes(text.replace(old, new).encode())
+            env = {'PATH': os.environ['PATH'], 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONPATH': str(SRC)}
+            proc = subprocess.run([sys.executable, '-m', 'unittest', 'test_provision_fixed', 'test_catalog_install'], cwd=HERE, capture_output=True, text=True, timeout=300, env=env)
+        finally:
+            path.write_bytes(original)
+        failed = sorted({l.split(' ')[1] for l in proc.stderr.splitlines() if l.startswith(('FAIL:', 'ERROR:'))})
+        rows.append({'mutant': name, 'killed': proc.returncode != 0, 'n_failing': len(failed), 'failing_tests': failed[:3]})
+        print(('KILLED   ' if proc.returncode else 'SURVIVED ') + name, flush=True)
+    summary = {'mutants': len(rows), 'killed': sum(r['killed'] for r in rows), 'rows': rows}
+    if out:
+        Path(out).write_text(json.dumps(summary, indent=1) + '\n')
+    print(f"{summary['killed']}/{summary['mutants']} killed")
+    return 0 if summary['killed'] == summary['mutants'] else 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main(sys.argv[1] if len(sys.argv) > 1 else None))
