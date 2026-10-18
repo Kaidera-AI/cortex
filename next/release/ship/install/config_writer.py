@@ -6,7 +6,7 @@ through Core's own private-file reader. The file holds references (`secrets/cort
   python3 -I -B config_writer.py [--core-src DIR] --vault DIR --project KEY --port N [--owner-uid U]   (exit 0 result on stdout; exit 2 one typed refusal on stderr)
   write_config(vault, project, port, *, new_id=None, owner_uid=None) -> {'result': 'written'|'unchanged', 'path', 'vault_root', 'source_sha256', 'installation_id'}
 Typed refusals (Core's own reasons pass through unchanged): config_input, config_identifier, config_vault_missing, config_path_unsafe, config_owner, config_permissions,
-config_exists_different, config_write_failed, config_readback; Core: private_file_required, config_transport_unratified, config_shape, ..."""
+config_exists_different, config_write_failed, config_publish_incomplete, config_readback; Core: private_file_required, config_transport_unratified, config_shape, ..."""
 import importlib.util
 import json
 import os
@@ -183,33 +183,66 @@ def write_config(vault, project, port, *, new_id=None, owner_uid=None):
             os.close(fd)
 
 
+def _rollback(cfg_fd, tmp, state, ident):
+    """Undo ONLY what this writer made: its own linked final (identity checked, never a file another actor put there) and its own temp. Returns the typed reason. A final that could not
+    be removed is `config_publish_incomplete` (exact remaining state: final plus temp, two links, which Core keeps refusing; recovery = a person removes the temp name). A temp whose removal
+    keeps failing after the final is gone stays as one private, ignored, one-link leaf (disclosed, no recovery mechanism here)."""
+    incomplete = False
+    if state['linked']:
+        try:
+            leaf = os.stat(FILE, dir_fd=cfg_fd, follow_symlinks=False)
+            if ident is not None and (leaf.st_dev, leaf.st_ino) == ident:
+                try:
+                    os.unlink(FILE, dir_fd=cfg_fd)
+                except OSError:
+                    incomplete = True
+        except FileNotFoundError:
+            pass
+        except OSError:
+            incomplete = True
+    if state['tmp']:
+        try:
+            os.unlink(tmp, dir_fd=cfg_fd)
+        except OSError:
+            pass
+    try:
+        os.fsync(cfg_fd)   # best effort: the removal's durability is unproven if this fails, and the failure is still what is reported
+    except OSError:
+        pass
+    return 'config_publish_incomplete' if incomplete else 'config_write_failed'
+
+
 def _publish(cfg_fd, raw):
-    """Private temp file in the same directory, then link (never replace) and unlink; a failure leaves no temp file and no config."""
+    """All-or-none: private temp, fsync, link (never replace), directory fsync, remove the temp, directory fsync AGAIN. Success is reported only after the second fsync. Any failure after the
+    link rolls back this writer's own final and temp (see _rollback), so a reported failure never leaves a config Core accepts and a two-link unreadable final is never silently kept."""
     tmp = f'.{FILE}.{uuid.uuid4().hex}'
-    created = False
+    state = {'tmp': False, 'linked': False}
+    ident = None
     try:
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=cfg_fd)
-        created = True
+        state['tmp'] = True
         try:
             os.fchmod(fd, 0o600)
             view = memoryview(raw)
             while view:
                 view = view[os.write(fd, view):]
             os.fsync(fd)
+            st = os.fstat(fd)
+            ident = (st.st_dev, st.st_ino)
         finally:
             os.close(fd)
-        os.link(tmp, FILE, src_dir_fd=cfg_fd, dst_dir_fd=cfg_fd, follow_symlinks=False)
+        try:
+            os.link(tmp, FILE, src_dir_fd=cfg_fd, dst_dir_fd=cfg_fd, follow_symlinks=False)
+        except FileExistsError:
+            _rollback(cfg_fd, tmp, state, ident)   # nothing of ours was linked: only the temp is removed
+            raise Refusal('config_exists_different') from None
+        state['linked'] = True
         os.fsync(cfg_fd)
-    except FileExistsError:
-        raise Refusal('config_exists_different') from None
+        os.unlink(tmp, dir_fd=cfg_fd)
+        state['tmp'] = False
+        os.fsync(cfg_fd)
     except OSError:
-        raise Refusal('config_write_failed') from None
-    finally:
-        if created:
-            try:
-                os.unlink(tmp, dir_fd=cfg_fd)
-            except OSError:
-                pass
+        raise Refusal(_rollback(cfg_fd, tmp, state, ident)) from None
 
 
 def _result(state, path, root, digest, installation):
