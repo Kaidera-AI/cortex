@@ -13,6 +13,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 INSTALL = HERE.parent
@@ -171,6 +172,20 @@ class ModuleRefusals(Base):
         os.chmod(self.prefix, 0o700)
         self.assertEqual(self.refusal(lambda: REC.read_record(str(self.prefix), owner_uid=os.geteuid() + 1)), 'record_owner')   # FAKE BOUNDARY: expected owner injected
         self.assertEqual(self.refusal(lambda: REC.record_object(str(self.prefix), REL, *IMG2, owner_uid=os.geteuid() + 1)), 'record_owner')
+
+    def test_the_prefix_owner_and_the_record_owner_are_each_checked_on_their_own(self):   # added after the mutant run; FAKE BOUNDARY: foreign owner injected, a test cannot chown
+        self.assertEqual(self.refusal(lambda: REC.read_record(str(self.prefix), owner_uid=os.geteuid() + 1)), 'record_owner', 'prefix check alone: there is no record yet')
+        self.put(*IMG)
+        fd = REC._open_prefix(str(self.prefix), os.geteuid(), must_exist=True)
+        self.addCleanup(os.close, fd)
+        self.assertEqual(self.outcome(lambda: REC._read(fd, os.geteuid() + 1)), ('refused', 'record_owner'), 'record check alone: the prefix was admitted for the real owner')
+
+    def test_a_failure_after_the_temporary_file_exists_leaves_no_temporary_file_and_the_old_record(self):   # added after the mutant run; FAKE BOUNDARY: the rename is made to fail
+        self.put(*IMG)
+        before = self.raw()
+        with mock.patch.object(REC.os, 'rename', side_effect=OSError('injected')):
+            self.assertEqual(self.refusal(lambda: REC.record_object(str(self.prefix), REL, *IMG2)), 'record_write_failed')
+        self.assertEqual((self.raw(), tree(self.prefix)), (before, ['install-record.json']))
 
     def test_a_hard_linked_record_is_refused(self):
         self.put(*IMG)

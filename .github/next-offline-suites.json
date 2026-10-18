@@ -6,6 +6,7 @@
     "next/release/ship/install/tests/test_package.py",
     "next/release/ship/install/tests/test_provision.py",
     "next/release/ship/install/tests/test_provision_steps.py",
+    "next/release/ship/install/tests/test_record.py",
     "next/release/ship/install/tests/test_roles.py",
     "next/release/ship/install/tests/test_sign.py",
     "next/src/cortex_core/compat/tests/test_contract.py",
