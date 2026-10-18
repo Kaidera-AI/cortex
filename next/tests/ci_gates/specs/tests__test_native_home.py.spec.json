@@ -1,12 +1,14 @@
 {
   "schema_version": 1,
   "source": "next/tests/ci_gates/tests/test_native_home.py",
-  "source_sha256": "19c7ae6cfcd3973f89182672c87806dd66dcc5446269b66accce851e2e1e7c2f",
+  "source_sha256": "76cbcbf6f14c830ac29b6d714c3e6d0b2e2e31f93440f3c94ab75e1cf6bdb4ff",
   "tests": {
-    "next/tests/ci_gates/tests/test_native_home.py": "19c7ae6cfcd3973f89182672c87806dd66dcc5446269b66accce851e2e1e7c2f"
+    "next/tests/ci_gates/tests/test_native_home.py": "76cbcbf6f14c830ac29b6d714c3e6d0b2e2e31f93440f3c94ab75e1cf6bdb4ff"
   },
   "expected_nodes": [
-    "test_native_home.NativeHome.test_exact_nine_phase_receipt"
+    "test_native_home.NativeHome.test_exact_nine_phase_receipt",
+    "test_native_home.NativeHome.test_dual_python_jobs_use_exact_head_and_distinct_receipts",
+    "test_native_home.NativeHome.test_dual_python_contract_refuses_missing_versions_refs_and_collisions"
   ],
   "kind": "oracle-fixture",
   "invariant": "healthy exact native receipt defeats an inverted oracle assertion",

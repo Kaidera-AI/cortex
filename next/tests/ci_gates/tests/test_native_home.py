@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[4]
 SUITE = 'next/release/ship/install/tests/test_roles_pg.py'
@@ -53,6 +54,76 @@ def packet():
 
 
 class NativeHome(unittest.TestCase):
+    def assert_dual_python_exact_head(self, workflow):
+        jobs = workflow['jobs']
+        names = []
+        for name, receipts in (
+                ('pytest-pg', ['u13-pg-receipts', 'pytest-pg-receipts']),
+                ('pytest-offline', ['pytest-offline-receipts'])):
+            job = jobs[name]
+            self.assertEqual(job.get('strategy'), dict(**{'fail-fast': False},
+                matrix=dict(python=['3.13.7', '3.14.0'])), 'exact Python matrix')
+            setup = [step for step in job['steps']
+                     if step.get('uses', '').startswith('actions/setup-python@')]
+            self.assertEqual(len(setup), 1)
+            self.assertEqual(setup[0]['with']['python-version'], '${{ matrix.python }}',
+                             'matrix Python binding')
+            uploads = [step['with']['name'] for step in job['steps']
+                       if step.get('uses', '').startswith('actions/upload-artifact@')]
+            self.assertEqual(uploads, [name+'-${{ matrix.python }}' for name in receipts],
+                             'distinct Python receipt names')
+            names.extend(value.replace('${{ matrix.python }}', version)
+                         for value in uploads for version in ('3.13.7', '3.14.0'))
+        self.assertEqual(len(names), len(set(names)), 'colliding Python receipts')
+        self.assertEqual(jobs['launcher-contract']['strategy'],
+                         dict(matrix=dict(runtime=['node', 'bun'])), 'single launcher matrix')
+        for name in ('pytest-pg', 'pytest-offline', 'launcher-contract'):
+            checkout = [step for step in jobs[name]['steps']
+                        if step.get('uses', '').startswith('actions/checkout@')]
+            self.assertEqual(len(checkout), 1)
+            self.assertEqual(checkout[0].get('with', {}).get('ref'),
+                '${{ github.event.pull_request.head.sha || github.sha }}', 'exact PR head')
+            self.assertIs(checkout[0]['with'].get('persist-credentials'), False,
+                          'checkout credentials disabled')
+
+    def test_dual_python_jobs_use_exact_head_and_distinct_receipts(self):
+        self.assert_dual_python_exact_head(yaml.safe_load(PROFILE.read_text()))
+
+    def test_dual_python_contract_refuses_missing_versions_refs_and_collisions(self):
+        original = yaml.safe_load(PROFILE.read_text())
+        for name in ('pytest-pg', 'pytest-offline'):
+            for missing in ('3.13.7', '3.14.0'):
+                with self.subTest(job=name, missing=missing):
+                    bad = copy.deepcopy(original)
+                    bad['jobs'][name]['strategy']['matrix']['python'].remove(missing)
+                    with self.assertRaisesRegex(AssertionError, 'exact Python matrix'):
+                        self.assert_dual_python_exact_head(bad)
+            with self.subTest(job=name, fail_fast=True):
+                bad = copy.deepcopy(original)
+                bad['jobs'][name]['strategy']['fail-fast'] = True
+                with self.assertRaisesRegex(AssertionError, 'exact Python matrix'):
+                    self.assert_dual_python_exact_head(bad)
+        for name in ('pytest-pg', 'pytest-offline', 'launcher-contract'):
+            for field, value, reason in (
+                    ('ref', '${{ github.sha }}', 'exact PR head'),
+                    ('persist-credentials', True, 'checkout credentials disabled')):
+                with self.subTest(job=name, field=field):
+                    bad = copy.deepcopy(original)
+                    checkout = next(step for step in bad['jobs'][name]['steps']
+                                    if step.get('uses', '').startswith('actions/checkout@'))
+                    checkout['with'][field] = value
+                    with self.assertRaisesRegex(AssertionError, reason):
+                        self.assert_dual_python_exact_head(bad)
+        for name in ('pytest-pg', 'pytest-offline'):
+            for index, step in enumerate(original['jobs'][name]['steps']):
+                if not step.get('uses', '').startswith('actions/upload-artifact@'):
+                    continue
+                with self.subTest(job=name, artifact=index):
+                    bad = copy.deepcopy(original)
+                    bad['jobs'][name]['steps'][index]['with']['name'] = 'shared-receipts'
+                    with self.assertRaisesRegex(AssertionError, 'distinct Python receipt names'):
+                        self.assert_dual_python_exact_head(bad)
+
     def test_deleted_data_directory_cannot_hide_an_owned_postmaster(self):
         scan = getattr(worker, 'owned_native_postmasters', None)
         self.assertTrue(callable(scan), 'removed data directories can hide daemon leakage')

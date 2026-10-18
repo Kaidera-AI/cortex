@@ -8,6 +8,10 @@ jobs:
   pytest-pg:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.13.7', '3.14.0']
     permissions:
       contents: read
     steps:
@@ -17,7 +21,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: '3.14.7'
+          python-version: ${{ matrix.python }}
       - name: bounded locked dependencies
         run: |
           systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 -p CPUQuota=200% \
@@ -82,7 +86,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: u13-pg-receipts
+          name: u13-pg-receipts-${{ matrix.python }}
           path: |
             ${{ runner.temp }}/cortex-u13-pg/**/*.json
             ${{ runner.temp }}/cortex-u13-pg/**/*.txt
@@ -91,7 +95,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pytest-pg-receipts
+          name: pytest-pg-receipts-${{ matrix.python }}
           path: |
             ${{ runner.temp }}/cortex-pytest-pg/**/*.json
             ${{ runner.temp }}/cortex-pytest-pg/**/*.txt
@@ -104,13 +108,20 @@ jobs:
   pytest-offline:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.13.7', '3.14.0']
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: '3.14.7'
+          python-version: ${{ matrix.python }}
       - name: locked API and test dependencies
         run: |
           python -m pip install --only-binary=:all: --require-hashes -r packages/api/requirements.lock
@@ -120,7 +131,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pytest-offline-receipts
+          name: pytest-offline-receipts-${{ matrix.python }}
           path: |
             ${{ runner.temp }}/cortex-pytest-offline/*.json
             ${{ runner.temp }}/cortex-pytest-offline/*.txt
@@ -135,6 +146,9 @@ jobs:
         runtime: [node, bun]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - if: matrix.runtime == 'node'
         uses: actions/setup-node@v4
         with: { node-version: 20 }

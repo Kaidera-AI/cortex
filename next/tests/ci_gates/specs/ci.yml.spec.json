@@ -1,14 +1,16 @@
 {
   "schema_version": 1,
   "source": ".github/workflows/ci.yml",
-  "source_sha256": "9b3cf1ae1e99d4e1e3e121d0c9c53bc19fcd8fc59faa0abec6b24237fcff75d6",
+  "source_sha256": "9a4e83b743fa01fdeabadf52fbcdbf97706b97c9cf483167fb6d1724bb28892d",
   "tests": {
     "next/tests/ci_gates/tests/test_ledger_home.py": "b3a13ee9409a311ba23429348427159a3bc95abedb3d35bdae8879854a4321b6",
-    "next/tests/ci_gates/tests/test_native_home.py": "19c7ae6cfcd3973f89182672c87806dd66dcc5446269b66accce851e2e1e7c2f"
+    "next/tests/ci_gates/tests/test_native_home.py": "76cbcbf6f14c830ac29b6d714c3e6d0b2e2e31f93440f3c94ab75e1cf6bdb4ff"
   },
   "expected_nodes": [
     "test_ledger_home.LedgerHome.test_hosted_ledger_step_is_required_bounded_and_receipted",
-    "test_native_home.NativeHome.test_hosted_native_step_is_required_and_bounded"
+    "test_native_home.NativeHome.test_hosted_native_step_is_required_and_bounded",
+    "test_native_home.NativeHome.test_dual_python_jobs_use_exact_head_and_distinct_receipts",
+    "test_native_home.NativeHome.test_dual_python_contract_refuses_missing_versions_refs_and_collisions"
   ],
   "kind": "inventory",
   "invariant": "ledger native home is required and bounded",
