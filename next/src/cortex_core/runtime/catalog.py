@@ -48,7 +48,7 @@ def validated_seed(resources):
     except (ImportError,AttributeError):raise Refusal('catalog_validator_unavailable') from None
     observation=_observe(resources,service=False,_schema=True)
     try:
-        admitted=validate_catalog(resources._config,observation,phase='seed')
+        admitted=validate_catalog(resources._config,observation,phase='seed',**({'live':resources} if resources._config.mode=='install' else {}))
         if type(admitted) is not dict:raise ValueError
     except Exception:raise Refusal('catalog_refused') from None
     resources.check_deadline()
