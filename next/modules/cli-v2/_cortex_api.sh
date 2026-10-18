@@ -19,7 +19,15 @@ try:
     fd = int(selected)
     info = os.fstat(fd)
     if (not stat.S_ISFIFO(info.st_mode) or info.st_uid != os.geteuid()
-            or info.st_nlink != 0 or fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE != os.O_RDONLY):
+            or fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE != os.O_RDONLY):
+        raise ValueError
+    if sys.platform == 'darwin':
+        if info.st_nlink != 0:
+            raise ValueError
+    elif sys.platform.startswith('linux'):
+        if re.fullmatch(r'pipe:\[[0-9]+\]', os.readlink('/proc/self/fd/' + str(fd))) is None:
+            raise ValueError
+    else:
         raise ValueError
     deadline, raw = time.monotonic() + 1, bytearray()
     with selectors.DefaultSelector() as selector:
