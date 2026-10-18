@@ -283,6 +283,49 @@ class ServiceTests(unittest.TestCase):
             self.assertEqual(messages[1]['body'],raw)
             self.assertEqual(bound.export_bound_openapi(**identity),raw)
 
+    def test_health_503_schema_accepts_actual_unavailable_and_timeout_packets(self):
+        from jsonschema import Draft202012Validator
+        self.require_source()
+        self.value['limits']['request_seconds']=1
+        original=Connection.execute
+        def stalled(connection,sql,params=None):
+            if connection.name==self.config.role_logins['probe'] and sql=='SELECT 1':
+                time.sleep(1.05)
+            return original(connection,sql,params)
+        with self.opened() as owned,self.bound(owned) as bound:
+            bound.start()
+            document=json.loads(bound.export_bound_openapi(source_commit='a'*40,
+                version='0.1.004',profile='A',
+                listener=f'http://{self.config.publish["host"]}:{self.config.publish["port"]}'))
+            def validator(status):
+                response=document['paths']['/health']['get']['responses'][str(status)]
+                return Draft202012Validator({**response['content']['application/json']['schema'],
+                    'components':document['components']})
+            status,healthy=self.request(bound,'GET','/health')
+            self.assertEqual((status,healthy['status']),(200,'ok'))
+            self.assertFalse(list(validator(200).iter_errors(healthy)))
+            self.rows['auth.runtime_request_installation']=[(False,)]
+            status,unavailable=self.request(bound,'GET','/health')
+            self.assertEqual((status,unavailable['status']),(503,'unavailable'))
+            self.assertFalse(list(validator(503).iter_errors(unavailable)))
+            self.rows['auth.runtime_request_installation']=[(True,)]
+            with patch.object(Connection,'execute',stalled):
+                status,timeout=self.request(bound,'GET','/health')
+            self.assertEqual(status,503)
+            self.assertEqual(timeout,dict(error=dict(code='capability_unavailable',
+                capability='search',reason='request_timeout',retryable=True)))
+            errors=list(validator(503).iter_errors(timeout))
+            self.assertFalse(errors,'actual health timeout violates advertised 503 schema: '+
+                '; '.join(error.message for error in errors))
+            for packet in (unavailable,timeout):
+                with self.subTest(packet=packet):
+                    self.assertTrue(list(validator(503).iter_errors({**packet,'unknown':True})))
+            self.assertTrue(list(validator(503).iter_errors(
+                dict(error={**timeout['error'],'unknown':True}))))
+            self.assertTrue(list(validator(503).iter_errors(
+                dict(error={'code':'capability_unavailable'}))))
+            self.assertTrue(list(validator(200).iter_errors(timeout)))
+
     def test_openapi_wire_response_validates_its_own_closed_schema(self):
         from jsonschema import Draft202012Validator
         self.require_source()

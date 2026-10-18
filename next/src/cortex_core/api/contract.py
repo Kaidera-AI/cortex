@@ -115,6 +115,9 @@ def _operation(row, *, request_seconds):
         responses['200'] = _response(success[rid],'Actual bound handler response')
     if rid == 'C01-R002':
         responses['503'] = _response('Health','Core unavailable')
+        responses['503']['content']['application/json']['schema'] = dict(oneOf=[
+            {'$ref':'#/components/schemas/Health'},
+            {'$ref':'#/components/schemas/Error'}])
     if rid == 'C11-D1':
         responses['404'] = _response('Error','Absent or private record')
         responses['410'] = _response('Error','Record is a tombstone')
