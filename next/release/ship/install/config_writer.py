@@ -71,7 +71,10 @@ def _walk(path):
 
 
 def _check_dir(fd, owner, *, strict):
-    st = os.fstat(fd)
+    try:
+        st = os.fstat(fd)
+    except OSError:
+        raise Refusal('config_write_failed') from None   # a failing check is a typed refusal, never a raw OSError
     if st.st_uid != owner:
         raise Refusal('config_owner')
     if st.st_mode & (0o077 if strict else 0o022):
@@ -100,8 +103,15 @@ def _make_child(parent_fd, name, owner):
         fd = os.open(name, _FLAGS, dir_fd=parent_fd)
     except OSError:
         raise Refusal('config_write_failed') from None
-    os.fchmod(fd, 0o700)
-    _check_dir(fd, owner, strict=True)
+    try:   # the newly acquired descriptor is owned here: every failure closes it and is typed
+        os.fchmod(fd, 0o700)
+        _check_dir(fd, owner, strict=True)
+    except OSError:
+        os.close(fd)
+        raise Refusal('config_write_failed') from None
+    except BaseException:
+        os.close(fd)
+        raise
     return fd
 
 
