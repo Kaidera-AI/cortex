@@ -43,7 +43,7 @@ The owner is a trusted-code composition (the same trust boundary as Core and S4)
 
 ## What this does NOT establish
 Actual Core and actual S4 are not at this base: every case in `tests/test_make_secret.py` runs over NAMED DOUBLES that model the conditions above, and the join to the actual classes is a later, separately
-commissioned receipt. The J06 producer, unlock descriptor, initdb transfer, signing, install view and native controls are NOT RUN. The refusing skeleton stays intentionally RED.
+commissioned receipt. The J06 producer, unlock descriptor, initdb transfer, signing, install view and native controls are NOT RUN. make_secret is now IMPLEMENTED at component level (J1, row feb9dc8b): the 55 closed tests pass unchanged and `tests/test_make_secret_effect.py` adds 5 for S1's own reading of the owner slots; the three resolvers stay unbound, so production still refuses `custody_owner_unbound` until the Core and S4 join lands.
 
 ## Open join choices (for Cox, not made here)
  1. The producer stays a caller-supplied object (the J06 seam). If "no caller-supplied callback" is meant to include it, J06 must first fix how the five values arrive; that is the held human decision.
