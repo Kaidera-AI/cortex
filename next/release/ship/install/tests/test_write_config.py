@@ -198,6 +198,16 @@ class WriterRefusals(Base):
         self.assertEqual(self.refusal(), 'private_file_required')   # Core's own reason
         self.assertEqual(stat.S_IMODE(os.lstat(self.cfg).st_mode), 0o644)
 
+    def test_directories_readable_by_group_or_others_are_refused_not_only_writable_ones(self):   # added after the mutant run: 0o755/0o750 must not pass
+        self.prepare_dirs()
+        for mode in (0o755, 0o750, 0o705):
+            for target in (self.cfgdir, self.root):
+                with self.subTest(oct(mode), target=target.name):
+                    os.chmod(target, mode)
+                    self.assertEqual(self.refusal(), 'config_permissions')
+                    self.assertFalse(self.cfg.exists())
+                    os.chmod(target, 0o700)
+
     def test_a_tls_mismatch_in_an_existing_config_is_refused_by_core_and_left_untouched(self):
         self.written()
         doc = json.loads(self.cfg.read_text())

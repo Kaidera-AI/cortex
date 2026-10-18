@@ -56,3 +56,17 @@ The ledger step is ACCEPTED (Kai Option A, relayed in Cox's rework5; consult fb3
 USAGE is retained, migration bytes unchanged. It is never skipped: a ledger failure (or `LEDGER_ACCEPTED=False`) stops before seed and close. Real-PG proof so far is the FIRST TEN migrations only (`CORTEX_ACL_THROUGH`); the full 21 run stays a separate gate.
 Packaging: `provision.py` ships with `roles.py` as `cortex_ship.install.provision` (package_closure, the API/Core-Python Containerfile; the database-only image grows nothing).
 Open: `bootstrap_init_custody_unbuilt` (the `bootstrap` login is created by the stock initdb with a password from the encrypted custody over the private descriptor discipline; Bob owns the init/run wiring and there is no supported descriptor caller in this slice), the real Core opener/TLS/custody run, Finn's real seed and Bob's real invocation.
+
+## Day 3 S2: `write_config` (source-only)
+`config_writer.py` is the ONE writer of `<vault>/<project>/config/cortex.json` (Core's closed carrier; vault_root = `<vault>/<project>`). It builds the document from
+fixed non-secret option A identity (five purposes, logins `cortex_<purpose>`, the installer login fixed by migration 004, references `secrets/cortex/...`, loopback publish,
+`verify-full`, `ai_mode off`), admits it with Core's own `decode_config` in the `serve`, `migrate` and `seed` views over the same bytes and with `roles.bind_logins` BEFORE any
+directory exists, writes it 0600 through a same-directory temp file that is linked (never replaced) and unlinked, and re-reads it with Core's own `read_config_file`. Walks are
+no-follow from `/`; a symlink anywhere, a foreign owner or a group/other-accessible project/config directory is refused and never repaired. A rerun with the same inputs is a no-op,
+different inputs are `config_exists_different`, an existing config Core rejects (for example a non-`verify-full` TLS mode) keeps Core's own reason and is left untouched.
+Call: `python3 -I -B config_writer.py --core-src DIR --vault DIR --project KEY --port N` (library: `write_config(vault, project, port, *, new_id=None, owner_uid=None)`).
+Caller: `install.sh --vault DIR --project KEY --port N --release-dir D --only write_config` after the signature check. The helper beside the script must equal a signed `SHA256SUMS`
+member and the Core source must sit at `../../../src` (source layout); in a flat release folder it refuses `write_config_core_missing`. `make_secret` stays first and unwired, so the full run
+still refuses before any effect and writes no config. Open: `roles.py` and the Core source the helper imports are trusted like `install.sh` itself, not digest-checked as signed members;
+the release layout of the Core source (Bob/package) and the Core `install` mode view (Finn) are not at this base. Tests: `tests/test_write_config.py`, causal controls
+`tests/mutate_write_config.py` (14 mutants; two survive as behaviourally equivalent, see the S2 return).
