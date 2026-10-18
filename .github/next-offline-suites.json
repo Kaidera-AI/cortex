@@ -227,7 +227,9 @@
     "next/release/ship/run/tests/test_lifecycle_deciding.py",
     "next/release/ship/run/tests/test_lifecycle_controls.py",
     "next/release/ship/run/tests/test_lifecycle_record_deciding.py",
-    "next/release/ship/run/tests/test_lifecycle_record_controls.py"
+    "next/release/ship/run/tests/test_lifecycle_record_controls.py",
+    "next/release/ship/run/tests/test_bootstrap_deciding.py",
+    "next/release/ship/run/tests/test_bootstrap_controls.py"
   ],
   "excluded": [
     {
