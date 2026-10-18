@@ -209,9 +209,17 @@ class CustodyVault:
             binding = _INSTALLER.get()
             deadline = binding[3] if binding else None
             owner = _current_installer(config, self, deadline)
+            pending = owner._import_pending
             if (not owner._busy or type(kind) is not str or kind not in ROLE_NAMES
-                    or reference != self._config.roles[kind].secret_ref):
+                    or type(reference) is not str or type(credential) is not bytes
+                    or reference != self._config.roles[kind].secret_ref
+                    or pending is None or pending[0] != reference or pending[1] != kind
+                    or pending[2] is not credential):
+                object.__setattr__(owner, '_tainted', True)
                 raise Refusal('purpose_not_admitted')
+            # Consume the one operation admitted by the public owner. Neither a
+            # same-role nor another-role recursive call can enter a second time.
+            object.__setattr__(owner, '_import_pending', None)
 
         def admit_step():
             # A completed adapter call may expire or taint this finite owner.
@@ -337,7 +345,7 @@ def _bound_installer(config, custody, deadline, *, opening=False):
 class InstallerCustody:
     """Private finite IMPORT owner. Core2 must supply the actual run sequence."""
     __slots__ = ('_config', '_vault', '_deadline', '_stage', '_imported',
-                 '_closed', '_tainted', '_busy', '_token')
+                 '_closed', '_tainted', '_busy', '_import_pending', '_token')
 
     def __new__(cls, *args, **kwargs):
         raise Refusal('installer_private')
@@ -357,14 +365,17 @@ class InstallerCustody:
             if (type(purpose) is not str or purpose not in ROLE_NAMES
                     or type(credential_bytes) is not bytes or not 1 <= len(credential_bytes) <= 4096):
                 raise Refusal('purpose_not_admitted')
+            reference = owner._config.roles[purpose].secret_ref
+            object.__setattr__(owner, '_import_pending', (reference, purpose, credential_bytes))
             object.__setattr__(owner, '_busy', True)
-            owner._vault._import_role(owner._config.roles[purpose].secret_ref, purpose, credential_bytes)
+            owner._vault._import_role(reference, purpose, credential_bytes)
             _current_installer(owner._config, owner._vault, owner._deadline)
             object.__setattr__(owner, '_imported', owner._imported | {purpose})
         except BaseException:
             object.__setattr__(owner, '_tainted', True)
             raise
         finally:
+            object.__setattr__(owner, '_import_pending', None)
             object.__setattr__(owner, '_busy', False)
 
     def run(self, operation_key):
@@ -407,7 +418,8 @@ def open_installer_custody(config, *, unlock_fd, key_id, deadline):
     vault._closed, vault._directory, vault._cipher = True, None, None
     for name, value in [('_config', config), ('_vault', vault), ('_deadline', deadline),
                         ('_stage', 'OPENING'), ('_imported', frozenset()),
-                        ('_closed', False), ('_tainted', False), ('_busy', False)]:
+                        ('_closed', False), ('_tainted', False), ('_busy', False),
+                        ('_import_pending', None)]:
         object.__setattr__(owner, name, value)
     object.__setattr__(owner, '_token', _INSTALLER.set((owner, config, vault, deadline)))
     try:
