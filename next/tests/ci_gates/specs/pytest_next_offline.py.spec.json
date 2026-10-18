@@ -1,17 +1,19 @@
 {
   "schema_version": 1,
   "source": ".github/scripts/pytest_next_offline.py",
-  "source_sha256": "be0fa3e2dbe7415c6fe778b789bb207d987c221a7270236234561382121de5f6",
+  "source_sha256": "0c1d3a6623ea59d331c5623a541cc372ac1b710a1b7f82c4023d1f309b028666",
   "tests": {
-    "next/tests/ci_gates/tests/test_packaged_policy.py": "bf577560b7b0414f5696c02935940a9cb42dbb3bb0328a766f1f9889c8688990"
+    "next/tests/ci_gates/tests/test_packaged_policy.py": "bf577560b7b0414f5696c02935940a9cb42dbb3bb0328a766f1f9889c8688990",
+    "next/tests/ci_gates/tests/test_current_home.py": "237135ccf319eb6b7aa577e83faa35b16ecf72f03192b26ddcdd3b1fe7fb76a3"
   },
   "expected_nodes": [
-    "test_packaged_policy.PackagedPolicy.test_copied_policy_drift_refuses_even_with_a_rewritten_packager_receipt"
+    "test_packaged_policy.PackagedPolicy.test_copied_policy_drift_refuses_even_with_a_rewritten_packager_receipt",
+    "test_current_home.CurrentHome.test_ship_wrapper_has_exact_loopback_admission_without_adjacent_escape"
   ],
   "kind": "tool",
-  "invariant": "Copied policy must match the current actual ship source even if a copied receipt is rewritten",
+  "invariant": "Only the exact ship wrapper has required loopback admission; adjacent paths remain refused",
   "mutation": {
-    "before": "if (destination/target).read_bytes()!=(root/source).read_bytes():raise ValueError('ship_closure_source_drift')",
-    "after": "if False:raise ValueError('ship_closure_source_drift')"
+    "before": "                or path == 'next/release/ship/cli/tests/test_wrapper.py'\n",
+    "after": ""
   }
 }

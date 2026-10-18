@@ -1,12 +1,13 @@
 {
   "schema_version": 1,
   "source": "next/tests/ci_gates/tests/test_loopback_home.py",
-  "source_sha256": "18d8d80a9361796a80d66a982ba0f47829be3409f34ac80942a66e335981ce24",
+  "source_sha256": "5ff049f5bb9884a59e27a5ea805e4f5e89d6075bd8f6e54f82ece828f313da57",
   "tests": {
-    "next/tests/ci_gates/tests/test_loopback_home.py": "18d8d80a9361796a80d66a982ba0f47829be3409f34ac80942a66e335981ce24"
+    "next/tests/ci_gates/tests/test_loopback_home.py": "5ff049f5bb9884a59e27a5ea805e4f5e89d6075bd8f6e54f82ece828f313da57"
   },
   "expected_nodes": [
-    "test_loopback_home.LoopbackHome.test_same_phase_oracle_rejects_seed_import_error_and_skips"
+    "test_loopback_home.LoopbackHome.test_same_phase_oracle_rejects_seed_import_error_and_skips",
+    "test_loopback_home.LoopbackHome.test_actual_seed_and_all_published_transports_have_required_home"
   ],
   "kind": "oracle-fixture",
   "invariant": "a healthy complete phase packet defeats an inverted source oracle assertion",

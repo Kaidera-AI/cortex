@@ -222,7 +222,6 @@
     "next/tests/schema/test_mutation_receipts.py",
     "next/tests/test_x3_secret_resolver.py",
     "next/release/ship/cli/tests/test_install_cli.py",
-    "next/release/ship/cli/tests/test_wrapper.py",
     "next/release/ship/run/tests/test_render.py"
   ],
   "excluded": [
@@ -2541,6 +2540,7 @@
     "next/modules/cli-v2/tests/test_health_join.py",
     "next/src/cortex_core/schema/tests/test_seed_operator.py",
     "next/modules/cli-v2/tests/test_health_contract.py",
-    "next/modules/cli-v2/tests/test_pipe_identity.py"
+    "next/modules/cli-v2/tests/test_pipe_identity.py",
+    "next/release/ship/cli/tests/test_wrapper.py"
   ]
 }

@@ -419,6 +419,7 @@ def inventory(root, manifest, base_manifest=None):
             path = row if key != 'excluded' else row.get('path') if isinstance(row, dict) else None
             allowed = (isinstance(path, str) and (path == 'next/src/cortex_core/schema/tests/test_seed.py'
                 or path == 'next/src/cortex_core/schema/tests/test_seed_operator.py'
+                or path == 'next/release/ship/cli/tests/test_wrapper.py'
                 or path in {'next/modules/cli-v2/tests/'+name for name in (
                     'test_transport_admission.py','test_transport_composition.py','test_transport_processes.py',
                     'test_transport_projection.py','test_transport_results.py','test_namespace.py','test_health_join.py','test_health_contract.py','test_pipe_identity.py')}

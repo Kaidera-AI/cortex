@@ -1,17 +1,19 @@
 {
   "schema_version": 1,
   "source": ".github/next-offline-suites.json",
-  "source_sha256": "b9e31daa0e8c3b65c42f2658422ba63a8624ec5c0fa9d0ca68159862c0ea4b35",
+  "source_sha256": "c3fe7af6966cacc627d2152a720c01b906c5e9ff938f60e9082a89d597ea94b9",
   "tests": {
-    "next/tests/ci_gates/tests/test_ledger_home.py": "b3a13ee9409a311ba23429348427159a3bc95abedb3d35bdae8879854a4321b6"
+    "next/tests/ci_gates/tests/test_ledger_home.py": "b3a13ee9409a311ba23429348427159a3bc95abedb3d35bdae8879854a4321b6",
+    "next/tests/ci_gates/tests/test_current_home.py": "237135ccf319eb6b7aa577e83faa35b16ecf72f03192b26ddcdd3b1fe7fb76a3"
   },
   "expected_nodes": [
-    "test_ledger_home.LedgerHome.test_three_pure_suites_run_and_ledger_has_a_named_native_home"
+    "test_ledger_home.LedgerHome.test_three_pure_suites_run_and_ledger_has_a_named_native_home",
+    "test_current_home.CurrentHome.test_ship_wrapper_has_exact_loopback_admission_without_adjacent_escape"
   ],
   "kind": "inventory",
-  "invariant": "actual Nix catalog pure suite cannot disappear from RUN",
+  "invariant": "Only the exact ship wrapper has required loopback admission; adjacent paths remain refused",
   "mutation": {
-    "before": "    \"next/release/ship/install/tests/test_catalog.py\",\n",
-    "after": ""
+    "before": "    \"next/release/ship/cli/tests/test_wrapper.py\"",
+    "after": "    \"next/release/ship/cli/tests/test_unreviewed_wrapper.py\""
   }
 }

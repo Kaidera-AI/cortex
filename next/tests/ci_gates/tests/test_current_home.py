@@ -38,6 +38,26 @@ class CurrentHome(unittest.TestCase):
         refused=gate.inventory(ROOT,value)
         self.assertFalse(refused['ok'])
         self.assertIn("invalid explicit suite path: '"+V2+"test_unreviewed_pipe.py'",refused['invalid'])
+    def test_ship_wrapper_has_exact_loopback_admission_without_adjacent_escape(self):
+        path='next/release/ship/cli/tests/test_wrapper.py'
+        value=self.manifest()
+        self.assertIn(path,value['loopback'])
+        self.assertNotIn(path,value['run'])
+        self.assertNotIn(path,[row['path'] for row in value['excluded']])
+        spec=importlib.util.spec_from_file_location('wrapper_home_offline_gate',
+            ROOT/'.github/scripts/pytest_next_offline.py')
+        gate=importlib.util.module_from_spec(spec)
+        sys.modules[spec.name]=gate
+        spec.loader.exec_module(gate)
+        checked=gate.inventory(ROOT,value)
+        self.assertTrue(checked['ok'],checked)
+        self.assertFalse(set(checked['run']) & set(checked['loopback']))
+        self.assertEqual(checked['loopback'].count(path),1)
+        adjacent='next/release/ship/cli/tests/test_unreviewed_wrapper.py'
+        value['loopback'].append(adjacent)
+        refused=gate.inventory(ROOT,value)
+        self.assertFalse(refused['ok'])
+        self.assertIn('invalid explicit suite path: '+repr(adjacent),refused['invalid'])
     def test_seed_caller_has_explicit_loopback_home(self):
         self.assertIn(SCHEMA+'test_seed_operator.py',self.manifest()['loopback'])
         self.assertIn(SCHEMA+'test_seed_owner_contract.py',self.manifest()['run'])
