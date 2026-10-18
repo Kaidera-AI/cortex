@@ -46,10 +46,14 @@ The independent accepted-gate cutoff is supplied through `index.accepted_gate`
 by the CLI. All raw history stays present; runs updated since cutoff are active
 obligations. An old run rerun after cutoff is active, even if its creation is older.
 
-Every listed run/attempt/job must be complete, nonempty and identity-consistent.
-Each required workflow needs two distinct run IDs at the final head, with all
-required contexts successful, and no rerun attempts substituting for independent
-runs. All jobs, including extra contexts, must be successful. Earlier red in the
+Every listed run/attempt must be complete and identity-consistent; every raw job
+and every attempt remains in custody on both sides of the accepted cutoff. Before
+the cutoff, zero-job attempts and legacy job-context names are custody only and
+provide zero admission credit. After the cutoff, jobs must be nonempty and include
+all current required contexts. Each required workflow needs three distinct clean
+run IDs at the final head, and its last three active runs ordered by updated_at
+then run ID must all be at that head. No rerun attempts substitute for independent
+runs. All active-window jobs, including extra contexts, must be successful. Earlier red in the
 active window blocks unless an explicit closure references its run/attempt/job,
 `fixed_in` final head, `root_cause`, `reviewer`, `evidence_sha256`. A run-level red
 uses job_id "run". Current-head red cannot be closed by metadata. Closure references
@@ -57,8 +61,8 @@ still need lead review; they are not machine-authenticated judgments. This
 conservative collector includes unrelated repository runs too; the lead may need
 their accepted closures. It never silently excludes a failure as irrelevant.
 
-No current Day-1 branch hosted run is invented. Two local unit runs do not satisfy
-the two hosted runs required before a later GO.
+No current Day-1 branch hosted run is invented. Three local unit runs do not satisfy
+the three hosted runs required before a later GO.
 
 ## Causal pilot
 
