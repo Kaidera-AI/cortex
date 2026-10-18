@@ -203,27 +203,46 @@ class CustodyVault:
     def _import_role(self, reference, kind, credential):
         # Callers have admitted operation + purpose before directory/record IO.
         # Replay authenticates privately; it cannot grant public resolve-all.
+        owner = None
+        config = self._config
         if self._config.mode == 'install':
             binding = _INSTALLER.get()
-            owner = _current_installer(self._config, self, binding[3] if binding else None)
+            deadline = binding[3] if binding else None
+            owner = _current_installer(config, self, deadline)
             if (not owner._busy or type(kind) is not str or kind not in ROLE_NAMES
                     or reference != self._config.roles[kind].secret_ref):
                 raise Refusal('purpose_not_admitted')
+
+        def admit_step():
+            # A completed adapter call may expire or taint this finite owner.
+            # Re-admit the original binding before initiating any later IO.
+            if owner is not None:
+                actual = _current_installer(config, self, deadline)
+                if actual is not owner or not owner._busy:
+                    raise Refusal('installer_context')
+
         self._live()
         name = reference.rsplit('/',1)[1]
+        admit_step()
         with custody_fs.record_lock(self._directory, name):
+            admit_step()
             existing = custody_fs.read_record(self._directory, name)
             if existing is not None:
+                admit_step()
                 value, _ = self._open(existing[0], reference, kind)
                 if not hmac.compare_digest(_credential_bytes(value), credential):
                     raise Refusal('custody_changed')
                 return
+            admit_step()
             raw = self._seal({'schema':'cortex.credential.v1','credential':_encoded(credential)}, reference, kind, 0)
+            admit_step()
             custody_fs.write_record(self._directory, name, raw, expected=None)
             # Credit is possible only after publication AND authenticated reload.
+            admit_step()
             saved = custody_fs.read_record(self._directory, name)
             if saved is None:
                 raise Refusal('custody_missing')
+            admit_step()
             value, _ = self._open(saved[0], reference, kind)
             if not hmac.compare_digest(_credential_bytes(value), credential):
                 raise Refusal('custody_changed')
