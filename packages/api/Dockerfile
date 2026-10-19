@@ -34,6 +34,7 @@ RUN python -m pip install --no-cache-dir --only-binary=:all: --require-hashes \
 # Keep the Apple/Compose image to the same explicit importable API allowlist as the
 # source-free appliance image. Tests, caches and the source Dockerfile are not runtime.
 COPY main.py \
+     run_profile.py \
      mcp_server.py \
      observability.py \
      openkai_provider_env.py \
@@ -47,6 +48,7 @@ COPY ingest/ ./ingest/
 COPY models/ ./models/
 
 RUN test -s ./main.py \
+ && test -s ./run_profile.py \
  && test -s ./openkai_provider_env.py \
  && test -s ./service_auth.py \
  && test -s ./service_auth_owner.py \
