@@ -23,20 +23,41 @@ import uuid
 import podman_stage0
 
 PYTHON = "docker.io/library/python:3.14.7-trixie@sha256:608322fe51a9b889eee5ed6015c854e77dc44d00c116435f56b69bf6f14c88f4"
+# Host-installed wheels must run in the same exact Python, including U13.
+# Primary upstream index/platform/config witnesses: G5 hosted-causes return.
+DRIVER_IMAGES = {
+    (3, 13, 7): "docker.io/library/python:3.13.7-trixie@sha256:a7f3b1fe09b0845ef2e7b675ea3539062dc286bdc82d17da0caae58b03b67543",
+    (3, 14, 0): "docker.io/library/python:3.14.0-trixie@sha256:d88b1201e20b36976ff9d779cf1705cfa3598540a81bc31f0eee70a1e1f318e3",
+    (3, 14, 7): PYTHON,
+}
 POSTGRES = "docker.io/pgvector/pgvector:0.8.6-pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a"
 LABEL = "cortex.pytest-pg"
 
 
 class Fixture:
     def __init__(self, output, site, source):
+        version = tuple(sys.version_info[:3])
+        if version not in DRIVER_IMAGES:
+            raise RuntimeError("unsupported host Python: " + ".".join(map(str, version)))
+        self.driver_version = ".".join(map(str, version))
+        self.driver_image = DRIVER_IMAGES[version]
+        self.driver_site = "/usr/local/lib/python" + ".".join(map(str, version[:2])) + "/site-packages"
         self.output, self.site, self.source = output, site, source
         self.run_id = os.environ.get("GITHUB_RUN_ID", "local") + "-" + uuid.uuid4().hex[:10]
         self.prefix = "kaidera-test-pg-" + self.run_id
         self.containers, self.volumes, self.secret_names = [], [], []
         self.pod = None
         self.secret_values = [secrets.token_hex(32), secrets.token_hex(32)]
-        self.receipt = {"run_id": self.run_id, "images": {"python": PYTHON, "postgres": POSTGRES, "coordinator": podman_stage0.IMAGE},
+        self.receipt = {"run_id": self.run_id, "images": {"python": self.driver_image, "postgres": POSTGRES, "coordinator": podman_stage0.IMAGE},
+                        "host_python": self.driver_version, "driver_site": self.driver_site, "driver_versions": [],
                         "admissions": [], "commands": [], "cgroups": [], "passes": []}
+
+    def check_driver(self, driver):
+        result = self.command(["exec", driver, "python", "--version"])
+        reported = result.stdout.strip()
+        self.receipt["driver_versions"].append({"container": driver, "reported": reported})
+        if reported != "Python " + self.driver_version:
+            raise RuntimeError("driver Python mismatch: " + reported)
 
     def command(self, args, *, timeout=120, check=True, input=None):
         result = subprocess.run(["podman", *args], text=True, capture_output=True,
@@ -188,7 +209,7 @@ class Fixture:
 
     def prepare(self):
         start = time.monotonic()
-        for image in [PYTHON, POSTGRES]:
+        for image in [self.driver_image, POSTGRES]:
             self.admission()
             self.command(["pull", image], timeout=240)
         self.receipt["pull_seconds"] = time.monotonic() - start
@@ -230,7 +251,7 @@ print(json.dumps({'uid':os.getuid(),'gid':os.getgid(),'cap_eff':status['CapEff']
         finite_limits = finite_limits.replace("1073741824", str(992 * 1024 ** 2)).replace("quota/period==2", "quota/period==1.95")
         finite_limits += "\nimport socket;assert socket.gethostbyname('cortex-pg')=='127.0.0.1'\n"
         import shlex
-        helper = self.run("prepare", PYTHON, ["sh", "-c", "python -c " + shlex.quote(finite_limits) +
+        helper = self.run("prepare", self.driver_image, ["sh", "-c", "python -c " + shlex.quote(finite_limits) +
                           " && cp -a /wheels/. /deps/ && sh /source/packages/deploy/tls/init.sh"],
                           user="0:0", memory="992m", cpus="1.95", finite=True,
                           mounts=[(self.source, "/source", True), (self.site, "/wheels", True),
@@ -306,12 +327,13 @@ print(json.dumps({'uid':os.getuid(),'gid':os.getgid(),'cap_eff':status['CapEff']
                "CORTEX_CERT_TEST_DSN": "postgresql://postgres@cortex-pg:5432/platform_agent_memory",
                "CORTEX_PASSWORD_TEST_DSN": "postgresql://postgres@cortex-pg:5433/platform_agent_memory"}
         mounts = [(self.source, "/source", True), (self.source / "packages/api", "/app", True),
-                  (self.deps, "/usr/local/lib/python3.14/site-packages", True),
+                  (self.deps, self.driver_site, True),
                   (self.results, "/results", False), (self.tls["app"], "/tls/app", True),
                   (self.tls["admin"], "/tls/admin", True)]
-        driver = self.run(suffix, PYTHON, ["sleep", "1800"], mounts=mounts, env=env,
+        driver = self.run(suffix, self.driver_image, ["sleep", "1800"], mounts=mounts, env=env,
                           extra=["--secret", self.secrets["admin"] + ",type=env,target=CORTEX_ADMIN_TOKEN",
                                  "--secret", self.secrets["password"] + ",type=env,target=PGPASSWORD"])
+        self.check_driver(driver)
         result = self.command(["exec", driver, "python", "/source/.github/scripts/pytest_pg_worker.py",
                                "--mode", mode, "--output", "/results/" + mode], timeout=900, check=False)
         (self.output / (self.results.name + "-" + mode + "-driver.txt")).write_text(result.stdout + result.stderr)

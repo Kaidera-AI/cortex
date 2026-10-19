@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/outbox_inventory/test_seed_fixture_recognition.py",
+  "source_sha256": "ce8d709f79d9cdaedab3c66af7da9b4e878cda14787742ffb39e2e3b56b4b60a",
+  "tests": {
+    "next/tests/outbox_inventory/test_seed_fixture_recognition.py": "ce8d709f79d9cdaedab3c66af7da9b4e878cda14787742ffb39e2e3b56b4b60a"
+  },
+  "expected_nodes": [
+    "next.tests.outbox_inventory.test_seed_fixture_recognition.SeedFixtureRecognition.test_reviewed_model_data_is_explicit_and_source_bound"
+  ],
+  "kind": "oracle-fixture",
+  "invariant": "new exact seed-driver data control must execute a deciding assertion",
+  "mutation": {
+    "before": "self.assertEqual(unclassified, [])",
+    "after": "self.assertNotEqual(unclassified, [])"
+  }
+}

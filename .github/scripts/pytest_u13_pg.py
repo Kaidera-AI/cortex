@@ -11,7 +11,7 @@ import sys
 import tarfile
 import time
 
-from pytest_pg import Fixture, PYTHON, POSTGRES
+from pytest_pg import Fixture, POSTGRES
 import podman_stage0
 from pytest_u13_receipt import ReceiptRefusal, admit_receipt, expected_receipt
 
@@ -54,8 +54,9 @@ class U13Fixture(Fixture):
         env={'PYTHONDONTWRITEBYTECODE':'1','PYTEST_DISABLE_PLUGIN_AUTOLOAD':'1',
              'PYTHONPATH':'/deps:/source/next/src','PSYCOPG_IMPL':'python',
              'TEST_DATABASE_URL':'postgresql://postgres@127.0.0.1:55432/kaidera-test-upgrade-ci'}
-        driver=self.run('u13-driver',PYTHON,['sleep','900'],
+        driver=self.run('u13-driver',self.driver_image,['sleep','900'],
             mounts=[(self.source,'/source',True),(self.site,'/deps',True),(self.results,'/results',False)],env=env)
+        self.check_driver(driver)
         result=self.command(['exec',driver,'python','/source/.github/scripts/pytest_u13_worker.py',
             '--output','/results/outcomes.json','--control',control,
             '--receipt-run-id',self.run_id],timeout=600,check=False)
@@ -89,7 +90,7 @@ def main():
         fixture.receipt['source_sha']=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
         fixture.receipt['worker_sha256']=hashlib.sha256((source/'.github/scripts/pytest_u13_worker.py').read_bytes()).hexdigest()
         (output/'fixture-hosts.conf').write_text('127.0.0.1 localhost cortex-pg\n::1 localhost\n')
-        for image in (PYTHON,POSTGRES,podman_stage0.IMAGE):
+        for image in (fixture.driver_image,POSTGRES,podman_stage0.IMAGE):
             fixture.command(['image','exists',image])  # reuse only; never fetch an image
         exit_code=fixture.execute_u13(args.control)
         fixture.receipt['status']='PASS' if exit_code==0 else 'FAIL'

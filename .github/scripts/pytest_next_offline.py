@@ -28,6 +28,7 @@ BOOTSTRAP_MAINS = ('66cba6a1f8a2a3787844e168ab5415cb96738a0d',
 UNBUILT_POLICY = 'c88f772bef234368d5057c298edc703ecf46ba97'
 # Kai ruling263722e5: exact U3 whole-file rows; no PASS credit.
 UNAVAILABLE_POLICY = '58031a28534aa1a36d20097bb0057dfc29ba383c'
+JOB_PARTITIONS = 8
 SPEC = importlib.util.spec_from_file_location('unchanged_u13_outcome',
                                             Path(__file__).with_name('pytest_u13_worker.py'))
 U13 = importlib.util.module_from_spec(SPEC)
@@ -163,7 +164,9 @@ def assertions(node):
 def fixture_evidence(root, suite, evidence, nodeid=None):
     """Conservative AST proof; unknown or mixed coverage cannot leave RUN."""
     if not isinstance(evidence,dict) or set(evidence) not in (
-            {'kind','source','sha256','symbol'},{'kind','source','sha256','symbol','keys'}):return False
+            {'kind','source','sha256','symbol'},{'kind','source','sha256','symbol','keys'},
+            {'kind','source','sha256','symbol','fixture'}):return False
+    if 'fixture' in evidence and evidence['kind']!='native_postgres_fixture':return False
     name=evidence['source']
     if not source_path(name) or not isinstance(evidence['symbol'],str):return False
     path=root/name
@@ -172,6 +175,57 @@ def fixture_evidence(root, suite, evidence, nodeid=None):
     if not parsed or anchor is None:return False
     candidate,parsed=source_tree(root/suite)
     if not parsed:return False
+    if evidence['kind']=='native_postgres_fixture':
+        # Two explicitly named suites; never a general exclusion mechanism.
+        native='next/release/ship/install/tests/test_roles_pg.py'
+        ledger='next/release/ship/install/tests/test_ledger_acl_pg.py'
+        if name!=suite or suite not in (native,ledger) or nodeid is not None:return False
+        if suite==ledger:
+            if set(evidence)!={'kind','source','sha256','symbol','fixture'} or evidence['symbol']!='LedgerAcl.setUpClass':return False
+            fixture=evidence['fixture']
+            if not isinstance(fixture,dict) or set(fixture)!={'source','sha256','symbol'}:return False
+            if fixture['source']!=native or fixture['symbol']!='Cluster.__init__':return False
+            if not (root/native).is_file():return False
+            if hashlib.sha256((root/native).read_bytes()).hexdigest()!=fixture['sha256']:return False
+            if not any(isinstance(n,ast.Import) and len(n.names)==1
+                and n.names[0].name=='test_roles_pg' and n.names[0].asname=='P' for n in candidate.body):return False
+            for cls in ('LedgerAcl','ProvisionStepsPg'):
+                setup=symbol(candidate,cls+'.setUpClass');stop=symbol(candidate,cls+'.tearDownClass')
+                if not isinstance(setup,ast.FunctionDef) or not isinstance(stop,ast.FunctionDef):return False
+                if not any(isinstance(n,ast.Assign) and ast.unparse(n)=='cls.c = P.Cluster()' for n in setup.body):return False
+                if not any(isinstance(n,ast.Expr) and ast.unparse(n)=='cls.c.stop()' for n in stop.body):return False
+            tree,parsed=source_tree(root/native);anchor=symbol(tree,'Cluster.__init__')
+            if not parsed or anchor is None:return False
+        elif evidence['symbol']!='Cluster.__init__' or set(evidence)!={'kind','source','sha256','symbol'}:return False
+        worker,ok=source_tree(root/'.github/scripts/pytest_pg_worker.py')
+        if not ok:return False
+        assignments={n.targets[0].id:n.value for n in worker.body if isinstance(n,ast.Assign)
+            and len(n.targets)==1 and isinstance(n.targets[0],ast.Name)}
+        try:
+            suite_name=ast.literal_eval(assignments['NATIVE_LEDGER_SUITE' if suite==ledger else 'NATIVE_ROLES_SUITE'])
+            names=ast.literal_eval(assignments['NATIVE_LEDGER_NODES' if suite==ledger else 'NATIVE_ROLE_NODES'].generators[0].iter)
+        except (KeyError,ValueError,TypeError,AttributeError):return False
+        expected={suite_name+'::'+method for method in names}
+        actual={suite+'::'+cls.name+'::'+method.name for cls in candidate.body if isinstance(cls,ast.ClassDef)
+            for method in cls.body if isinstance(method,ast.FunctionDef) and method.name.startswith('test_')}
+        if suite_name!=suite or len(expected)!=(11 if suite==ledger else 9) or actual!=expected:return False
+        psql=symbol(tree,'Cluster.psql');stop=symbol(tree,'Cluster.stop')
+        def direct_command(function,tool):
+            if not isinstance(function,ast.FunctionDef):return False
+            return any(isinstance(n,(ast.Expr,ast.Assign)) and isinstance(n.value,ast.Call)
+                and ast.unparse(n.value.func)=='subprocess.run' and n.value.args
+                and isinstance(n.value.args[0],ast.List) and n.value.args[0].elts
+                and ast.unparse(n.value.args[0].elts[0])=="self.bin / "+repr(tool)
+                for n in function.body)
+        # Require unconditional commands, not strings or dead calls below a branch.
+        return (any(isinstance(n,ast.Assign) and ast.unparse(n)=="self.bin = pg_bin()" for n in anchor.body)
+            and direct_command(anchor,'initdb') and direct_command(anchor,'pg_ctl')
+            and direct_command(psql,'psql') and direct_command(stop,'pg_ctl')
+            and not any(isinstance(call,ast.Call) and ast.unparse(call.func)=='pg_bin'
+                for n in tree.body if not isinstance(n,(ast.FunctionDef,ast.ClassDef)) for call in ast.walk(n))
+            and not any(isinstance(n,ast.Call) and ast.unparse(n.func) in
+                ('unittest.skip','unittest.skipIf','unittest.skipUnless','pytest.skip')
+                for source in (tree,candidate) for n in ast.walk(source)))
     if evidence['kind']=='unbuilt_unit':
         # The same source reader accepts only the explicitly ratified pinned rows.
         approved=base_manifest_at(ROOT,UNBUILT_POLICY).get('method_exclusions',[])
@@ -344,22 +398,35 @@ def inventory(root, manifest, base_manifest=None):
     root = Path(root).resolve()
     found = sorted(str(p.relative_to(root)) for p in (root / 'next').rglob('*.py')
                    if suite_name(p.name))
-    invalid, entries, run, excluded = [], [], [], []
+    helper = root / 'packages/cli/tests'
+    found += sorted(str(p.relative_to(root)) for p in helper.glob('test_transport*.py'))
+    invalid, entries, run, excluded, loopback = [], [], [], [], []
     # rglob does not descend into directory symlinks: reject them rather than hide suites.
     for path in (root / 'next').rglob('*'):
         if path.is_symlink():
             invalid.append('symlink under next inventory: ' + str(path.relative_to(root)))
-    if not isinstance(manifest, dict) or not {'run','excluded'}<=set(manifest) or not set(manifest)<= {'run','excluded','retirements','method_exclusions','retirement_checks','partitions'}:
+    for path in [helper, *helper.parents[:2], *helper.rglob('*')]:
+        if path.is_symlink():
+            invalid.append('symlink under helper transport inventory: ' + str(path.relative_to(root)))
+    if not isinstance(manifest, dict) or not {'run','excluded'}<=set(manifest) or not set(manifest)<= {'run','excluded','loopback','retirements','method_exclusions','retirement_checks','partitions'}:
         invalid.append('manifest must contain run/excluded and optional retirement source bindings')
         manifest = manifest if isinstance(manifest, dict) else {}
-    for key in ('run', 'excluded'):
-        values = manifest.get(key)
+    for key in ('run', 'excluded', 'loopback'):
+        values = manifest.get(key, [] if key == 'loopback' else None)
         if not isinstance(values, list):
             invalid.append(key + ' must be a list')
             continue
         for row in values:
-            path = row if key == 'run' else row.get('path') if isinstance(row, dict) else None
-            if (not isinstance(path, str) or not path.startswith('next/')
+            path = row if key != 'excluded' else row.get('path') if isinstance(row, dict) else None
+            allowed = (isinstance(path, str) and (path == 'next/src/cortex_core/schema/tests/test_seed.py'
+                or path == 'next/src/cortex_core/schema/tests/test_seed_operator.py'
+                or path == 'next/release/ship/cli/tests/test_wrapper.py'
+                or path in {'next/modules/cli-v2/tests/'+name for name in (
+                    'test_transport_admission.py','test_transport_composition.py','test_transport_processes.py',
+                    'test_transport_projection.py','test_transport_results.py','test_namespace.py','test_health_join.py','test_health_contract.py','test_pipe_identity.py')}
+                or path.startswith('packages/cli/tests/test_transport'))) if key == 'loopback' else (
+                    isinstance(path, str) and path.startswith('next/'))
+            if (not allowed
                     or any(c in path for c in '*?[]\\')
                     or any(part in ('', '.', '..') for part in path.split('/'))
                     or not suite_name(PurePosixPath(path).name)):
@@ -368,6 +435,8 @@ def inventory(root, manifest, base_manifest=None):
             entries.append(path)
             if key == 'run':
                 run.append(path)
+            elif key == 'loopback':
+                loopback.append(path)
             else:
                 reason = row.get('reason')
                 if (set(row) not in ({'path', 'reason'},{'path','reason','evidence'}) or not isinstance(reason, str)
@@ -375,7 +444,8 @@ def inventory(root, manifest, base_manifest=None):
                     invalid.append('missing or non-single-line exclusion reason: ' + path)
                 excluded.append(row)
             absolute = root / path
-            if absolute.is_symlink() or not absolute.resolve().is_relative_to(root / 'next'):
+            source_root = helper if path.startswith('packages/') else root / 'next'
+            if absolute.is_symlink() or not absolute.resolve().is_relative_to(source_root):
                 invalid.append('suite symlink or escape: ' + path)
     duplicates = sorted(path for path, count in Counter(entries).items() if count != 1)
     if not run:
@@ -454,7 +524,7 @@ def inventory(root, manifest, base_manifest=None):
             row['nodeid'].split('::')[0] in partitions for row in [*retired, *method_exclusions])):
         invalid.append('execution partitions require ordinary admitted RUN suites and counts 2..16')
     return dict(ok=not (invalid or duplicates or missing or stale), found=found,
-                run=run, excluded=excluded, missing=missing, stale=stale,
+                run=run, excluded=excluded, loopback=loopback, missing=missing, stale=stale,
                 duplicates=duplicates, invalid=invalid, rc0_oracle_present=oracle in found,
                 retired=retired, replacement_nodes=replacements,transitions=transitions,
                 method_exclusions=method_exclusions,retirement_checks=checks,partitions=partitions)
@@ -645,22 +715,199 @@ def execute_partitioned(command, count, destination, root, environment, isolated
     return (0 if combined is not None else 1), '\n'.join(logs), records
 
 
+def stage_ship_closure(root,destination,environment):
+    """Reuse the actual ship packager; copied source is never installed authority."""
+    root,destination=Path(root),Path(destination)
+    packager='next/release/ship/install/package_closure.py'
+    sources={
+        'next/release/ship/install/roles.py':'cortex_ship/install/roles.py',
+        'next/release/ship/install/provision.py':'cortex_ship/install/provision.py',
+        'next/contracts/runtime/runtime-operations-v1.json':'cortex_ship/install/runtime-operations-v1.json',
+    }
+    if destination.exists():raise ValueError('ship_closure_exists')
+    process=subprocess.run([sys.executable,'-B',str(root/packager),'--out',str(destination)],
+        cwd=root,env=environment,capture_output=True,text=True,timeout=30)
+    if process.returncode:raise ValueError('ship_closure_packager')
+    try:
+        receipt=destination/'cortex_ship/receipt.json'
+        value=json.loads(receipt.read_bytes())
+        files={row['path']:row['sha256'] for row in value['files']}
+        expected=set(sources.values())|{'cortex_ship/__init__.py','cortex_ship/install/__init__.py'}
+        if (set(files)!=expected or len(value['files'])!=len(expected)
+                or value['schema']!='cortex.ship.closure.v1'
+                or value['namespace']!='cortex_ship.install.roles'):raise ValueError('ship_closure_receipt')
+        actual={str(path.relative_to(destination)) for path in destination.rglob('*') if path.is_file()}
+        if actual!=expected|{'cortex_ship/receipt.json'}:raise ValueError('ship_closure_files')
+        for path in destination.rglob('*'):
+            if path.is_symlink():raise ValueError('ship_closure_symlink')
+        for target,digest in files.items():
+            if hashlib.sha256((destination/target).read_bytes()).hexdigest()!=digest:raise ValueError('ship_closure_hash')
+        for source,target in sources.items():
+            if (destination/target).read_bytes()!=(root/source).read_bytes():raise ValueError('ship_closure_source_drift')
+        return dict(qualification='SOURCE_COPIED_POLICY_ONLY',path=str(destination),
+            receipt_sha256=hashlib.sha256(receipt.read_bytes()).hexdigest(),
+            source_sha256={source:hashlib.sha256((root/source).read_bytes()).hexdigest()
+                           for source in [packager,*sources]})
+    except (OSError,KeyError,TypeError,json.JSONDecodeError) as error:
+        raise ValueError('ship_closure_invalid') from error
+
+
+def job_partition(suites, index):
+    """A finite selector over the already admitted home; it cannot admit a path."""
+    if (type(index) is not int or not 0 <= index < JOB_PARTITIONS
+            or not isinstance(suites, list) or any(not isinstance(path, str)
+                or not path.endswith('.py') or not (path.startswith('next/')
+                    or path.startswith('packages/cli/tests/test_transport'))
+                or any(c in path for c in '*?[]\\')
+                or any(part in ('', '.', '..') for part in path.split('/')) for path in suites)):
+        raise ValueError('invalid whole-job selector or suite path')
+    return partition_plan(suites, JOB_PARTITIONS)[index]
+
+
+def collect_unpartitioned(command, root, environment):
+    """Use the unchanged worker's full pytest collection, with ZERO phase credit."""
+    destination = Path(command[command.index('--output') + 1])
+    suite = command[command.index('--suite') + 1]
+    source = Path(root) / suite
+    pin = hashlib.sha256(source.read_bytes()).hexdigest()
+    # The existing worker records collected/expected IDs in collection_finish.
+    # Its unchanged phase validator deliberately returns RED without execution.
+    done = subprocess.run(command, cwd=root, env={**environment, 'PYTEST_ADDOPTS':'--collect-only'},
+                          capture_output=True, text=True, timeout=180)
+    destination.with_suffix('.txt').write_text(done.stdout + done.stderr)
+    packet = json.loads(destination.read_bytes())
+    retired = json.loads(command[command.index('--retired-json')+1]) if '--retired-json' in command else []
+    excluded = json.loads(command[command.index('--excluded-json')+1]) if '--excluded-json' in command else []
+    removed = {row['nodeid'] for row in [*retired, *excluded]
+               if row in retired or row['evidence']['kind'] != 'unbuilt_unit'}
+    full = packet['collected']
+    if (done.returncode != 1 or packet['pytest_exit'] != 0 or packet['gate_exit'] != 1
+            or packet['reports'] or packet['deselected'] or not full or len(full) != len(set(full))
+            or not all(isinstance(node,str) and node.startswith(suite+'::') for node in full)
+            or packet['expected'] != [node for node in full if node not in removed]
+            or packet['selected'] != packet['expected'] or packet.get('partition')
+            or packet['retired'] != retired or packet['excluded_methods'] != excluded
+            or packet['suite'] != suite or packet['source_sha256'] != pin
+            or hashlib.sha256(source.read_bytes()).hexdigest() != pin):
+        raise ValueError('independent unpartitioned collection refused: '+suite)
+    return packet
+
+
+def job_coverage(suites, parts, independent):
+    """Compare actual receipt nodes to a separate full collection, never a count."""
+    try:
+        if (len(parts) != JOB_PARTITIONS or [part['index'] for part in parts] != list(range(JOB_PARTITIONS))
+                or any(type(part['index']) is not int for part in parts)
+                or [packet['suite'] for packet in independent] != suites):return False
+        actual, full = [], []
+        pins = {packet['suite']:packet['source_sha256'] for packet in independent}
+        for packet in independent:
+            nodes = packet['collected']
+            if (not nodes or len(nodes)!=len(set(nodes))
+                    or not all(isinstance(node,str) and node.startswith(packet['suite']+'::') for node in nodes)):
+                return False
+            full.extend(nodes)
+        for index, part in enumerate(parts):
+            expected = job_partition(suites,index)
+            if part['suites'] != expected or [p['suite'] for p in part['outcomes']] != expected:return False
+            for packet in part['outcomes']:
+                if packet['source_sha256'] != pins[packet['suite']]:return False
+                actual.extend(packet['collected'])
+        return bool(full) and len(full)==len(set(full)) and Counter(actual)==Counter(full)
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def source_identity():
+    paths = ('.github/next-offline-suites.json', '.github/scripts/pytest_next_offline.py',
+             '.github/scripts/pytest_next_worker.py', '.github/scripts/pytest_u13_worker.py')
+    return dict(head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
+                sha256={path:hashlib.sha256((ROOT/path).read_bytes()).hexdigest() for path in paths})
+
+
+def verify_job_partitions(root, checked, identity, base_ref):
+    """Required hosted join: both homes, every job, strict phases, independent IDs."""
+    root = Path(root)
+    prefix = 'next-offline-receipts-' + sys.version.split()[0] + '-'
+    names = [prefix+str(index) for index in range(JOB_PARTITIONS)]
+    if sorted(path.name for path in root.iterdir()) != sorted(names):
+        raise ValueError('missing, duplicate or foreign job artifacts')
+    result = dict(source_identity=identity, python=sys.version, homes={}, gate_exit=1,
+                  qualification='HOSTED_PARTITIONED_SOURCE_CONTRACTS_ONLY', native_qualified=False,
+                  installed_qualified=False, old_installation='G_OLD_UNRESOLVED')
+    for home, folder in (('run','next-offline-receipts'),('loopback','next-loopback-receipts')):
+        parts, independent = [], []
+        for index,name in enumerate(names):
+            directory = root/name/folder
+            packet = json.loads((directory/'summary.json').read_bytes())
+            selected = job_partition(checked[home],index)
+            if (packet['gate_exit'] != 0 or packet['source_identity'] != identity
+                    or packet['base_ref'] != base_ref or packet['inventory'] != checked
+                    or packet['qualification'] != ('HOSTED_LOOPBACK_SOURCE_CONTRACTS_ONLY' if home=='loopback'
+                        else 'HOSTED_OFFLINE_SOURCE_CONTRACTS_ONLY')
+                    or packet['native_qualified'] is not False or packet['installed_qualified'] is not False
+                    or packet['python'].split()[0] != sys.version.split()[0]
+                    or packet['job_partition'] != dict(index=index,count=JOB_PARTITIONS,suites=selected)
+                    or not packet['owned_case_root_absent']
+                    or [row['suite'] for row in packet['suites']] != selected):
+                raise ValueError('partition identity, inventory or execution refused')
+            outcomes=[]
+            for row in packet['suites']:
+                suite=row['suite'];receipt=directory/row['receipt']
+                if receipt.parent != directory or receipt.suffix != '.json':raise ValueError('receipt path')
+                outcome=json.loads(receipt.read_bytes())
+                retired=[r for r in checked['retired'] if r['nodeid'].split('::')[0]==suite]
+                excluded=[r for r in checked['method_exclusions'] if r['nodeid'].split('::')[0]==suite]
+                pin=hashlib.sha256((ROOT/suite).read_bytes()).hexdigest()
+                if (not row['ok'] or not row['source_unchanged'] or row['source_sha256'] != pin
+                        or outcome['suite'] != suite or outcome['source_sha256'] != pin
+                        or outcome['python'].split()[0] != sys.version.split()[0]
+                        or not receipt_valid(outcome,row['process_exit'],retired=retired,
+                            replacements=checked['replacement_nodes'].get(suite,()),excluded=excluded)):
+                    raise ValueError('partition phase receipt refused: '+suite)
+                outcomes.append(outcome)
+            if index==0:
+                independent=packet['unpartitioned_collection']
+                if any(p['reports'] or p['pytest_exit']!=0 or p['gate_exit']!=1
+                        or p['python'].split()[0]!=sys.version.split()[0] for p in independent):
+                    raise ValueError('collection is not independent zero-credit evidence')
+            elif packet['unpartitioned_collection']:
+                raise ValueError('foreign independent collection')
+            parts.append(dict(index=index,suites=selected,outcomes=outcomes))
+        if not job_coverage(checked[home],parts,independent):
+            raise ValueError('partition node bijection refused: '+home)
+        result['homes'][home]=dict(suites=len(checked[home]),
+            nodes=sum(len(p['collected']) for p in independent), independent=independent,
+            partitions=[dict(index=p['index'],suites=p['suites'],
+                nodes=[n for outcome in p['outcomes'] for n in outcome['collected']]) for p in parts])
+    result['gate_exit']=0
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--inventory-only', action='store_true')
+    parser.add_argument('--loopback', action='store_true', help='required helper/seed source home; no installed credit')
     parser.add_argument('--force-skip', action='store_true', help='deliberately RED hosted control')
     parser.add_argument('--base-ref',default=ACCEPTED_BASE,help='independently supplied accepted Git base SHA')
+    parser.add_argument('--job-partition',type=int,choices=range(JOB_PARTITIONS),help='finite required whole-job selector')
+    parser.add_argument('--verify-job-partitions',type=Path,help='required join of all hosted partition artifacts')
     args = parser.parse_args()
+    if args.verify_job_partitions and (args.loopback or args.job_partition is not None or args.inventory_only or args.force_skip):
+        parser.error('partition verification cannot narrow or substitute a home')
     args.output.mkdir(parents=True, exist_ok=True)
     try:
         base=base_manifest_at(ROOT,args.base_ref)
         checked = inventory(ROOT, json.loads(MANIFEST.read_text()),base_manifest=base)
     except ValueError as error:
         checked=dict(ok=False,invalid=[str(error)],transitions=[])
-    packet = dict(inventory=checked, suites=[], gate_exit=1,
+    identity=source_identity()
+    packet = dict(inventory=checked, suites=[], gate_exit=1, source_identity=identity,
+                  job_partition=None,unpartitioned_collection=[],
                   manifest_sha256=hashlib.sha256(MANIFEST.read_bytes()).hexdigest(),
-                  python=sys.version, qualification='HOSTED_OFFLINE_SOURCE_CONTRACTS_ONLY',
+                  python=sys.version, qualification=('HOSTED_LOOPBACK_SOURCE_CONTRACTS_ONLY' if args.loopback
+                      else 'HOSTED_OFFLINE_SOURCE_CONTRACTS_ONLY'),
                   native_qualified=False, installed_qualified=False, old_installation='G_OLD_UNRESOLVED',
                   base_ref=args.base_ref,
                   policy_base_ref=ACCEPTED_BASE if args.base_ref in BOOTSTRAP_MAINS else args.base_ref,
@@ -671,34 +918,60 @@ def main():
     if not checked['ok']:
         print('NEXT_OFFLINE_INVENTORY_RED', flush=True)
         return 1
+    if args.verify_job_partitions:
+        try:
+            coverage=verify_job_partitions(args.verify_job_partitions,checked,identity,args.base_ref)
+        except (ValueError,KeyError,TypeError,OSError) as error:
+            packet['coverage_error']=str(error);write(result,packet)
+            print('NEXT_JOB_PARTITION_COVERAGE_RED',flush=True);return 1
+        write(result,coverage)
+        print('NEXT_JOB_PARTITION_COVERAGE_GREEN',flush=True);return 0
     if args.inventory_only:
         packet['gate_exit'] = 0
         write(result, packet)
         print('NEXT_OFFLINE_INVENTORY_GREEN', flush=True)
         return 0
-    denied = []
-    for family in (socket.AF_INET, socket.AF_INET6):
-        for kind in (socket.SOCK_STREAM, socket.SOCK_DGRAM):
-            try:
-                probe = socket.socket(family, kind)
-            except OSError as error:
-                denied.append(dict(family=int(family), kind=int(kind), errno=error.errno,
-                                   denied=error.errno == errno.EAFNOSUPPORT))
-            else:
-                probe.close()
-                denied.append(dict(family=int(family), kind=int(kind), denied=False))
-    status = dict(line.split(':', 1) for line in Path('/proc/self/status').read_text().splitlines() if ':' in line)
-    packet['offline_runtime'] = dict(socket_creation_probes=denied,
-        network_namespace=os.readlink('/proc/self/ns/net'), uid=os.getuid(),
-        no_new_privs=status['NoNewPrivs'].strip(), ip_socket_denied=all(r['denied'] for r in denied))
-    write(result, packet)
-    if not packet['offline_runtime']['ip_socket_denied'] or packet['offline_runtime']['no_new_privs'] != '1':
-        print('NEXT_OFFLINE_RUNTIME_RESTRICTION_RED', flush=True)
-        return 1
+    selected_suites = checked['loopback'] if args.loopback else checked['run']
+    full_suites=selected_suites
+    if args.job_partition is not None:
+        selected_suites=job_partition(full_suites,args.job_partition)
+        packet['job_partition']=dict(index=args.job_partition,count=JOB_PARTITIONS,suites=selected_suites)
+        write(result,packet)
+    if args.loopback:
+        interfaces = sorted(path.name for path in Path('/sys/class/net').iterdir())
+        routes = Path('/proc/net/route').read_text().splitlines()[1:]
+        status = dict(line.split(':',1) for line in Path('/proc/self/status').read_text().splitlines() if ':' in line)
+        packet['loopback_runtime'] = dict(interfaces=interfaces, routes=routes,
+            network_namespace=os.readlink('/proc/self/ns/net'), uid=os.getuid(),
+            no_new_privs=status['NoNewPrivs'].strip())
+        write(result,packet)
+        if interfaces != ['lo'] or any(line.split()[0] != 'lo' for line in routes) or status['NoNewPrivs'].strip() != '1' or not selected_suites:
+            print('NEXT_LOOPBACK_RUNTIME_RESTRICTION_RED',flush=True)
+            return 1
+    else:
+        denied = []
+        for family in (socket.AF_INET, socket.AF_INET6):
+            for kind in (socket.SOCK_STREAM, socket.SOCK_DGRAM):
+                try:
+                    probe = socket.socket(family, kind)
+                except OSError as error:
+                    denied.append(dict(family=int(family), kind=int(kind), errno=error.errno,
+                                       denied=error.errno == errno.EAFNOSUPPORT))
+                else:
+                    probe.close()
+                    denied.append(dict(family=int(family), kind=int(kind), denied=False))
+        status = dict(line.split(':', 1) for line in Path('/proc/self/status').read_text().splitlines() if ':' in line)
+        packet['offline_runtime'] = dict(socket_creation_probes=denied,
+            network_namespace=os.readlink('/proc/self/ns/net'), uid=os.getuid(),
+            no_new_privs=status['NoNewPrivs'].strip(), ip_socket_denied=all(r['denied'] for r in denied))
+        write(result, packet)
+        if not packet['offline_runtime']['ip_socket_denied'] or packet['offline_runtime']['no_new_privs'] != '1':
+            print('NEXT_OFFLINE_RUNTIME_RESTRICTION_RED', flush=True)
+            return 1
     import psycopg
     packet['source_head'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     packet['dependencies'] = {name: importlib.metadata.version(name) for name in
-                              ('pytest', 'numpy', 'psycopg', 'jsonschema', 'asyncpg', 'httpx', 'starlette')}
+                              ('pytest', 'numpy', 'psycopg', 'jsonschema', 'asyncpg', 'httpx', 'starlette', 'cryptography')}
     packet['driver'] = dict(version=psycopg.__version__, pq_impl=psycopg.pq.__impl__, libpq_version=psycopg.pq.version())
     packet['unchanged_u13_validator_sha256'] = hashlib.sha256(
         Path(__file__).with_name('pytest_u13_worker.py').read_bytes()).hexdigest()
@@ -713,12 +986,34 @@ def main():
                            CORTEX_U13_CASE_ROOT=str(case), PYTEST_DISABLE_PLUGIN_AUTOLOAD='1',
                            PYTHONDONTWRITEBYTECODE='1', OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1')
         (case / 'home').mkdir()
-        proofs=retirement_proofs(ROOT,checked['retirement_checks'],args.output/'retirement-proofs',case,environment)
+        try:
+            closure=stage_ship_closure(ROOT,case/'ship-source-closure',environment)
+        except (ValueError,subprocess.SubprocessError) as error:
+            packet['ship_closure_error']=type(error).__name__;write(result,packet)
+            print('NEXT_SHIP_SOURCE_CLOSURE_RED',flush=True);return 1
+        packet['ship_source_closure']=closure;write(result,packet)
+        shutil.copyfile(Path(closure['path'])/'cortex_ship/receipt.json',args.output/'ship-source-closure.json')
+        environment['PYTHONPATH']=closure['path']
+        proofs=retirement_proofs(ROOT,[] if args.loopback else checked['retirement_checks'],args.output/'retirement-proofs',case,environment)
         packet['retirement_proofs']=proofs;write(result,packet)
         if not all(row['ok'] for row in proofs):
             print('NEXT_OFFLINE_RETIREMENT_PROOF_RED',flush=True)
             return 1
-        for index, suite in enumerate(checked['run']):
+        if args.job_partition == 0:
+            try:
+                for index,suite in enumerate(full_suites):
+                    retired=[r for r in checked['retired'] if r['nodeid'].split('::')[0]==suite]
+                    excluded=[r for r in checked['method_exclusions'] if r['nodeid'].split('::')[0]==suite]
+                    name='collection-'+str(index)
+                    command=[sys.executable,'-B',str(worker),'--suite',suite,
+                        '--output',str(args.output/(name+'.json')),'--temporary',str(case/name),
+                        '--retired-json',json.dumps(retired),'--excluded-json',json.dumps(excluded)]
+                    packet['unpartitioned_collection'].append(collect_unpartitioned(command,ROOT,environment))
+                    write(result,packet)
+            except (ValueError,KeyError,TypeError,OSError,subprocess.SubprocessError) as error:
+                packet['collection_error']=str(error);write(result,packet)
+                print('NEXT_UNPARTITIONED_COLLECTION_RED',flush=True);return 1
+        for index, suite in enumerate(selected_suites):
             retired = [row for row in checked['retired'] if row['nodeid'].split('::')[0] == suite]
             excluded=[row for row in checked['method_exclusions'] if row['nodeid'].split('::')[0]==suite]
             name = f'{index:03d}'
@@ -772,9 +1067,11 @@ def main():
                   tests_declared_unavailable=sum(row['declared_unavailable'] for row in packet['suites']),
                   tests_passed=sum(row['passed'] for row in packet['suites']))
     packet['gate_exit'] = 0 if (packet['owned_case_root_absent'] and
-        len(packet['suites']) == len(checked['run']) and all(row['ok'] for row in packet['suites'])) else 1
+        len(packet['suites']) == len(selected_suites) and all(row['ok'] for row in packet['suites'])) else 1
     write(result, packet)
-    print('NEXT_OFFLINE_GREEN' if packet['gate_exit'] == 0 else 'NEXT_OFFLINE_RED', flush=True)
+    token = ('NEXT_LOOPBACK_GREEN' if packet['gate_exit'] == 0 else 'NEXT_LOOPBACK_RED') if args.loopback else (
+        'NEXT_OFFLINE_GREEN' if packet['gate_exit'] == 0 else 'NEXT_OFFLINE_RED')
+    print(token, flush=True)
     return packet['gate_exit']
 
 

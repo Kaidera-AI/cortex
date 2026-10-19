@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/live_contract/tests/test_live_contract.py",
+  "source_sha256": "18386cd504a878e0bb840e1c67766b1a61c8ac816e986c397e4fb7d3962ee214",
+  "tests": {
+    "next/tests/live_contract/tests/test_live_contract.py": "18386cd504a878e0bb840e1c67766b1a61c8ac816e986c397e4fb7d3962ee214"
+  },
+  "expected_nodes": [
+    "test_live_contract.LiveContract.test_bound_spec_complete"
+  ],
+  "kind": "oracle-fixture",
+  "invariant": "valid bound-export fixture defeats the DRAFT-refusal assertion",
+  "mutation": {
+    "before": "document[\"info\"][\"title\"] = \"runtime DRAFT\"",
+    "after": "document[\"info\"][\"title\"] = \"runtime bound\""
+  }
+}

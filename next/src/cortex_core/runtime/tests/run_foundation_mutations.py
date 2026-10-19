@@ -1,0 +1,163 @@
+"""Per-file causal witnesses; reuse the shared expected-body classifier."""
+import hashlib
+import importlib.util
+import json
+import marshal
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+NEXT=Path(__file__).resolve().parents[4]
+SPEC=[
+ ('src/cortex_core/runtime/bootstrap_config.py',"if value['ai_mode'] != 'off':","if False:",'runtime','test_bootstrap_config.ConfigTests.test_closed_shapes_and_explicit_ai'),
+ ('src/cortex_core/runtime/credentials.py','or before.st_mode & 0o077','or False','runtime','test_bootstrap_config.CredentialTests.test_unsafe_or_missing_secret_has_closed_error'),
+ ('src/cortex_core/runtime/contracts.py','if TYPE_CHECKING:','if True:','runtime','test_bootstrap_config.ConfigTests.test_stdlib_only_host_decoder'),
+ ('src/cortex_core/release/codec.py','import hashlib','import jsonschema\nimport hashlib','runtime','test_bootstrap_config.ConfigTests.test_stdlib_only_host_decoder'),
+ ('src/cortex_core/migrations.py','if hashlib.sha256(data).hexdigest() != entry["sha256"]:','if False:','schema','test_readiness.ReadinessTests.test_prefix_byte_change_before_sql'),
+ ('src/cortex_core/schema/migrate.py','return migrations.apply_migrations(connection, directory)','return []','schema','test_readiness.ReadinessTests.test_existing_runner_is_only_migration_engine'),
+ ('src/cortex_core/schema/readiness.py','if len(rows) != len(expected) or dict(rows) != dict(expected):','if False:','schema','test_readiness.ReadinessTests.test_wrong_applied_order_identity_and_digest_refuse'),
+]
+DAY2_SPEC=[
+ ('src/cortex_core/runtime/bootstrap_config.py',"hashlib.sha256(canonical_bytes(value)).hexdigest()","'0'*64",'runtime','test_custody.SnapshotIdentity.test_full_snapshot_changes_for_hidden_other_mode_role_and_semantic_bytes'),
+ ('src/cortex_core/runtime/custody_fs.py','or stat.S_IMODE(s.st_mode) != 0o700','or False','runtime','test_custody.CustodyTests.test_unsafe_root_parent_and_lock_refuse'),
+ ('src/cortex_core/runtime/custody.py','reference, purpose, self._key_id, generation])','reference, purpose, self._key_id, 0])','runtime','test_custody.CustodyTests.test_aad_binds_project_reference_purpose_and_generation'),
+ ('src/cortex_core/runtime/custody.py',"if material.state != 'committed':",'if False:','runtime','test_custody.CustodyTests.test_ciphertext_before_return_exact_replay_and_committed_client'),
+ ('src/cortex_core/runtime/resources.py','current._config is not config','False','runtime','test_resources.ResourceTests.test_accessor_rejects_other_identity_deadline_expiry_and_closed_handles'),
+ ('src/cortex_core/runtime/resources.py','if self._tainted:','if False:','runtime','test_resources.TransactionFailureTests.test_failed_sql_stage_taints_carrier_until_complete_resource_close'),
+ ('src/cortex_core/runtime/resources.py','signal.setitimer(signal.ITIMER_REAL,remaining_seconds(deadline),0.05)','signal.setitimer(signal.ITIMER_REAL,remaining_seconds(deadline))','runtime','test_resources.TransactionFailureTests.test_deadline_also_bounds_driver_rollback_after_body_interruption'),
+ ('src/cortex_core/runtime/catalog.py','protected_owners=protected','protected_owners=[]','runtime','test_resources.CatalogTests.test_incident_memberships_and_ownership_are_retained_for_sole_validator'),
+ ('src/cortex_core/runtime/operator.py',"fields=['cortex.client.v1'","fields=['cortex.client.v0'",'runtime','test_operator.OperatorTests.test_committed_seven_fields_exact_eof_and_no_public_secret_output'),
+ ('src/cortex_core/runtime/resources.py',"applied=apply_forward_migrations(self._connections['migrator'])",'applied=[]','runtime','test_resources.MigrationResourceTests.test_only_migrator_login_and_no_seed_context_or_nested_transaction'),
+ ('src/cortex_core/runtime/operator.py',"if command=='migrate':",'if False:','runtime','test_operator.MigrationOperatorTests.test_actual_dispatch_uses_one_config_one_finite_login_and_existing_engine'),
+ ('src/cortex_core/runtime/resources.py',"'bootstrap':('bootstrap',)","'bootstrap':_SEED_PURPOSES",'runtime','test_resources.BootstrapResourceTests.test_only_bootstrap_opens_before_other_roles_exist_and_no_seed_context'),
+ ('src/cortex_core/runtime/operator.py',"result=seed_runtime_bindings(config,key,deadline)","result={}",'runtime','test_operator.SeedOperatorTests.test_fixed_seed_call_same_config_context_then_closed_committed_public_receipt'),
+ ('src/cortex_core/runtime/catalog.py',"installation_matches=installation[0][0]","installation_matches=True",'runtime','test_resources.ServiceCatalogTests.test_false_or_not_enrolled_is_raw_evidence_and_never_synthesized_ready'),
+ ('src/cortex_core/runtime/services.py',"if check_schema_ready(connection) is not True:","if False:",'runtime','test_services.ServiceTests.test_startup_checks_actual_ledger_catalog_policy_and_probe_before_ready'),
+ ('src/cortex_core/runtime/services.py',"response={**(value.response or {}),'receipt':receipt}","response={**(value.response or {}),'receipt':{}}",'runtime','test_services.ServiceTests.test_same_c05_committed_receipt_and_existing_body_parser_reach_wire'),
+ ('src/cortex_core/runtime/services.py',"if name!=name.lower() or name in seen:","if False:",'runtime','test_services.ServiceTests.test_duplicate_authority_headers_and_missing_key_refuse_before_principal'),
+ ('src/cortex_core/runtime/services.py',"state=_service(connection,self._resources._config)","state={'installation_matches':True,'enrollment_readiness':'ready'}",'runtime','test_services.ServiceTests.test_health_rechecks_protected_state_and_cannot_reuse_startup_ready'),
+ ('src/cortex_core/runtime/resources.py',"if remaining_seconds(deadline)>min(10,self._config.limits['request_seconds']):","if False:",'runtime','test_services.ServiceTests.test_oversized_request_refuses_before_any_driver_or_taint'),
+ ('src/cortex_core/runtime/catalog.py',"admitted=validate_catalog(resources._config,observation,phase='seed')","admitted=observation",'runtime','test_catalog_binding.CatalogBindingTests.test_actual_owner_schema_snapshot_and_fixed_validator_are_one_closed_path'),
+ ('src/cortex_core/runtime/catalog.py',"if check_schema_ready(connection) is not True:raise ValueError","if False:raise ValueError",'runtime','test_catalog_binding.CatalogBindingTests.test_actual_owner_schema_snapshot_and_fixed_validator_are_one_closed_path'),
+ ('src/cortex_core/runtime/catalog.py',"    resources.check_deadline()\n    return admitted","    return admitted",'runtime','test_catalog_binding.CatalogBindingTests.test_original_deadline_is_checked_after_the_sole_policy_returns'),
+ ('src/cortex_core/runtime/lifecycle.py','bound=bind_core_services(owned);bound.start()','bound=bind_core_services(owned)','runtime','test_lifecycle.LifecycleTests.test_schema_failure_never_admits_and_closes_partial_owner_without_secret_trace'),
+ ('src/cortex_core/runtime/resources.py',"with private_driver_logs(),_driver_deadline(deadline):connection.close()","with private_driver_logs():connection.close()",'runtime','test_lifecycle.LifecycleTests.test_cleanup_deadline_is_absolute_no_renewal_and_unresolved_is_failure'),
+ ('src/cortex_core/runtime/lifecycle.py',"if self._bound is None or self._shutdown_deadline is not None:","if self._bound is None:",'runtime','test_lifecycle.LifecycleTests.test_shutdown_stops_http_admission_before_probe_auth_or_write'),
+ ('src/cortex_core/runtime/resources.py',"if self._shutdown_deadline is not None:raise Refusal('resources_draining')\n        if purpose not in _CORE_PURPOSES", "if False:raise Refusal('resources_draining')\n        if purpose not in _CORE_PURPOSES",'runtime','test_lifecycle.LifecycleTests.test_already_admitted_handler_cannot_open_sql_after_shutdown'),
+ ('src/cortex_core/runtime/operator.py',"if command=='serve':","if False:",'runtime','test_lifecycle.LifecycleTests.test_operator_serve_calls_actual_fixed_composition_with_same_config_and_descriptors'),
+ ('src/cortex_core/runtime/status.py',"or value['component']!='cortex' or value['installation_id']!=installation_id","or value['component']!='cortex'",'runtime','test_status_binding.StatusBindingTests.test_wrong_install_duplicate_extra_and_inconsistent_state_refuse'),
+ ('src/cortex_core/runtime/status.py',"'enrollment_required':(200,'ok',1)","'enrollment_required':(200,'ok',0)",'runtime','test_status_binding.StatusBindingTests.test_real_enrollment_and_unavailable_states_are_not_fabricated_ready'),
+ ('src/cortex_core/runtime/status.py',"httpx.Client(trust_env=False","httpx.Client(trust_env=True",'runtime','test_status_binding.StatusBindingTests.test_one_fixed_configured_loopback_get_has_no_auth_proxy_or_env_defaults'),
+ ('src/cortex_core/runtime/status.py',"with _driver_deadline(deadline):","if True:",'runtime','test_status_binding.StatusBindingTests.test_original_deadline_bounds_synchronous_stream_and_hides_transport_details'),
+ ('src/cortex_core/runtime/operator.py',"if command=='status':","if False:",'runtime','test_status_binding.StatusBindingTests.test_operator_status_main_exposes_real_diagnostic_exit_without_custody'),
+ ('src/cortex_core/runtime/resources.py',"if _shutdown is not None and _shutdown.deadline is not None:\n            cleanup_deadline=", "if False:\n            cleanup_deadline=",'runtime','test_lifecycle.LifecycleTests.test_signal_during_partial_open_cannot_renew_cleanup_budget'),
+ ('src/cortex_core/runtime/lifecycle.py',"custody=vault,deadline=deadline,_shutdown=self._shutdown", "custody=vault,deadline=deadline,_shutdown=None",'runtime','test_lifecycle.LifecycleTests.test_signal_during_first_open_stops_second_connection_and_startup_sql'),
+ ('src/cortex_core/runtime/resources.py',"self.check_deadline()\n        if self._shutdown_deadline is not None:raise Refusal('resources_draining')", "self.check_deadline()",'runtime','test_lifecycle.LifecycleTests.test_signal_during_ledger_gate_prevents_next_startup_transaction'),
+]
+
+
+def receipt_module():
+    spec=importlib.util.spec_from_file_location('receipts',NEXT/'tests/test_receipts.py')
+    receipts=importlib.util.module_from_spec(spec);spec.loader.exec_module(receipts)
+    return receipts
+
+
+def digest(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def admit_phase(result, expected, phase, source_hash, test_hash):
+    """Narrow admission around the existing shared BODY classifier/report."""
+    receipts=receipt_module();value=receipts.report(result)
+    if (phase not in ('healthy','mutant','restored') or value is None
+            or value['tests_run']!=len(expected) or value.get('skipped')!=0
+            or not value.get('executed_code_fingerprints')
+            or value.get('source_sha256')!=source_hash or value.get('test_sha256')!=test_hash):
+        return False
+    status=receipts.classify(result,expected)
+    if phase!='mutant':
+        return result.returncode==0 and status=='survived' and not value['failures']
+    failed={row['id'].split(' (')[0] for row in value['failures']}
+    return result.returncode==1 and status=='killed' and failed==expected
+
+
+def phase_main():
+    # Exact nodes and the shared AssertionResult retain fixture/BODY attribution.
+    source,group,node,target=sys.argv[2:]
+    source=Path(source);target=Path(target).resolve()
+    target_name=str(target)
+    testdir=source/'cortex_core'/group/'tests'
+    sys.path.insert(0,str(source));sys.path.insert(0,str(testdir))
+    testfile=testdir/(node.split('.')[0]+'.py')
+    seen={}
+    def witness(frame,event,arg):
+        if event=='call' and frame.f_code.co_filename==target_name:
+            key=frame.f_code.co_name+':'+str(frame.f_code.co_firstlineno)
+            seen[key]=hashlib.sha256(marshal.dumps(frame.f_code)).hexdigest()
+        return None
+    receipts=receipt_module()
+    sys.settrace(witness)
+    tests=unittest.defaultTestLoader.loadTestsFromName(node)
+    result=unittest.TextTestRunner(verbosity=2,resultclass=receipts.AssertionResult).run(tests)
+    sys.settrace(None)
+    value=dict(tests_run=result.testsRun,failures=result.assertions,
+               errors=[dict(id=test.id(),traceback=traceback) for test,traceback in result.errors],
+               skipped=len(result.skipped),source_sha256=digest(target),test_sha256=digest(testfile),
+               executed_code_fingerprints=seen)
+    print(receipts.MARKER+json.dumps(value),flush=True)
+    return 0 if result.wasSuccessful() else 1
+
+
+def main():
+    out=Path(sys.argv[1]).resolve();out.mkdir(parents=True,exist_ok=True)
+    selected=DAY2_SPEC if sys.argv[2:]==['--day2'] else SPEC
+    if sys.argv[2:] not in ([],['--day2']):raise ValueError('unknown mutation selection')
+    receipts=receipt_module();rows=[]
+    for index,(relative,old,new,group,expected) in enumerate(selected):
+        with tempfile.TemporaryDirectory(prefix='mutant-',dir=out) as tmp:
+            case=Path(tmp)/'next'
+            shutil.copytree(NEXT/'src',case/'src',ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
+            shutil.copytree(NEXT/'schema',case/'schema')
+            shutil.copytree(NEXT/'contracts',case/'contracts')
+            path=case/relative;before=path.read_bytes();text=before.decode()
+            if text.count(old)!=1:raise ValueError('mutation anchor must be unique: '+relative)
+            testfile=case/'src/cortex_core'/group/'tests'/(expected.split('.')[0]+'.py')
+            test_hash=digest(testfile);phases=[]
+            try:
+                for phase in ('healthy','mutant','restored'):
+                    path.write_text(text.replace(old,new,1)) if phase=='mutant' else path.write_bytes(before)
+                    source_hash=digest(path)
+                    command=[sys.executable,'-B',str(Path(__file__).resolve()),'--phase',
+                             str(case/'src'),group,expected,str(path)]
+                    result=subprocess.run(command,cwd=case,
+                        env={**os.environ,'PYTHONPATH':str(case/'src'),'PYTHONDONTWRITEBYTECODE':'1'},
+                        capture_output=True,text=True,timeout=90)
+                    stem=f'{index+1:02d}-{phase}'
+                    (out/(stem+'.stdout')).write_text(result.stdout)
+                    (out/(stem+'.stderr')).write_text(result.stderr)
+                    phases.append(dict(phase=phase,command=command,exit_code=result.returncode,
+                        valid=admit_phase(result,{expected},phase,source_hash,test_hash),
+                        source_sha256=source_hash,test_sha256=test_hash,
+                        test_result=receipts.report(result),stdout=stem+'.stdout',stderr=stem+'.stderr'))
+            finally:
+                path.write_bytes(before)
+            restored=digest(path)==hashlib.sha256(before).hexdigest()
+            valid=len(phases)==3 and all(p['valid'] for p in phases) and restored
+            row=dict(path=relative,expected_test=expected,phases=phases,
+                     restored_source_matches=restored,classification='killed' if valid else 'inconclusive')
+            rows.append(row);print(relative,row['classification'],flush=True)
+    summary={'schema':'cortex.foundation.causal.v2','source_root':str(NEXT),
+             'runner_sha256':digest(__file__),'classifier_sha256':digest(NEXT/'tests/test_receipts.py'),
+             'mutants':rows,'killed':sum(r['classification']=='killed' for r in rows),
+             'inconclusive':sum(r['classification']=='inconclusive' for r in rows),
+             'phases_valid':sum(p['valid'] for r in rows for p in r['phases'])}
+    (out/'RESULT.json').write_text(json.dumps(summary,indent=2)+'\n')
+    return 0 if summary['killed']==len(selected) else 1
+
+
+if __name__=='__main__':
+    raise SystemExit(phase_main() if sys.argv[1:2]==['--phase'] else main())

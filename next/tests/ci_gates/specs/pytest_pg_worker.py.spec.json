@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": ".github/scripts/pytest_pg_worker.py",
+  "source_sha256": "e5b1cc487a88ea084a383bd3500bba16c931ad6b3df1887062088260123c7979",
+  "tests": {
+    "next/tests/ci_gates/tests/test_ledger_home.py": "b3a13ee9409a311ba23429348427159a3bc95abedb3d35bdae8879854a4321b6"
+  },
+  "expected_nodes": [
+    "test_ledger_home.LedgerHome.test_eleven_exact_ledger_nodes_and_all_phases_are_required"
+  ],
+  "kind": "tool",
+  "invariant": "ledger native result rejects nonzero process exit",
+  "mutation": {
+    "before": "and gate.receipt_valid(packet, process_exit)",
+    "after": "and gate.receipt_valid(packet, 0)"
+  }
+}

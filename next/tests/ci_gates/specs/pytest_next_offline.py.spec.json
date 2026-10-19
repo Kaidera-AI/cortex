@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "source": ".github/scripts/pytest_next_offline.py",
+  "source_sha256": "0539003cb13b79de168e5850876f4f5b4e090232f49e1b2e2b2d6e3b71479d88",
+  "tests": {
+    "next/tests/ci_gates/tests/test_current_home.py": "b364133e414459503a1465428faa50cda914adbd06a7cce6c9360978328a377b"
+  },
+  "expected_nodes": [
+    "test_current_home.CurrentHome.test_finite_job_selectors_refuse_empty_duplicate_and_adjacent_suites",
+    "test_current_home.CurrentHome.test_real_unpartitioned_collection_equals_exact_job_node_union"
+  ],
+  "kind": "tool",
+  "invariant": "Finite complete whole-job partitions equal an independently collected unpartitioned node list, refusing all coverage escapes",
+  "mutation": {
+    "before": "and Counter(actual)==Counter(full)",
+    "after": "and Counter(actual)!=Counter(full)"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "source": ".github/workflows/ci.yml",
+  "source_sha256": "9a4e83b743fa01fdeabadf52fbcdbf97706b97c9cf483167fb6d1724bb28892d",
+  "tests": {
+    "next/tests/ci_gates/tests/test_ledger_home.py": "b3a13ee9409a311ba23429348427159a3bc95abedb3d35bdae8879854a4321b6",
+    "next/tests/ci_gates/tests/test_native_home.py": "84af1e097b0bd8d141a5e5c97ae54e9c4783a95f1c0a235705c2761796f3ff2a"
+  },
+  "expected_nodes": [
+    "test_ledger_home.LedgerHome.test_hosted_ledger_step_is_required_bounded_and_receipted",
+    "test_native_home.NativeHome.test_hosted_native_step_is_required_and_bounded",
+    "test_native_home.NativeHome.test_dual_python_jobs_use_exact_head_and_distinct_receipts",
+    "test_native_home.NativeHome.test_dual_python_contract_refuses_missing_versions_refs_and_collisions"
+  ],
+  "kind": "inventory",
+  "invariant": "ledger native home is required and bounded",
+  "mutation": {
+    "before": "installer ledger (eleven exact methods; native PostgreSQL)",
+    "after": "installer ledger (unqualified renamed step)"
+  }
+}

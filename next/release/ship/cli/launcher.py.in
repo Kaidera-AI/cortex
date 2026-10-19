@@ -1,0 +1,83 @@
+#!@CORE_PYTHON@ -IS
+"""Cortex v2 client launcher (ship/cli), rendered by install_cli.sh. Contract: contract.md.
+
+Runs Core's one private client projection over one anonymous pipe, waits for its exit, then execs
+the frozen client with the read end inherited (J06 process transfer v1, Q4). Stdlib only; it never
+reads the frame, falls back or retries.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+
+CLIENT = "@CLIENT@"
+CORE_PYTHON = "@CORE_PYTHON@"
+CONFIG = "@CONFIG@"
+EMPTY_AGENTS = "@EMPTY_AGENTS@"
+PROJECTOR_SECONDS = 15
+FD = re.compile(r"(?:0|[1-9][0-9]{0,9})\Z")
+REASON = re.compile(r"[a-z][a-z0-9_]{0,63}\Z")
+
+
+def refuse(reason):
+    print(json.dumps({"reason": reason, "unit": "ship/cli"}), file=sys.stderr)
+    raise SystemExit(2)
+
+
+def core_reason(stderr):
+    # Core's one typed refusal line keeps only its reason; anything else becomes the exit code.
+    try:
+        body = json.loads(stderr)
+        reason = body["error"]["reason"]
+        if body["schema"] == "cortex.operator.v1" and body["ok"] is False and REASON.fullmatch(reason):
+            return reason
+    except (ValueError, TypeError, KeyError):
+        pass
+    return None
+
+
+def main(argv):
+    unlock, key_id = os.environ.get("CORTEX_UNLOCK_FD", ""), os.environ.get("CORTEX_KEY_ID", "")
+    env = {k: v for k, v in os.environ.items() if not k.startswith("CORTEX_")}
+    if FD.fullmatch(unlock) is None or not key_id:
+        refuse("unlock_unconfigured")
+    unlock = int(unlock)
+    try:
+        os.fstat(unlock)
+    except OSError:
+        refuse("unlock_unconfigured")
+    reader, writer = os.pipe()
+    projector = [CORE_PYTHON, "-I", "-B", "-m", "cortex_core.runtime.operator", "config", "client",
+                 "--config", CONFIG, "--unlock-fd", str(unlock), "--key-id", key_id,
+                 "--projection-fd", str(writer)]
+    try:
+        child = subprocess.Popen(projector, stdin=None if unlock == 0 else subprocess.DEVNULL,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
+                                 pass_fds=tuple(fd for fd in (writer, unlock) if fd > 2))
+    except OSError:
+        child = None
+    os.close(writer)
+    if child is None:
+        os.close(reader)
+        refuse("projection_failed:unavailable")
+    try:
+        _out, err = child.communicate(timeout=PROJECTOR_SECONDS)
+    except (subprocess.TimeoutExpired, KeyboardInterrupt):
+        child.kill()
+        child.communicate()
+        os.close(reader)
+        refuse("projection_failed:interrupted")
+    if child.returncode != 0:
+        os.close(reader)
+        refuse(f"projection_failed:{core_reason(err.decode('utf-8', 'replace')) or child.returncode}")
+    if unlock > 2:
+        os.close(unlock)
+    os.set_inheritable(reader, True)
+    env.update(CORTEX_CLIENT_PROJECTION_FD=str(reader), CORTEX_AGENTS_DIR=EMPTY_AGENTS,
+               CORTEX_RUNTIME_CONFIG="/dev/null", CORTEX_WORKSPACE_CONFIG="/dev/null")
+    os.execve(CLIENT, [CLIENT, *argv], env)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

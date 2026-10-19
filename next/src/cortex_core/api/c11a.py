@@ -497,8 +497,12 @@ async def _memory_body(receive, max_bytes=1024 * 1024):
     return value
 
 
+def _json_bytes(body):
+    return json.dumps(body, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+
+
 async def _respond(send, status, body):
-    data = json.dumps(body, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+    data = _json_bytes(body)
     await send({"type": "http.response.start", "status": status,
                 "headers": [(b"content-type", b"application/json"),
                             (b"cache-control", b"no-store")]})

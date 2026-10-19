@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/ci_gates/tests/test_native_home.py",
+  "source_sha256": "84af1e097b0bd8d141a5e5c97ae54e9c4783a95f1c0a235705c2761796f3ff2a",
+  "tests": {
+    "next/tests/ci_gates/tests/test_native_home.py": "84af1e097b0bd8d141a5e5c97ae54e9c4783a95f1c0a235705c2761796f3ff2a"
+  },
+  "expected_nodes": [
+    "test_native_home.NativeHome.test_exact_nine_phase_receipt",
+    "test_native_home.NativeHome.test_dual_python_jobs_use_exact_head_and_distinct_receipts",
+    "test_native_home.NativeHome.test_dual_python_contract_refuses_missing_versions_refs_and_collisions",
+    "test_native_home.NativeHome.test_legacy_driver_matches_host_abi_and_versioned_wheels",
+    "test_native_home.NativeHome.test_u13_reuses_the_same_host_abi_driver",
+    "test_native_home.NativeHome.test_driver_refuses_unsupported_host_and_runtime_mismatch",
+    "test_native_home.NativeHome.test_u13_receipt_double_survives_driver_probe_without_weakening_admission"
+  ],
+  "kind": "oracle-fixture",
+  "invariant": "healthy exact native receipt defeats an inverted oracle assertion",
+  "mutation": {
+    "before": "self.assertTrue(check(packet(), 0, evidence()['sha256'], dict(ok=True, errors=[], residual=[])))",
+    "after": "self.assertFalse(check(packet(), 0, evidence()['sha256'], dict(ok=True, errors=[], residual=[])))"
+  }
+}

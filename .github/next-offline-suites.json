@@ -1,6 +1,38 @@
 {
   "run": [
     "next/docs/runtime/rc0/test_oracle.py",
+    "next/release/recipes/api/tests/test_locks.py",
+    "next/release/ship/install/tests/test_catalog.py",
+    "next/release/ship/install/tests/test_catalog_install.py",
+    "next/release/ship/install/tests/test_make_secret.py",
+    "next/release/ship/install/tests/test_make_secret_effect.py",
+    "next/release/ship/install/tests/test_package.py",
+    "next/release/ship/install/tests/test_project_key.py",
+    "next/release/ship/install/tests/test_provision.py",
+    "next/release/ship/install/tests/test_provision_fixed.py",
+    "next/release/ship/install/tests/test_provision_steps.py",
+    "next/release/ship/install/tests/test_record.py",
+    "next/release/ship/install/tests/test_roles.py",
+    "next/release/ship/install/tests/test_sign.py",
+    "next/src/cortex_core/compat/tests/test_contract.py",
+    "next/src/cortex_core/runtime/tests/test_bootstrap_config.py",
+    "next/src/cortex_core/runtime/tests/test_catalog_binding.py",
+    "next/src/cortex_core/runtime/tests/test_custody.py",
+    "next/src/cortex_core/runtime/tests/test_installer_ack.py",
+    "next/src/cortex_core/runtime/tests/test_installer_composition.py",
+    "next/src/cortex_core/runtime/tests/test_installer_custody.py",
+    "next/src/cortex_core/runtime/tests/test_installer_custody_failures.py",
+    "next/src/cortex_core/runtime/tests/test_installer_import_correction.py",
+    "next/src/cortex_core/runtime/tests/test_installer_stages.py",
+    "next/src/cortex_core/runtime/tests/test_lifecycle.py",
+    "next/src/cortex_core/runtime/tests/test_operator.py",
+    "next/src/cortex_core/runtime/tests/test_project_custody.py",
+    "next/src/cortex_core/runtime/tests/test_project_custody_boundaries.py",
+    "next/src/cortex_core/runtime/tests/test_resources.py",
+    "next/src/cortex_core/runtime/tests/test_services.py",
+    "next/src/cortex_core/runtime/tests/test_status_binding.py",
+    "next/src/cortex_core/schema/tests/test_readiness.py",
+    "next/src/cortex_core/schema/tests/test_seed_owner_contract.py",
     "next/tests/artifact/test_c03_receipts.py",
     "next/tests/artifact/test_legacy_map.py",
     "next/tests/auth/test_auth_mutation_receipts.py",
@@ -31,6 +63,14 @@
     "next/tests/c11a/test_gateway.py",
     "next/tests/c11a/test_run_pg.py",
     "next/tests/c11b2/test_credential.py",
+    "next/tests/ci_gates/tests/test_current_home.py",
+    "next/tests/ci_gates/tests/test_current_ledger.py",
+    "next/tests/ci_gates/tests/test_ledger_home.py",
+    "next/tests/ci_gates/tests/test_loopback_home.py",
+    "next/tests/ci_gates/tests/test_native_home.py",
+    "next/tests/ci_gates/tests/test_packaged_policy.py",
+    "next/tests/ci_gates/tests/test_receipt.py",
+    "next/tests/ci_gates/tests/test_sign_home.py",
     "next/tests/contract/test_contracts.py",
     "next/tests/contract/test_openkai_consumer.py",
     "next/tests/contract/test_receipt_shape.py",
@@ -44,6 +84,7 @@
     "next/tests/core_upgrade_head/test_current_coordinator_bridge.py",
     "next/tests/deployment/test_cortex_prerequisite_v3_contract.py",
     "next/tests/driver_privacy/test_driver_logs.py",
+    "next/tests/floor/tests/test_admission.py",
     "next/tests/identity_receipts/test_identity_receipts.py",
     "next/tests/install/test_adapter_contract.py",
     "next/tests/install/test_contracts.py",
@@ -72,13 +113,16 @@
     "next/tests/integration/test_pg_search_tools.py",
     "next/tests/integration/test_query_cache_float32_roundtrip.py",
     "next/tests/integration/test_query_cache_tools.py",
+    "next/tests/live_contract/tests/test_live_contract.py",
     "next/tests/module_consumer/test_c09_external.py",
     "next/tests/outbox_caller/test_outbox_caller.py",
+    "next/tests/outbox_inventory/test_current_seed.py",
     "next/tests/outbox_inventory/test_outbox_inventory.py",
     "next/tests/outbox_inventory/test_outbox_manifest.py",
     "next/tests/outbox_inventory/test_reflected_writers.py",
     "next/tests/outbox_inventory/test_reflection_aliases.py",
     "next/tests/outbox_inventory/test_reflection_name_aliases.py",
+    "next/tests/outbox_inventory/test_seed_fixture_recognition.py",
     "next/tests/outbox_inventory/test_source_recognition.py",
     "next/tests/pg_b2_draft/test_b2_recovery_join.py",
     "next/tests/pg_b2_draft/test_hale_driver_free.py",
@@ -190,7 +234,15 @@
     "next/tests/runtime_keyword/test_wire.py",
     "next/tests/schema/test_causal_mutations.py",
     "next/tests/schema/test_mutation_receipts.py",
-    "next/tests/test_x3_secret_resolver.py"
+    "next/tests/test_x3_secret_resolver.py",
+    "next/release/ship/cli/tests/test_install_cli.py",
+    "next/release/ship/run/tests/test_render.py",
+    "next/release/ship/run/tests/test_lifecycle_deciding.py",
+    "next/release/ship/run/tests/test_lifecycle_controls.py",
+    "next/release/ship/run/tests/test_lifecycle_record_deciding.py",
+    "next/release/ship/run/tests/test_lifecycle_record_controls.py",
+    "next/release/ship/run/tests/test_bootstrap_deciding.py",
+    "next/release/ship/run/tests/test_bootstrap_controls.py"
   ],
   "excluded": [
     {
@@ -578,6 +630,31 @@
     {
       "path": "next/tests/test_receipts.py",
       "reason": "Receipt-runner helper library and CLI; defines no pytest tests (consumer tests run elsewhere in this manifest)."
+    },
+    {
+      "path": "next/release/ship/install/tests/test_roles_pg.py",
+      "reason": "Real PostgreSQL: required pytest-pg installer-roles job; zero offline credit.",
+      "evidence": {
+        "kind": "native_postgres_fixture",
+        "source": "next/release/ship/install/tests/test_roles_pg.py",
+        "sha256": "203d2d35b2f1f8a5e051dd61c346e93b66aec9ecda6e0908385b0abf02886060",
+        "symbol": "Cluster.__init__"
+      }
+    },
+    {
+      "path": "next/release/ship/install/tests/test_ledger_acl_pg.py",
+      "reason": "Real PostgreSQL: required pytest-pg installer-ledger job, explicitly bounded through api-replay-0004; full 21/pgvector separate; zero offline or installed credit.",
+      "evidence": {
+        "kind": "native_postgres_fixture",
+        "source": "next/release/ship/install/tests/test_ledger_acl_pg.py",
+        "sha256": "3af637fcf11d051dda9db6cc6be28bb7469abc4d4a34d411cac5efe20ce6fa3d",
+        "symbol": "LedgerAcl.setUpClass",
+        "fixture": {
+          "source": "next/release/ship/install/tests/test_roles_pg.py",
+          "sha256": "203d2d35b2f1f8a5e051dd61c346e93b66aec9ecda6e0908385b0abf02886060",
+          "symbol": "Cluster.__init__"
+        }
+      }
     }
   ],
   "retirements": [
@@ -2471,5 +2548,19 @@
         "next/tests/release/test_verifier_boundary.py::OwnerSourceJoin::test_EB2_authoritative_NOT_APPLIED_allows_only_fresh_child"
       ]
     }
-  }
+  },
+  "loopback": [
+    "next/src/cortex_core/schema/tests/test_seed.py",
+    "next/modules/cli-v2/tests/test_transport_admission.py",
+    "next/modules/cli-v2/tests/test_transport_composition.py",
+    "next/modules/cli-v2/tests/test_transport_processes.py",
+    "next/modules/cli-v2/tests/test_transport_projection.py",
+    "next/modules/cli-v2/tests/test_transport_results.py",
+    "next/modules/cli-v2/tests/test_namespace.py",
+    "next/modules/cli-v2/tests/test_health_join.py",
+    "next/src/cortex_core/schema/tests/test_seed_operator.py",
+    "next/modules/cli-v2/tests/test_health_contract.py",
+    "next/modules/cli-v2/tests/test_pipe_identity.py",
+    "next/release/ship/cli/tests/test_wrapper.py"
+  ]
 }

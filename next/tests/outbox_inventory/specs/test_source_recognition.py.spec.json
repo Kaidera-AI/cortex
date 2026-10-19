@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/outbox_inventory/test_source_recognition.py",
+  "source_sha256": "fc5d2d1a84701d6d12074075d0e81326eb79b0d84e1d1f448587bcba4e84ec72",
+  "tests": {
+    "next/tests/outbox_inventory/test_source_recognition.py": "fc5d2d1a84701d6d12074075d0e81326eb79b0d84e1d1f448587bcba4e84ec72"
+  },
+  "expected_nodes": [
+    "next.tests.outbox_inventory.test_source_recognition.SourceRecognition.test_day2_inventory_is_source_bound"
+  ],
+  "kind": "oracle-fixture",
+  "invariant": "source-bound inventory positive cannot be inverted",
+  "mutation": {
+    "before": "self.assertTrue(self.checker.audit(NEXT)['passed'])",
+    "after": "self.assertFalse(self.checker.audit(NEXT)['passed'])"
+  }
+}

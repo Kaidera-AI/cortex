@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/outbox_inventory/test_current_seed.py",
+  "source_sha256": "638c17dcadac0575ed911a0d814085cf3f59c439de6ef212061caee3ebdeaded",
+  "tests": {
+    "next/tests/outbox_inventory/test_current_seed.py": "638c17dcadac0575ed911a0d814085cf3f59c439de6ef212061caee3ebdeaded"
+  },
+  "expected_nodes": [
+    "next.tests.outbox_inventory.test_current_seed.CurrentSeed.test_actual_bootstrap_writers_are_exact_and_source_bound"
+  ],
+  "kind": "oracle-fixture",
+  "invariant": "New deciding current-source assertion must execute; source-only",
+  "mutation": {
+    "before": "self.assertEqual(len(rows),4)",
+    "after": "self.assertNotEqual(len(rows),4)"
+  }
+}

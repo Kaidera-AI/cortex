@@ -1,0 +1,509 @@
+{
+ "archive_sums_sha256": "9f94f5897c36833c6bd741697c597648c7f0e661c018322c1d19b90fd8f0b30a",
+ "interpreter": "CPython 3.14 musllinux_1_2",
+ "schema": "cortex.api-inputs-receipt.v1",
+ "wheels": {
+  "amd64": [
+   {
+    "bytes": 113362,
+    "file": "anyio-4.12.0-py3-none-any.whl",
+    "licence": "MIT",
+    "name": "anyio",
+    "requires": [
+     "idna"
+    ],
+    "sha256": "dad2376a628f98eeca4881fc56cd06affd18f659b17a747d3ff0307ced94b1bb",
+    "source": "requirements.linux-amd64.lock",
+    "version": "4.12.0"
+   },
+   {
+    "bytes": 3764931,
+    "file": "asyncpg-0.32.0-cp314-cp314-musllinux_1_2_x86_64.whl",
+    "licence": "Apache-2.0",
+    "name": "asyncpg",
+    "requires": [],
+    "sha256": "c3ef1dfd11919280e011ffd1c873323c5088a94fd2c3f77946a5250cf306e2eb",
+    "source": "PyPI asyncpg 0.32.0 (published sha256 matched); LICENSE kept in dist-info",
+    "version": "0.32.0"
+   },
+   {
+    "bytes": 67615,
+    "file": "attrs-25.4.0-py3-none-any.whl",
+    "licence": "MIT",
+    "name": "attrs",
+    "requires": [],
+    "sha256": "adcf7e2a1fb3b36ac48d97835bb6d8ade15b8dcce26aba8bf1d14847b57a3373",
+    "source": "requirements.linux-amd64.lock",
+    "version": "25.4.0"
+   },
+   {
+    "bytes": 159438,
+    "file": "certifi-2025.11.12-py3-none-any.whl",
+    "licence": "MPL-2.0",
+    "name": "certifi",
+    "requires": [],
+    "sha256": "97de8790030bbd5c2d96b7ec782fc2f7820ef8dba6db909ccf95449f2d062d4b",
+    "source": "requirements.linux-amd64.lock",
+    "version": "2025.11.12"
+   },
+   {
+    "bytes": 223213,
+    "file": "cffi-2.1.1-cp314-cp314-musllinux_1_2_x86_64.whl",
+    "licence": "MIT-0",
+    "name": "cffi",
+    "requires": [
+     "pycparser"
+    ],
+    "sha256": "5c58fe613dc5e5336357eff555824a314d8e43282600435c8d1cb6a7a2fedd13",
+    "source": "PyPI https://files.pythonhosted.org/packages/81/10/5dc0e7bdd18e22107054288283380fc97a06ae3f1656a106908d666a3c88/cffi-2.1.1-cp314-cp314-musllinux_1_2_x86_64.whl (published sha256 matched)",
+    "version": "2.1.1"
+   },
+   {
+    "bytes": 125251,
+    "file": "click-8.5.0-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "click",
+    "requires": [],
+    "sha256": "255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360",
+    "source": "requirements.linux-amd64.lock",
+    "version": "8.5.0"
+   },
+   {
+    "bytes": 5004179,
+    "file": "cryptography-50.0.0-cp311-abi3-musllinux_1_2_x86_64.whl",
+    "licence": "Apache-2.0 OR BSD-3-Clause",
+    "name": "cryptography",
+    "requires": [
+     "cffi"
+    ],
+    "sha256": "7cec5b856506da6defb290f30c9ee687d5f5e8cb0bd3f6459dde43b0b4fa40ef",
+    "source": "PyPI https://files.pythonhosted.org/packages/27/20/c930314a2ab476d15dec966ec87e2e9637bb02b06106b12c0396c57bb603/cryptography-50.0.0-cp311-abi3-musllinux_1_2_x86_64.whl (published sha256 matched)",
+    "version": "50.0.0"
+   },
+   {
+    "bytes": 37515,
+    "file": "h11-0.16.0-py3-none-any.whl",
+    "licence": "MIT",
+    "name": "h11",
+    "requires": [],
+    "sha256": "63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86",
+    "source": "requirements.linux-amd64.lock",
+    "version": "0.16.0"
+   },
+   {
+    "bytes": 78784,
+    "file": "httpcore-1.0.9-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "httpcore",
+    "requires": [
+     "certifi",
+     "h11"
+    ],
+    "sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+    "source": "requirements.linux-amd64.lock",
+    "version": "1.0.9"
+   },
+   {
+    "bytes": 73517,
+    "file": "httpx-0.28.1-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "httpx",
+    "requires": [
+     "anyio",
+     "certifi",
+     "httpcore",
+     "idna"
+    ],
+    "sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+    "source": "requirements.linux-amd64.lock",
+    "version": "0.28.1"
+   },
+   {
+    "bytes": 71008,
+    "file": "idna-3.11-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "idna",
+    "requires": [],
+    "sha256": "771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea",
+    "source": "requirements.linux-amd64.lock",
+    "version": "3.11"
+   },
+   {
+    "bytes": 90040,
+    "file": "jsonschema-4.25.1-py3-none-any.whl",
+    "licence": "MIT",
+    "name": "jsonschema",
+    "requires": [
+     "attrs",
+     "jsonschema-specifications",
+     "referencing",
+     "rpds-py"
+    ],
+    "sha256": "3fba0169e345c7175110351d456342c364814cfcf3b964ba4587f22915230a63",
+    "source": "requirements.linux-amd64.lock",
+    "version": "4.25.1"
+   },
+   {
+    "bytes": 18437,
+    "file": "jsonschema_specifications-2025.9.1-py3-none-any.whl",
+    "licence": "MIT",
+    "name": "jsonschema-specifications",
+    "requires": [
+     "referencing"
+    ],
+    "sha256": "98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe",
+    "source": "requirements.linux-amd64.lock",
+    "version": "2025.9.1"
+   },
+   {
+    "bytes": 206797,
+    "file": "psycopg-3.2.13-py3-none-any.whl",
+    "licence": "LGPL-3.0-only",
+    "name": "psycopg",
+    "requires": [],
+    "sha256": "a481374514f2da627157f767a9336705ebefe93ea7a0522a6cbacba165da179a",
+    "source": "requirements.linux-amd64.lock",
+    "version": "3.2.13"
+   },
+   {
+    "bytes": 3581034,
+    "file": "psycopg_binary-3.2.13-cp314-cp314-musllinux_1_2_x86_64.whl",
+    "licence": "LGPL-3.0-only",
+    "name": "psycopg-binary",
+    "requires": [],
+    "sha256": "65df0d459ffba14082d8ca4bb2f6ffbb2f8d02968f7d34a747e1031934b76b23",
+    "source": "requirements.linux-amd64.lock",
+    "version": "3.2.13"
+   },
+   {
+    "bytes": 48172,
+    "file": "pycparser-3.0-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "pycparser",
+    "requires": [],
+    "sha256": "b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992",
+    "source": "PyPI https://files.pythonhosted.org/packages/0c/c3/44f3fbbfa403ea2a7c779186dc20772604442dde72947e7d01069cbe98e3/pycparser-3.0-py3-none-any.whl (published sha256 matched)",
+    "version": "3.0"
+   },
+   {
+    "bytes": 26766,
+    "file": "referencing-0.37.0-py3-none-any.whl",
+    "licence": "MIT",
+    "name": "referencing",
+    "requires": [
+     "attrs",
+     "rpds-py"
+    ],
+    "sha256": "381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231",
+    "source": "requirements.linux-amd64.lock",
+    "version": "0.37.0"
+   },
+   {
+    "bytes": 553371,
+    "file": "rpds_py-0.30.0-cp314-cp314-musllinux_1_2_x86_64.whl",
+    "licence": "MIT",
+    "name": "rpds-py",
+    "requires": [],
+    "sha256": "46e83c697b1f1c72b50e5ee5adb4353eef7406fb3f2043d64c33f20ad1c2fc53",
+    "source": "requirements.linux-amd64.lock",
+    "version": "0.30.0"
+   },
+   {
+    "bytes": 10235,
+    "file": "sniffio-1.3.1-py3-none-any.whl",
+    "licence": "MIT OR Apache-2.0",
+    "name": "sniffio",
+    "requires": [],
+    "sha256": "2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2",
+    "source": "requirements.linux-amd64.lock",
+    "version": "1.3.1"
+   },
+   {
+    "bytes": 74033,
+    "file": "starlette-0.50.0-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "starlette",
+    "requires": [
+     "anyio"
+    ],
+    "sha256": "9e5391843ec9b6e472eed1365a78c8098cfceb7a74bfd4d6b1c0c0095efb3bca",
+    "source": "requirements.linux-amd64.lock",
+    "version": "0.50.0"
+   },
+   {
+    "bytes": 45571,
+    "file": "typing_extensions-4.16.0-py3-none-any.whl",
+    "licence": "PSF-2.0",
+    "name": "typing_extensions",
+    "requires": [],
+    "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+    "source": "requirements.linux-amd64.lock",
+    "version": "4.16.0"
+   },
+   {
+    "bytes": 68502,
+    "file": "uvicorn-0.40.0-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "uvicorn",
+    "requires": [
+     "click",
+     "h11"
+    ],
+    "sha256": "c6c8f55bc8bf13eb6fa9ff87ad62308bbbc33d0b67f84293151efe87e0d5f2ee",
+    "source": "requirements.linux-amd64.lock",
+    "version": "0.40.0"
+   }
+  ],
+  "arm64": [
+   {
+    "bytes": 113362,
+    "file": "anyio-4.12.0-py3-none-any.whl",
+    "licence": "MIT",
+    "name": "anyio",
+    "requires": [
+     "idna"
+    ],
+    "sha256": "dad2376a628f98eeca4881fc56cd06affd18f659b17a747d3ff0307ced94b1bb",
+    "source": "requirements.linux-arm64.lock",
+    "version": "4.12.0"
+   },
+   {
+    "bytes": 3632884,
+    "file": "asyncpg-0.32.0-cp314-cp314-musllinux_1_2_aarch64.whl",
+    "licence": "Apache-2.0",
+    "name": "asyncpg",
+    "requires": [],
+    "sha256": "2c6366841a792d0a4d16991de240a8053b7c4772a18a5f27fa6fad09c0e359fb",
+    "source": "PyPI asyncpg 0.32.0 (published sha256 matched); LICENSE kept in dist-info",
+    "version": "0.32.0"
+   },
+   {
+    "bytes": 67615,
+    "file": "attrs-25.4.0-py3-none-any.whl",
+    "licence": "MIT",
+    "name": "attrs",
+    "requires": [],
+    "sha256": "adcf7e2a1fb3b36ac48d97835bb6d8ade15b8dcce26aba8bf1d14847b57a3373",
+    "source": "requirements.linux-arm64.lock",
+    "version": "25.4.0"
+   },
+   {
+    "bytes": 159438,
+    "file": "certifi-2025.11.12-py3-none-any.whl",
+    "licence": "MPL-2.0",
+    "name": "certifi",
+    "requires": [],
+    "sha256": "97de8790030bbd5c2d96b7ec782fc2f7820ef8dba6db909ccf95449f2d062d4b",
+    "source": "requirements.linux-arm64.lock",
+    "version": "2025.11.12"
+   },
+   {
+    "bytes": 225053,
+    "file": "cffi-2.1.1-cp314-cp314-musllinux_1_2_aarch64.whl",
+    "licence": "MIT-0",
+    "name": "cffi",
+    "requires": [
+     "pycparser"
+    ],
+    "sha256": "64faea20f4e2613363a1a9b9c7dd73058f3ecd00133a511e72ad7c511658f527",
+    "source": "PyPI https://files.pythonhosted.org/packages/82/1d/a4aaf9babd75acb4d5f223bff71533bee748dd770a382619a798960ee9ba/cffi-2.1.1-cp314-cp314-musllinux_1_2_aarch64.whl (published sha256 matched)",
+    "version": "2.1.1"
+   },
+   {
+    "bytes": 125251,
+    "file": "click-8.5.0-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "click",
+    "requires": [],
+    "sha256": "255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360",
+    "source": "requirements.linux-arm64.lock",
+    "version": "8.5.0"
+   },
+   {
+    "bytes": 4852708,
+    "file": "cryptography-50.0.0-cp311-abi3-musllinux_1_2_aarch64.whl",
+    "licence": "Apache-2.0 OR BSD-3-Clause",
+    "name": "cryptography",
+    "requires": [
+     "cffi"
+    ],
+    "sha256": "1489e263a8048bb8b6a8bac662eb2d402ea5d2b7b4699b72f385f1e2772db105",
+    "source": "PyPI https://files.pythonhosted.org/packages/ca/dc/bd72b26be8953f80625f63151efd38eee71c76ca6cf591c08ff34615a79e/cryptography-50.0.0-cp311-abi3-musllinux_1_2_aarch64.whl (published sha256 matched)",
+    "version": "50.0.0"
+   },
+   {
+    "bytes": 37515,
+    "file": "h11-0.16.0-py3-none-any.whl",
+    "licence": "MIT",
+    "name": "h11",
+    "requires": [],
+    "sha256": "63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86",
+    "source": "requirements.linux-arm64.lock",
+    "version": "0.16.0"
+   },
+   {
+    "bytes": 78784,
+    "file": "httpcore-1.0.9-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "httpcore",
+    "requires": [
+     "certifi",
+     "h11"
+    ],
+    "sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+    "source": "requirements.linux-arm64.lock",
+    "version": "1.0.9"
+   },
+   {
+    "bytes": 73517,
+    "file": "httpx-0.28.1-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "httpx",
+    "requires": [
+     "anyio",
+     "certifi",
+     "httpcore",
+     "idna"
+    ],
+    "sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+    "source": "requirements.linux-arm64.lock",
+    "version": "0.28.1"
+   },
+   {
+    "bytes": 71008,
+    "file": "idna-3.11-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "idna",
+    "requires": [],
+    "sha256": "771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea",
+    "source": "requirements.linux-arm64.lock",
+    "version": "3.11"
+   },
+   {
+    "bytes": 90040,
+    "file": "jsonschema-4.25.1-py3-none-any.whl",
+    "licence": "MIT",
+    "name": "jsonschema",
+    "requires": [
+     "attrs",
+     "jsonschema-specifications",
+     "referencing",
+     "rpds-py"
+    ],
+    "sha256": "3fba0169e345c7175110351d456342c364814cfcf3b964ba4587f22915230a63",
+    "source": "requirements.linux-arm64.lock",
+    "version": "4.25.1"
+   },
+   {
+    "bytes": 18437,
+    "file": "jsonschema_specifications-2025.9.1-py3-none-any.whl",
+    "licence": "MIT",
+    "name": "jsonschema-specifications",
+    "requires": [
+     "referencing"
+    ],
+    "sha256": "98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe",
+    "source": "requirements.linux-arm64.lock",
+    "version": "2025.9.1"
+   },
+   {
+    "bytes": 206797,
+    "file": "psycopg-3.2.13-py3-none-any.whl",
+    "licence": "LGPL-3.0-only",
+    "name": "psycopg",
+    "requires": [],
+    "sha256": "a481374514f2da627157f767a9336705ebefe93ea7a0522a6cbacba165da179a",
+    "source": "requirements.linux-arm64.lock",
+    "version": "3.2.13"
+   },
+   {
+    "bytes": 3859046,
+    "file": "psycopg_binary-3.2.13-cp314-cp314-musllinux_1_2_aarch64.whl",
+    "licence": "LGPL-3.0-only",
+    "name": "psycopg-binary",
+    "requires": [],
+    "sha256": "596176ae3dfbf56fc61108870bfe17c7205d33ac28d524909feb5335201daa0a",
+    "source": "requirements.linux-arm64.lock",
+    "version": "3.2.13"
+   },
+   {
+    "bytes": 48172,
+    "file": "pycparser-3.0-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "pycparser",
+    "requires": [],
+    "sha256": "b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992",
+    "source": "PyPI https://files.pythonhosted.org/packages/0c/c3/44f3fbbfa403ea2a7c779186dc20772604442dde72947e7d01069cbe98e3/pycparser-3.0-py3-none-any.whl (published sha256 matched)",
+    "version": "3.0"
+   },
+   {
+    "bytes": 26766,
+    "file": "referencing-0.37.0-py3-none-any.whl",
+    "licence": "MIT",
+    "name": "referencing",
+    "requires": [
+     "attrs",
+     "rpds-py"
+    ],
+    "sha256": "381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231",
+    "source": "requirements.linux-arm64.lock",
+    "version": "0.37.0"
+   },
+   {
+    "bytes": 565606,
+    "file": "rpds_py-0.30.0-cp314-cp314-musllinux_1_2_aarch64.whl",
+    "licence": "MIT",
+    "name": "rpds-py",
+    "requires": [],
+    "sha256": "0ed177ed9bded28f8deb6ab40c183cd1192aa0de40c12f38be4d59cd33cb5c65",
+    "source": "requirements.linux-arm64.lock",
+    "version": "0.30.0"
+   },
+   {
+    "bytes": 10235,
+    "file": "sniffio-1.3.1-py3-none-any.whl",
+    "licence": "MIT OR Apache-2.0",
+    "name": "sniffio",
+    "requires": [],
+    "sha256": "2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2",
+    "source": "requirements.linux-arm64.lock",
+    "version": "1.3.1"
+   },
+   {
+    "bytes": 74033,
+    "file": "starlette-0.50.0-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "starlette",
+    "requires": [
+     "anyio"
+    ],
+    "sha256": "9e5391843ec9b6e472eed1365a78c8098cfceb7a74bfd4d6b1c0c0095efb3bca",
+    "source": "requirements.linux-arm64.lock",
+    "version": "0.50.0"
+   },
+   {
+    "bytes": 45571,
+    "file": "typing_extensions-4.16.0-py3-none-any.whl",
+    "licence": "PSF-2.0",
+    "name": "typing_extensions",
+    "requires": [],
+    "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+    "source": "requirements.linux-arm64.lock",
+    "version": "4.16.0"
+   },
+   {
+    "bytes": 68502,
+    "file": "uvicorn-0.40.0-py3-none-any.whl",
+    "licence": "BSD-3-Clause",
+    "name": "uvicorn",
+    "requires": [
+     "click",
+     "h11"
+    ],
+    "sha256": "c6c8f55bc8bf13eb6fa9ff87ad62308bbbc33d0b67f84293151efe87e0d5f2ee",
+    "source": "requirements.linux-arm64.lock",
+    "version": "0.40.0"
+   }
+  ]
+ }
+}

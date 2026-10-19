@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/ci_gates/receipt.py",
+  "source_sha256": "915601b81dae01e4c689e7c6cd526217eeb49deb8eec8cd658cf41185d8c8d02",
+  "tests": {
+    "next/tests/ci_gates/tests/test_receipt.py": "c70cbafd3fda8373bf7b098562d2548f62f94142ad95e8095f77554ee9f9e0fa"
+  },
+  "expected_nodes": [
+    "test_receipt.Receipt.test_changed_source_inventory_includes_admission_data"
+  ],
+  "kind": "tool",
+  "invariant": "causal inventory includes offline workflow changes",
+  "mutation": {
+    "before": "\".github/workflows/ci.yml\", \".github/workflows/next-offline.yml\"",
+    "after": "\".github/workflows/ci.yml\""
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "source": ".github/next-offline-suites.json",
+  "source_sha256": "776546b40ac6d86c0c7a5dcc9c83c845a8572b7e6cffa3d4f8498efa4f6f3d8c",
+  "tests": {
+    "next/tests/ci_gates/tests/test_ledger_home.py": "b3a13ee9409a311ba23429348427159a3bc95abedb3d35bdae8879854a4321b6",
+    "next/tests/ci_gates/tests/test_current_home.py": "b364133e414459503a1465428faa50cda914adbd06a7cce6c9360978328a377b"
+  },
+  "expected_nodes": [
+    "test_ledger_home.LedgerHome.test_three_pure_suites_run_and_ledger_has_a_named_native_home",
+    "test_current_home.CurrentHome.test_ship_wrapper_has_exact_loopback_admission_without_adjacent_escape"
+  ],
+  "kind": "inventory",
+  "invariant": "Only the exact ship wrapper has required loopback admission; adjacent paths remain refused",
+  "mutation": {
+    "before": "    \"next/release/ship/cli/tests/test_wrapper.py\"",
+    "after": "    \"next/release/ship/cli/tests/test_unreviewed_wrapper.py\""
+  }
+}

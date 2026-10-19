@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/live_contract/contract_gate.py",
+  "source_sha256": "0f26d0dd48ae28faa196b4bad4f774143132d8eb13453a78ce88d0e9a13e6cf4",
+  "tests": {
+    "next/tests/live_contract/tests/test_live_contract.py": "18386cd504a878e0bb840e1c67766b1a61c8ac816e986c397e4fb7d3962ee214"
+  },
+  "expected_nodes": [
+    "test_live_contract.LiveContract.test_link_field_cannot_come_from_another_media_alternative"
+  ],
+  "kind": "tool",
+  "invariant": "every media alternative of the containing response must supply its Link field",
+  "mutation": {
+    "before": "require(all(field in shape.get(\"required\", [])",
+    "after": "require(any(field in shape.get(\"required\", [])"
+  }
+}

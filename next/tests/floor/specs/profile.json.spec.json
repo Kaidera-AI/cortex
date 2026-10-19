@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/floor/profile.json",
+  "source_sha256": "f0d77af40791bcb97ad9f718d91fcc2313e7b7897d01bcc4b4f5e7fed3d5f092",
+  "tests": {
+    "next/tests/floor/tests/test_admission.py": "756ebb2adda745dfe270b13c5a2716551a96698339a36596c18e24ad6a0b6c01"
+  },
+  "expected_nodes": [
+    "test_admission.Admission.test_pinned_retained_profile_is_admitted"
+  ],
+  "kind": "inventory",
+  "invariant": "accepted retained inventory bytes cannot drift",
+  "mutation": {
+    "before": "\"id\": \"F001\"",
+    "after": "\"id\": \"F999\""
+  }
+}

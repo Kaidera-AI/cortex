@@ -981,6 +981,15 @@
       "classification": "X3_fixed_SQLPolicy_field_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
     },
     {
+      "file": "src/cortex_core/runtime/resources.py",
+      "owner": "_FiniteResources.transaction",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "8428eded23c3e24d87e19ea92bf82927af65cdff705e0babb9ff83b826d6c6e7",
+      "classification": "Day2_fixed_readonly_transaction_level_choice; two_literal_SET_branches; no_canonical_write; native_HELD"
+    },
+    {
       "file": "src/cortex_core/runtime/role_grants.py",
       "owner": "<module>",
       "verb": "UPDATE",
@@ -1348,6 +1357,150 @@
       "ordinal": 2,
       "statement_sha256": "187355d3936fc21420c4c92169bb2dd9dd23a23793c1b5356c1a50d63d7b2561",
       "classification": "X3_fixed_Grant_currentness_comparison_DATA; closed_9_field_tuple; no_SQL_or_transaction"
+    },
+    {
+      "file": "src/cortex_core/runtime/tests/test_installer_composition.py",
+      "owner": "NonsecretSQLFixture.rows",
+      "verb": "INSERT",
+      "table": "auth.runtime_login_bindings",
+      "ordinal": 0,
+      "statement_sha256": "318ceab2fef673e36b6eb15aaa2a614248b16e70ad604eb86ac2bb3c5fcc8f23",
+      "classification": "S3_below_driver_fixture_runtime_binding_literal_prefix_DATA; Python_list_state_only; no_SQL_execution_or_installed_credit"
+    },
+    {
+      "file": "src/cortex_core/runtime/tests/test_installer_composition.py",
+      "owner": "NonsecretSQLFixture.rows",
+      "verb": "INSERT",
+      "table": "core.installations",
+      "ordinal": 0,
+      "statement_sha256": "33dc059d127f915476cb341af7d67ad5992a0c7d04a65841e42b0ed2b5a14b1b",
+      "classification": "S3_below_driver_fixture_installation_literal_equality_DATA; Python_list_state_only; no_SQL_execution_or_installed_credit"
+    },
+    {
+      "file": "src/cortex_core/runtime/tests/test_installer_composition.py",
+      "owner": "NonsecretSQLFixture.rows",
+      "verb": "INSERT",
+      "table": "core.projects",
+      "ordinal": 0,
+      "statement_sha256": "167c8613c525fa8d70be1e7a6cd0009e5734c7927db8c433e1ad1be8f8770d2c",
+      "classification": "S3_below_driver_fixture_project_literal_equality_DATA; Python_list_state_only; no_SQL_execution_or_installed_credit"
+    },
+    {
+      "file": "src/cortex_core/runtime/tests/test_installer_composition.py",
+      "owner": "NonsecretSQLFixture.rows",
+      "verb": "INSERT",
+      "table": "core.schema_migrations",
+      "ordinal": 0,
+      "statement_sha256": "01e0ada76b16aee82a66bd708ab8795ca2f2f5745bdc44534836a735e598d65b",
+      "classification": "S3_below_driver_fixture_migration_ledger_literal_equality_DATA; Python_list_state_only; no_SQL_execution_or_installed_credit"
+    },
+    {
+      "file": "src/cortex_core/runtime/tests/test_installer_composition.py",
+      "owner": "NonsecretSQLFixture.rows",
+      "verb": "INSERT",
+      "table": "core.tenants",
+      "ordinal": 0,
+      "statement_sha256": "bf11c18c4541e4d01f7c49ef99381f5f5c217ca89303f4e7e8110473ebdaa259",
+      "classification": "S3_below_driver_fixture_tenant_literal_equality_DATA; Python_list_state_only; no_SQL_execution_or_installed_credit"
+    },
+    {
+      "file": "src/cortex_core/runtime/tests/test_installer_composition.py",
+      "owner": "cross_file:apply_migrations",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "4080708e3e8f2cd51e43d3b449dab3ab2a156c863b2614fa3e3f2f112795a48e",
+      "classification": "S3_closed_profile_name_DATA; observe_real_migration_call_and_assert_once; no_SQL_execution_or_installed_credit"
+    },
+    {
+      "file": "src/cortex_core/runtime/tests/test_installer_composition.py",
+      "owner": "cross_file:apply_migrations",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 1,
+      "statement_sha256": "4080708e3e8f2cd51e43d3b449dab3ab2a156c863b2614fa3e3f2f112795a48e",
+      "classification": "S3_closed_profile_name_DATA; observe_real_migration_call_and_assert_once; no_SQL_execution_or_installed_credit"
+    },
+    {
+      "file": "src/cortex_core/runtime/tests/test_installer_composition.py",
+      "owner": "dynamic_name:setattr",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "d90681d9de3b69748bf6b7efb7f76e18cdc7297bff315d6b72cd68b55fe89836",
+      "classification": "S3_closed_fixture_fault_flag_DATA; only_bad_flags_or_bad_ledger_True_False; no_SQL_execution_or_installed_credit"
+    },
+    {
+      "file": "src/cortex_core/runtime/tests/test_installer_composition.py",
+      "owner": "dynamic_name:setattr",
+      "verb": "DYNAMIC",
+      "table": "<dynamic_or_unsupported>",
+      "ordinal": 1,
+      "statement_sha256": "346a2fa76cb13b031cd16cb499e21df720c60e8fb400d74a083f1dfeeb5e23d7",
+      "classification": "S3_closed_fixture_fault_flag_DATA; only_bad_flags_or_bad_ledger_True_False; no_SQL_execution_or_installed_credit"
+    },
+    {
+      "file": "src/cortex_core/runtime/tests/test_resources.py",
+      "owner": "CatalogTests.test_observer_uses_one_readonly_snapshot_and_bound_identity_parameters",
+      "verb": "UPDATE",
+      "table": "<unqualified>:<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "6cb78ab1c6bdad2815633292caac2d1fc296f0b416b8b64e867f4563d4d6b1ae",
+      "classification": "Day2_catalog_test_assertion_DATA; fixed_SQL_keyword_negative; no_SQL_execution"
+    },
+    {
+      "file": "src/cortex_core/schema/seed.py",
+      "owner": "_bind",
+      "verb": "INSERT",
+      "table": "auth.runtime_login_bindings",
+      "ordinal": 0,
+      "statement_sha256": "189f4d871643a5fb28dcd7458af137d5dc3ae3e576f2ca119f0287edceed00ed",
+      "classification": "Day2_seed_serialized_bootstrap_binding; PREPARED_custody_before_four_exact_INSERT_sites; installer_only; native_HELD"
+    },
+    {
+      "file": "src/cortex_core/schema/seed.py",
+      "owner": "_bind",
+      "verb": "INSERT",
+      "table": "core.installations",
+      "ordinal": 0,
+      "statement_sha256": "33dc059d127f915476cb341af7d67ad5992a0c7d04a65841e42b0ed2b5a14b1b",
+      "classification": "Day2_seed_serialized_bootstrap_binding; PREPARED_custody_before_four_exact_INSERT_sites; installer_only; native_HELD"
+    },
+    {
+      "file": "src/cortex_core/schema/seed.py",
+      "owner": "_bind",
+      "verb": "INSERT",
+      "table": "core.projects",
+      "ordinal": 0,
+      "statement_sha256": "167c8613c525fa8d70be1e7a6cd0009e5734c7927db8c433e1ad1be8f8770d2c",
+      "classification": "Day2_seed_serialized_bootstrap_binding; PREPARED_custody_before_four_exact_INSERT_sites; installer_only; native_HELD"
+    },
+    {
+      "file": "src/cortex_core/schema/seed.py",
+      "owner": "_bind",
+      "verb": "INSERT",
+      "table": "core.tenants",
+      "ordinal": 0,
+      "statement_sha256": "bf11c18c4541e4d01f7c49ef99381f5f5c217ca89303f4e7e8110473ebdaa259",
+      "classification": "Day2_seed_serialized_bootstrap_binding; PREPARED_custody_before_four_exact_INSERT_sites; installer_only; native_HELD"
+    },
+    {
+      "file": "src/cortex_core/schema/tests/test_seed.py",
+      "owner": "_SeedConnection.execute",
+      "verb": "INSERT",
+      "table": "<unqualified>:<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "3b71213c1851775909097cd24575b58407cb4d907d6021780f317693a7f76dfd",
+      "classification": "Day2_seed_driver_test_REGEX_DATA; no_SQL_execution_or_installed_credit"
+    },
+    {
+      "file": "src/cortex_core/schema/tests/test_seed.py",
+      "owner": "_SeedConnection.execute",
+      "verb": "UPDATE",
+      "table": "<unqualified>:<dynamic_or_unsupported>",
+      "ordinal": 0,
+      "statement_sha256": "2937013f2181810606b2a799b05bda2849f3e369a20982a4138f0e0a55984ce4",
+      "classification": "Day2_seed_driver_test_denied_keywords_DATA; no_SQL_execution_or_installed_credit"
     }
   ]
 }

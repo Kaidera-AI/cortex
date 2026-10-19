@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/ci_gates/tests/test_current_home.py",
+  "source_sha256": "b364133e414459503a1465428faa50cda914adbd06a7cce6c9360978328a377b",
+  "tests": {
+    "next/tests/ci_gates/tests/test_current_home.py": "b364133e414459503a1465428faa50cda914adbd06a7cce6c9360978328a377b"
+  },
+  "expected_nodes": [
+    "test_current_home.CurrentHome.test_current_runtime_bindings_and_lifecycle_are_admitted",
+    "test_current_home.CurrentHome.test_ship_wrapper_has_exact_loopback_admission_without_adjacent_escape",
+    "test_current_home.CurrentHome.test_finite_job_selectors_refuse_empty_duplicate_and_adjacent_suites"
+  ],
+  "kind": "oracle-fixture",
+  "invariant": "The exact eight-way selector assertion is causal; original source-home assertions remain intact",
+  "mutation": {
+    "before": "self.assertEqual(parts,[suites[i::8] for i in range(8)])",
+    "after": "self.assertNotEqual(parts,[suites[i::8] for i in range(8)])"
+  }
+}

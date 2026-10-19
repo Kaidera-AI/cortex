@@ -1,0 +1,37 @@
+# Cortex API image: Alpine 3.24.1 + pinned python3 3.14.8 + the locked wheel closure + Cortex source,
+# on the runtime contract layout (runtime-operations-v1.json "layout"):
+#   /opt/cortex/python/bin/python3, /opt/cortex/next/{src,schema,contracts}.
+# Built by the R02 lane inside the materialized build-input clone (paths are clone-relative):
+#   podman build --network=none --pull=never --no-cache --timestamp <epoch> --iidfile image.iid \
+#     --build-arg BASE_IMAGE=sha256:<base config digest> \
+#     -f next/release/recipes/api/Containerfile .
+# Offline: apk files pinned by apk-assets.linux-<arch>.sha256, wheels by
+# requirements.linux-<arch>.lock (pip --require-hashes, no index). Assets are bind-mounted,
+# never copied into a layer. Bytecode = checked-hash .pyc at the final paths; pip is removed.
+# BASE_IMAGE = the loaded base (podman load of the archived original-blob oci-archive, R02
+# phase_input checks its config digest). Pinned base: docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+#   linux/amd64 config sha256:d529dd0c6e5597ac7e4a3e2dea65c3fcc6173f4cae713c409265c1dd9914a11b
+#   linux/arm64 config sha256:1991bd789d7184290c3cce84fd6af068b8b745e9bddf178661ce7f5ecf68135c
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+ARG TARGETARCH
+COPY next/src/ /opt/cortex/next/src/
+COPY next/schema/ /opt/cortex/next/schema/
+COPY next/contracts/ /opt/cortex/next/contracts/
+# J06 sole role-catalog validator: the SAME module and policy contract, in the fixed import namespace (implicit namespace package, no markers needed)
+COPY next/release/ship/install/roles.py /opt/cortex/next/src/cortex_ship/install/roles.py
+COPY next/release/ship/install/provision.py /opt/cortex/next/src/cortex_ship/install/provision.py
+COPY next/contracts/runtime/runtime-operations-v1.json /opt/cortex/next/src/cortex_ship/install/runtime-operations-v1.json
+RUN --mount=type=bind,source=.,target=/in,ro,relabel=shared \
+    cd /in && sha256sum -c next/release/recipes/api/apk-assets.linux-${TARGETARCH}.sha256 \
+ && apk add --no-network --repositories-file=/dev/null --no-cache --no-logfile $(sed -n 's|^[0-9a-f]\{64\}  \(assets/apk/.*\.apk\)$|/in/\1|p' next/release/recipes/api/apk-assets.linux-${TARGETARCH}.sha256) \
+ && python3 -m venv /opt/cortex/python \
+ && /opt/cortex/python/bin/python3 -I -m pip install --no-index --find-links /in/assets/wheels \
+        --require-hashes --only-binary=:all: --no-compile --no-cache-dir --disable-pip-version-check \
+        -r /in/next/release/recipes/api/requirements.linux-${TARGETARCH}.lock \
+ && /opt/cortex/python/bin/python3 -I -m pip uninstall -y --disable-pip-version-check pip \
+ && echo /opt/cortex/next/src > /opt/cortex/python/lib/python3.14/site-packages/cortex-source.pth \
+ && python3 -I -m compileall -q -f -j 1 --invalidation-mode checked-hash \
+        /usr/lib/python3.14 /opt/cortex/python/lib/python3.14/site-packages /opt/cortex/next/src
+ENV PATH=/opt/cortex/python/bin:/usr/bin:/bin
+USER 65534:65534

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/ci_gates/tests/test_receipt.py",
+  "source_sha256": "c70cbafd3fda8373bf7b098562d2548f62f94142ad95e8095f77554ee9f9e0fa",
+  "tests": {
+    "next/tests/ci_gates/tests/test_receipt.py": "c70cbafd3fda8373bf7b098562d2548f62f94142ad95e8095f77554ee9f9e0fa"
+  },
+  "expected_nodes": [
+    "test_receipt.Receipt.test_history_complete"
+  ],
+  "kind": "oracle-fixture",
+  "invariant": "a valid history fixture defeats the missing-history refusal assertion",
+  "mutation": {
+    "before": "value = history()\n        value[\"pages\"][0][\"total_count\"] = 4",
+    "after": "value = history()\n        value[\"pages\"][0][\"total_count\"] = 3"
+  }
+}

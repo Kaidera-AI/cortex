@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "next/tests/ci_gates/tests/test_ledger_home.py",
+  "source_sha256": "b3a13ee9409a311ba23429348427159a3bc95abedb3d35bdae8879854a4321b6",
+  "tests": {
+    "next/tests/ci_gates/tests/test_ledger_home.py": "b3a13ee9409a311ba23429348427159a3bc95abedb3d35bdae8879854a4321b6"
+  },
+  "expected_nodes": [
+    "test_ledger_home.LedgerHome.test_eleven_exact_ledger_nodes_and_all_phases_are_required"
+  ],
+  "kind": "oracle-fixture",
+  "invariant": "healthy exact ledger phase receipt defeats inverted oracle assertion",
+  "mutation": {
+    "before": "self.assertTrue(check(packet(), 0, sha(ROOT, SUITE), clean, suite=SUITE))",
+    "after": "self.assertFalse(check(packet(), 0, sha(ROOT, SUITE), clean, suite=SUITE))"
+  }
+}

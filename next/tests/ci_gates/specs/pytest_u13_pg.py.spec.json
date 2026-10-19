@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": ".github/scripts/pytest_u13_pg.py",
+  "source_sha256": "e7c2ed2e97b9022ce7e07c50294e06db8be7e8734dcee4f263920b5b6fad3110",
+  "tests": {
+    "next/tests/ci_gates/tests/test_native_home.py": "84af1e097b0bd8d141a5e5c97ae54e9c4783a95f1c0a235705c2761796f3ff2a"
+  },
+  "expected_nodes": [
+    "test_native_home.NativeHome.test_u13_reuses_the_same_host_abi_driver"
+  ],
+  "kind": "tool",
+  "invariant": "host wheel ABI matches the finite exact-version pinned driver before test work",
+  "mutation": {
+    "before": "self.run('u13-driver',self.driver_image,",
+    "after": "self.run('u13-driver',(podman_stage0.IMAGE if self.driver_version == '3.13.7' else self.driver_image),"
+  }
+}
