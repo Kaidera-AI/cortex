@@ -59,7 +59,9 @@ import httpx
 from db_tls import connection_kwargs as database_connection_kwargs
 from fastapi import FastAPI, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
+from run_profile import (RunProfileWrite, reject_profile_capabilities, snapshot as profile_snapshot,
+                         updated as updated_profile, require_configured, validate_imported_profile)
 
 # PersonaPayload contract — cortex.persona.v2 (Phase 1 harness-system foundation).
 # Imported here so the boot endpoint can attach a structured persona to responses
@@ -2726,6 +2728,8 @@ def build_runtime_profile(
             {
                 "name": row["name"],
                 "runtime_id": runtime_agent_id(row["name"], project_key),
+                "display_label": capabilities.get("display_name") or row["name"],
+                "run_profile": capabilities.get("run_profile"),
                 "role": row["role"],
                 "model": row["model"],
                 "capabilities": capabilities,
@@ -7361,6 +7365,13 @@ async def execute_search(
 
 
 class LogRequest(BaseModel):
+    @field_validator("event_type")
+    @classmethod
+    def reserve_profile_audit(cls, value):
+        if value == "run_profile_changed":
+            raise ValueError("profile audit events are server-owned")
+        return value
+
     event_type: str  # decision, lesson, commit, started, stopped, blocked
     summary: str
     category: Optional[str] = None
@@ -8331,6 +8342,13 @@ class ArtifactIngestRequest(BaseModel):
 
 
 class SyncEvent(BaseModel):
+    @field_validator("event_type")
+    @classmethod
+    def reserve_profile_audit(cls, value):
+        if value == "run_profile_changed":
+            raise ValueError("profile audit events are server-owned")
+        return value
+
     agent_name: str
     event_type: str
     summary: str
@@ -17487,6 +17505,7 @@ async def register_project(
         seen_agents.add(agent_name)
         role = validate_role_slug(spec.role or "generalist")
         capabilities = dict(spec.capabilities or {})
+        reject_profile_capabilities(capabilities)
         capabilities.setdefault("writer_scope", roster_metadata.get("default_writer_scope", "work"))
         capabilities["writer_scope"] = validate_writer_scope(capabilities.get("writer_scope"))
         capabilities.setdefault("keep_visible", True)
@@ -18041,6 +18060,9 @@ async def import_project(
         key = (table.schema_name, table.table_name)
         if key in requested:
             raise HTTPException(400, f"Duplicate transfer table: {table.schema_name}.{table.table_name}")
+        if key == ("public", "agents"):
+            for row in table.rows:
+                validate_imported_profile(row)
         requested[key] = table
 
     async with pool_admin.acquire() as conn:
@@ -18834,6 +18856,9 @@ async def get_roster(
             policy,
             project_metadata,
         )
+        data["worker_id"] = f'{data["name"]}@{project}'
+        data["display_label"] = capabilities.get("display_name") or data["name"]
+        data["run_profile"] = capabilities.get("run_profile")
         agents.append(data)
 
     return {"project": project, "agents": agents}
@@ -19578,6 +19603,86 @@ async def verify_write(
     return {"kind": kind, "id": str(data.get("id") or write_id), "row": data, "verified": True}
 
 
+# The canonical name@project transport key never changes when its display label does.
+# Existing registration may not write the protected profile keys (CAS is the only writer).
+def profile_writer(request: Request, project: str) -> str:
+    context = getattr(request.state, "service_auth", None)
+    if context is not None:
+        if context.project_key != project or "instance:admin" not in context.scopes:
+            raise HTTPException(403, {"code": "forbidden"})
+        return str(context.agent_id)
+    if has_admin_access(request):
+        # Legacy shared owner credentials identify the owner, never a caller-supplied header.
+        return "local-owner"
+    raise HTTPException(403, {"code": "forbidden"})
+
+
+async def profile_worker_row(conn, project: str, worker: str, *, lock=False, active=True):
+    row = await conn.fetchrow(
+        "SELECT name, role, capabilities FROM agents WHERE project=$1 AND name=$2"
+        + (" FOR UPDATE" if lock else ""), project, worker)
+    if row is None:
+        raise HTTPException(404, {"code": "worker_not_found"})
+    capabilities = json_object(row.get("capabilities"))
+    if active and capabilities.get("visibility") == "history-only":
+        raise HTTPException(409, {"code": "worker_inactive"})
+    return capabilities
+
+
+@app.get("/agents/{agent}/run-profile")
+async def read_run_profile(agent: str, x_project: str = Header(alias="X-Project", default="")):
+    project = require_project_scope(x_project)
+    worker = agent_base_for_project(agent, project, field_name="agent")
+    await require_registered_project(project)
+    async with acquire_scoped(project) as conn:
+        capabilities = await profile_worker_row(conn, project, worker)
+    return require_configured(profile_snapshot(project, worker, capabilities))
+
+
+@app.put("/agents/{agent}/run-profile")
+async def write_run_profile(agent: str, body: RunProfileWrite, request: Request,
+                            x_project: str = Header(alias="X-Project", default="")):
+    project = require_project_scope(x_project)
+    worker = agent_base_for_project(agent, project, field_name="agent")
+    actor = profile_writer(request, project)
+    await require_registered_project(project)
+    async with acquire_scoped(project) as conn:
+        async with conn.transaction():
+            capabilities = await profile_worker_row(conn, project, worker, lock=True)
+            capabilities, before, after = updated_profile(project, worker, capabilities, body, actor)
+            # Authorize after the row-lock await too; never trust body/header attribution.
+            profile_writer(request, project)
+            status = await conn.execute(
+                "UPDATE agents SET capabilities=$3::jsonb WHERE project=$1 AND name=$2",
+                project, worker, json.dumps(capabilities))
+            if affected_count(status) != 1:
+                raise HTTPException(409, {"code": "conflict"})
+            await emit_team_event(conn, project=project, agent_name=actor,
+                event_type="run_profile_changed", summary=f"Updated run profile for {worker}",
+                detail={"worker_id": after["worker_id"], "worker": worker,
+                        "revision": after["revision"], "before": before, "after": after})
+    return after
+
+
+@app.get("/agents/{agent}/run-profile/history")
+async def read_run_profile_history(agent: str, after_revision: int = Query(default=0, ge=0),
+        limit: int = Query(default=100, ge=1, le=500),
+        x_project: str = Header(alias="X-Project", default="")):
+    project = require_project_scope(x_project)
+    worker = agent_base_for_project(agent, project, field_name="agent")
+    await require_registered_project(project)
+    async with acquire_scoped(project) as conn:
+        await profile_worker_row(conn, project, worker, active=False)
+        rows = await conn.fetch(
+            """SELECT id, ts, agent_name, detail FROM team_events
+                 WHERE project=$1 AND event_type='run_profile_changed'
+                   AND detail->>'worker'=$2 AND (detail->>'revision')::bigint > $3
+                 ORDER BY (detail->>'revision')::bigint, id LIMIT $4""",
+            project, worker, after_revision, limit)
+    return {"project": project, "worker_id": f"{worker}@{project}", "history": [
+        {**dict(row), "detail": json_object(row["detail"])} for row in rows]}
+
+
 # ---------------------------------------------------------------------------
 # POST /agents
 # ---------------------------------------------------------------------------
@@ -19608,6 +19713,7 @@ async def register_agent(
             f"Invalid role '{body.role}' — must be a slug matching [a-z0-9-]+",
         )
     capabilities = dict(body.capabilities or {})
+    reject_profile_capabilities(capabilities)
     if body.writer_scope is not None:
         capabilities["writer_scope"] = body.writer_scope
     capabilities = {
