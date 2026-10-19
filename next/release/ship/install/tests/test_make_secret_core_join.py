@@ -24,6 +24,7 @@ from cortex_core.runtime.tests.test_installer_custody import SourceAdapters  # n
 
 FIVE = T.FIVE
 DEADLINE = 200.0
+_DEFAULT = object()
 
 
 class Join(unittest.TestCase):
@@ -38,9 +39,9 @@ class Join(unittest.TestCase):
         self.stack.enter_context(mock.patch.object(M, '_receiver', return_value=self.receiver))
         self.owner = self.stack.enter_context(custody.open_installer_custody(self.config, unlock_fd=99, key_id='NONSECRET-id', deadline=DEADLINE))
 
-    def call(self, producer=None, owner=None, deadline=DEADLINE):
+    def call(self, producer=None, owner=_DEFAULT, deadline=DEADLINE):
         try:
-            return ('ok', M.make_secret(self.owner if owner is None else owner, producer=T.ProducerDouble() if producer is None else producer, deadline=deadline))
+            return ('ok', M.make_secret(self.owner if owner is _DEFAULT else owner, producer=T.ProducerDouble() if producer is None else producer, deadline=deadline))
         except M.MakeSecretRefusal as refusal:
             return ('refused', refusal.reason)
 
@@ -149,6 +150,40 @@ class Resolvers(unittest.TestCase):
         owner, core, receiver = eval(self.run_child(True))  # noqa: S307 - a repr of three names written by the child above
         self.assertEqual((owner, core), ('InstallerCustody', 'cortex_core.runtime.custody'))
         self.assertIn(receiver, (None, 'receive_bootstrap'))
+
+    def test_a_receiver_package_that_defines_receive_bootstrap_binds_and_one_that_does_not_stays_unbound(self):
+        """A synthetic cortex_ship.run.render in a private temp directory (the S4 module is not in this tree): the resolver returns exactly its receive_bootstrap, and None when the function is absent."""
+        import subprocess
+        import tempfile
+        for defined in (True, False):
+            with self.subTest(defined=defined):
+                root = Path(tempfile.mkdtemp(prefix='s4-fixture-'))
+                self.addCleanup(__import__('shutil').rmtree, root, True)
+                for package in ('cortex_ship', 'cortex_ship/run'):
+                    (root / package).mkdir(parents=True, exist_ok=True)
+                    (root / package / '__init__.py').write_text('')
+                (root / 'cortex_ship/run/render.py').write_text('def receive_bootstrap(owner, bootstrap):\n    return None\n' if defined else 'def other(owner, bootstrap):\n    return None\n')
+                code = ("import sys\nsys.path[:0]=[sys.argv[1], sys.argv[2]]\nimport make_secret as M\nr=M._receiver()\nprint(repr(None if r is None else (r.__name__, r.__module__)))\n")
+                done = subprocess.run([sys.executable, '-I', '-B', '-c', code, str(INSTALL), str(root)], capture_output=True, text=True, timeout=60)
+                self.assertEqual(done.returncode, 0, done.stderr[-300:])
+                self.assertEqual(done.stdout.strip(), repr(('receive_bootstrap', 'cortex_ship.run.render') if defined else None))
+
+    def test_a_core_custody_module_lacking_either_private_admission_function_stays_unbound(self):
+        """A synthetic cortex_core.runtime.custody (importable, with an InstallerCustody class) that defines only ONE of `_current_installer` / `_installer_fail`: `_core` must stay None."""
+        import subprocess
+        import tempfile
+        for present in ('_current_installer', '_installer_fail'):
+            with self.subTest(only=present):
+                root = Path(tempfile.mkdtemp(prefix='core-fixture-'))
+                self.addCleanup(__import__('shutil').rmtree, root, True)
+                for package in ('cortex_core', 'cortex_core/runtime'):
+                    (root / package).mkdir(parents=True, exist_ok=True)
+                    (root / package / '__init__.py').write_text('')
+                (root / 'cortex_core/runtime/custody.py').write_text('class InstallerCustody:\n    pass\n\ndef %s(*a, **k):\n    return None\n' % present)
+                code = "import sys\nsys.path[:0]=[sys.argv[1], sys.argv[2]]\nimport make_secret as M\nprint(repr((M._owner_type() is not None, M._core())))\n"
+                done = subprocess.run([sys.executable, '-I', '-B', '-c', code, str(INSTALL), str(root)], capture_output=True, text=True, timeout=60)
+                self.assertEqual(done.returncode, 0, done.stderr[-300:])
+                self.assertEqual(done.stdout.strip(), repr((True, None)))
 
 
 if __name__ == '__main__':
