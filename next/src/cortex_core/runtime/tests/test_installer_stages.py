@@ -1,7 +1,7 @@
 """Core2 SOURCE controls. Actual owner/vault/admission; named NONSECRET IO doubles.
 
 No provision_sequence replacement, fake phase success or real custody/DB effects.
-The unavailable fixed Nix composition is NOT RUN, not a synthetic positive.
+The package-absence control uses a fresh stdlib-only import context.
 """
 from contextlib import ExitStack
 from dataclasses import replace
@@ -11,7 +11,9 @@ from unittest.mock import patch
 
 from cortex_core.runtime import custody, resources
 from cortex_core.runtime.signed_member import Refusal
-from cortex_core.runtime.tests.test_installer_custody import InstallerCore1Tests, PURPOSES
+from cortex_core.runtime.tests.test_installer_custody import (
+    InstallerCore1Tests, PURPOSES, PACKAGE_ABSENT_CONTROLS, package_absent_control,
+)
 
 
 class InstallerStageTests(unittest.TestCase):
@@ -113,6 +115,8 @@ class InstallerStageTests(unittest.TestCase):
         self.assertIsNone(custody._INSTALLER.get())
 
     def test_missing_fixed_package_is_typed_non_success_and_cannot_retry(self):
+        if package_absent_control(self, PACKAGE_ABSENT_CONTROLS[1]):
+            return
         # No module/caller substitution. This checkout does not package cortex_ship.
         with self.opened() as owner:
             self.imported(owner)

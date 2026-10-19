@@ -9,6 +9,8 @@ from dataclasses import replace
 import hashlib
 import json
 import pickle
+from pathlib import Path
+import subprocess
 import sys
 from types import ModuleType
 import unittest
@@ -21,6 +23,44 @@ from cortex_core.runtime.signed_member import Refusal
 from cortex_core.runtime.tests.test_bootstrap_config import sample
 
 PURPOSES = ('bootstrap', 'migrator', 'api_request', 'probe', 'installer_enrollment')
+
+PACKAGE_ABSENT_CONTROLS = (
+    'cortex_core.runtime.tests.test_installer_custody.InstallerCore1Tests.'
+    'test_run_is_typed_non_success_with_zero_and_all_imports',
+    'cortex_core.runtime.tests.test_installer_stages.InstallerStageTests.'
+    'test_missing_fixed_package_is_typed_non_success_and_cannot_retry',
+)
+PACKAGE_ABSENT_CODE = '''import importlib.util, sys, unittest
+sys.path.insert(0, sys.argv[1])
+assert importlib.util.find_spec("cortex_ship") is None
+from cortex_core.runtime.tests.test_installer_custody import PACKAGE_ABSENT_CONTROLS
+assert sys.argv[2] in PACKAGE_ABSENT_CONTROLS
+suite = unittest.defaultTestLoader.loadTestsFromName(sys.argv[2])
+assert suite.countTestCases() == 1
+result = unittest.TextTestRunner(verbosity=2).run(suite)
+sys.exit(0 if result.testsRun == 1 and result.wasSuccessful() and not result.skipped else 1)
+'''
+
+
+def package_absent_control(test, name):
+    """Run the original negative body where the package genuinely cannot import.
+
+    Full discovery also imports package-present composition controls. A fresh
+    stdlib-only child gives these two original absence controls their own import
+    context; it does not substitute the fixed caller or change its assertions.
+    """
+    test.assertIn(name, PACKAGE_ABSENT_CONTROLS)
+    if sys.flags.isolated and sys.flags.no_site:
+        import importlib.util
+        test.assertIsNone(importlib.util.find_spec('cortex_ship'))
+        return False
+    child = subprocess.run(
+        [sys.executable, '-I', '-S', '-B', '-c', PACKAGE_ABSENT_CODE,
+         str(Path(__file__).resolve().parents[3]), name],
+        env={}, capture_output=True, text=True, timeout=15,
+    )
+    test.assertEqual(child.returncode, 0, child.stdout + child.stderr)
+    return True
 
 
 class SourceAdapters:
@@ -346,6 +386,8 @@ class InstallerCore1Tests(unittest.TestCase):
             self.assertEqual(owner._imported, frozenset())
 
     def test_run_is_typed_non_success_with_zero_and_all_imports(self):
+        if package_absent_control(self, PACKAGE_ABSENT_CONTROLS[0]):
+            return
         for complete in (False, True):
             with self.opened() as owner:
                 if complete:
