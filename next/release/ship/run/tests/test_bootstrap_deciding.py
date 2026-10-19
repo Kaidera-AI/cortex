@@ -75,3 +75,50 @@ def test_one_finite_bootstrap_runs_the_actual_owner_once_and_records_completion_
         {"kind": "bootstrap", "name": "cortex-v2-bootstrap",
          "id": hashlib.sha256(canonical_bytes(receipt)).hexdigest()}]}
     assert engine.objects == {} and owner._stage == "EXIT" and not owner._tainted
+
+
+# Causal S1/S4 join from Nix packet 8e732e2a; the production resolvers stay real.
+# The module alias shares the dynamically loaded S4 ContextVar; it is not closure proof.
+class Producer:
+    def __init__(self):
+        self.asked = []
+
+    def bytes_for(self, purpose):
+        self.asked.append(purpose)
+        return S.password(purpose)
+
+
+def test_make_secret_real_resolvers_inside_the_real_finite_bootstrap(inputs, tmp_path):
+    import sys
+    from unittest.mock import patch
+
+    # Import the real installer module; only the package layout is supplied by this test.
+    with patch.object(sys, "path", [str(S.INSTALL), *sys.path]):
+        import make_secret as M
+
+    render, rec = load_render(), load_record()
+    write_config(inputs, S.install_config(str(inputs["vault"])))
+    _serve, plan, _inventory = rendered(inputs)
+    config = decode_config(inputs["config"].read_bytes(), mode="install")
+    prefix = tmp_path / "prefix"
+    prefix.mkdir(mode=0o700)
+    record = render.InstallRecord(prefix, RELEASE)
+    events, producer, result = [], Producer(), []
+    import time as _time
+    with S.composed(render, config) as doubles, S.traced(events, TRACE), patch.dict(sys.modules, {"cortex_ship.run.render": render}), \
+            patch.object(_time, "monotonic", lambda: doubles.adapters.clock):
+        assert M._owner_type() is S.custody.InstallerCustody and M._core() is S.custody
+        assert M._receiver() is render.receive_bootstrap, "resolver must bind the actual S4 receiver"
+        engine = S.BootstrapEngine(events)
+        with render.finite_bootstrap(inputs["config"], plan=plan, unlock_fd=S.UNLOCK, key_id=S.KEY_ID,
+                                     operation_key=S.OPERATION, record=record, engine=engine,
+                                     deadline=S.DEADLINE) as owner:
+            assert events == []
+            result.append(M.make_secret(owner, producer=producer, deadline=S.DEADLINE))
+    assert result == [{"imported": list(S.PURPOSES), "bootstrap_delivered": True}], result
+    assert producer.asked == list(S.PURPOSES)
+    assert engine.inputs == [("cortex-v2-core-init", S.password("bootstrap"))]
+    receipt = next(e[3] for e in events if e[:3] == ("return", "_reload_seed_receipt", "operator.py"))
+    assert rec.read_record(str(prefix)) == {"release_id": RELEASE, "objects": [
+        {"kind": "bootstrap", "name": "cortex-v2-bootstrap", "id": hashlib.sha256(canonical_bytes(receipt)).hexdigest()}]}
+    assert engine.objects == {} and owner._stage == "EXIT" and not owner._tainted
