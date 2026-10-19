@@ -38,6 +38,7 @@ REFUSALS (`MakeSecretRefusal.reason`): custody_owner_unbound, custody_owner_type
 custody_context, make_secret_reentered, producer_failed:<purpose>, secret_invalid:<purpose>, secret_reused, import_failed:<purpose>, bootstrap_receiver_failed.
 `bootstrap_sink_failed` of the first interface is retired with the sink."""
 import contextvars
+import importlib
 import math
 import time
 
@@ -56,22 +57,40 @@ class MakeSecretRefusal(Exception):
         self.reason = reason
 
 
+def _core_module():
+    """Core's custody module, or None while the Core package is not importable (nothing is imported at module load; no fallback, no search path is added)."""
+    try:
+        return importlib.import_module('cortex_core.runtime.custody')
+    except ImportError:
+        return None
+
+
 def _owner_type():
-    """The actual Core InstallerCustody class (cortex_core.runtime.custody), or None while Core does not provide it (this base). Component tests replace this function with a NAMED DOUBLE; nothing
-    in production passes a type."""
-    return None
+    """The actual Core InstallerCustody class (cortex_core.runtime.custody), or None while Core is not importable. Component tests replace this function with a NAMED DOUBLE; nothing in production
+    passes a type."""
+    module = _core_module()
+    owner_type = getattr(module, 'InstallerCustody', None)
+    return owner_type if isinstance(owner_type, type) else None
 
 
 def _core():
-    """Core's private admission surface: an object with `_current_installer(config, custody, deadline)` and `_installer_fail(owner)` (cortex_core.runtime.custody), or None while it is absent
-    (this base). Component tests replace this function with a NAMED DOUBLE; no caller passes it."""
-    return None
+    """Core's private admission surface: the custody module that holds `_current_installer(config, custody, deadline)` and `_installer_fail(owner)`, or None while either is absent. Component
+    tests replace this function with a NAMED DOUBLE; no caller passes it."""
+    module = _core_module()
+    if module is None or not all(callable(getattr(module, name, None)) for name in ('_current_installer', '_installer_fail')):
+        return None
+    return module
 
 
 def _receiver():
-    """The fixed S4 receiver `receive_bootstrap(owner, bootstrap)` (cortex_ship.run.render), or None while it is absent (this base). Component tests replace this function with a NAMED DOUBLE; no
-    caller passes a callable."""
-    return None
+    """The fixed S4 receiver `receive_bootstrap(owner, bootstrap)` (cortex_ship.run.render), or None while that package or function is absent (S4 is not in the Core tree this lands on). Component
+    tests replace this function with a NAMED DOUBLE; no caller passes a callable."""
+    try:
+        render = importlib.import_module('cortex_ship.run.render')
+    except ImportError:
+        return None
+    receiver = getattr(render, 'receive_bootstrap', None)
+    return receiver if callable(receiver) else None
 
 
 _ACTIVE = contextvars.ContextVar('make_secret_active', default=None)

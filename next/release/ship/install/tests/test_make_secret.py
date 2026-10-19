@@ -174,7 +174,7 @@ class Harness:
         if prepare:
             prepare(self)
         with contextlib.ExitStack() as stack:
-            stack.enter_context(mock.patch.object(M, '_owner_type', return_value=OwnerDouble) if not real_type else mock.patch.object(M, '_owner_type', M._owner_type))
+            stack.enter_context(mock.patch.object(M, '_owner_type', return_value=OwnerDouble) if not real_type else mock.patch.object(M, '_owner_type', return_value=None))  # real_type: the resolver in its UNBOUND state (Core absent); the real binding is tested in test_make_secret_core_join.py
             stack.enter_context(mock.patch.object(M, '_core', return_value=self.core))
             stack.enter_context(mock.patch.object(M, '_receiver', return_value=self.receiver))
             stack.enter_context(mock.patch.object(time, 'monotonic', self.clock))
@@ -611,7 +611,12 @@ class Static(unittest.TestCase):
             M.make_secret(object(), producer=object(), bootstrap_sink=lambda data: None, deadline=1.0)
 
     def test_the_three_resolvers_are_unbound_at_this_base_so_no_authority_exists_by_import(self):
-        self.assertEqual((M._owner_type(), M._core(), M._receiver()), (None, None, None))
+        # Same assertion, evaluated where Core genuinely cannot be imported (a child interpreter whose path holds only this directory); in a tree whose Core IS importable the resolvers bind
+        # (see test_make_secret_core_join.py).
+        done = subprocess.run([sys.executable, '-I', '-B', '-c', 'import sys\nsys.path[:0]=[sys.argv[1]]\nimport make_secret as M\nprint(repr((M._owner_type(), M._core(), M._receiver())))', str(INSTALL)],
+                              capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr[-300:])
+        self.assertEqual(done.stdout.strip(), repr((None, None, None)))
 
     def test_the_module_writes_no_owner_slot_runs_no_sequence_and_keeps_no_flag_or_store(self):
         code = self.code()
