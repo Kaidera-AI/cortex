@@ -547,6 +547,78 @@ class Session(Harness):
             self.assertNotIn(needle, text)
 
 
+class Revalidation(Harness):
+    """Hale C1-01 / C1-02 (review 2026-10-19_hale_kai_review-c1.md): what changes AFTER the key was read must be re-admitted before a descriptor is issued, and the ORIGINAL deadline is re-checked after
+    admission. The change is made inside the `_after_read` hook (between the single read and the return), with the same triggers the reviewer used. Pass-before-and-after controls come first."""
+
+    def test_control_an_unchanged_key_and_tree_still_issue_a_descriptor(self):
+        ref, _, _ = self.tree()
+        with mock.patch.object(PK, '_after_read', lambda: None):
+            self.assertEqual(self.open_it(ref)[0], 'ok')
+
+    def test_control_a_deadline_not_reached_still_issues_a_descriptor(self):
+        ref, _, _ = self.tree()
+        clock = [10.0]
+        with mock.patch.object(PK, '_now', lambda: clock[0]):
+            made = self.run_call(PK.UnlockSession, ref, project_id=PROJECT, installation_key_id=KID_INSTALL, deadline=20.0)
+            self.assertEqual(made[0], 'ok')
+            self.assertEqual(self.run_call(made[1].fresh_fd)[0], 'ok')
+
+    def test_c1_01_a_key_whose_mode_becomes_0000_on_the_same_inode_during_admission_is_refused(self):
+        ref, folder, path = self.tree()
+        self.addCleanup(os.chmod, path, 0o400)
+        with mock.patch.object(PK, '_after_read', lambda: os.chmod(path, 0)):
+            result = self.open_it(ref)
+        self.assert_clean_refusal(result, 'unlock_key_unsafe', path, folder)
+
+    def test_c1_01_a_key_whose_mode_becomes_group_readable_during_admission_is_refused(self):
+        ref, folder, path = self.tree()
+        with mock.patch.object(PK, '_after_read', lambda: os.chmod(path, 0o440)):
+            result = self.open_it(ref)
+        self.assert_clean_refusal(result, 'unlock_key_unsafe', path, folder)
+
+    def test_c1_01_a_parent_directory_that_becomes_0755_during_admission_is_refused(self):
+        ref, folder, path = self.tree()
+        self.addCleanup(os.chmod, folder, 0o700)
+        with mock.patch.object(PK, '_after_read', lambda: os.chmod(folder, 0o755)):
+            result = self.open_it(ref)
+        self.assert_clean_refusal(result, 'unlock_path_unsafe', path, folder)
+
+    def test_c1_01_an_ancestor_that_becomes_group_writable_during_admission_is_refused(self):
+        ancestor = os.path.join(self.base, 'anc')
+        os.mkdir(ancestor, 0o700)
+        os.chmod(ancestor, 0o755)
+        ref, folder, path = self.tree(parent=ancestor)
+        self.addCleanup(os.chmod, ancestor, 0o700)
+        with mock.patch.object(PK, '_after_read', lambda: os.chmod(ancestor, 0o775)):
+            result = self.open_it(ref)
+        self.assert_clean_refusal(result, 'unlock_path_unsafe', path, folder)
+
+    def test_c1_01_an_acl_that_appears_during_admission_is_refused(self):
+        ref, folder, path = self.tree()
+        answers = iter([False, True, True, True])
+        with mock.patch.object(PK, '_acl_present', lambda fd: next(answers)):
+            result = self.open_it(ref)
+        self.assert_clean_refusal(result, 'unlock_acl_present', path, folder)
+
+    def test_c1_02_a_session_operation_that_finishes_after_the_original_deadline_closes_the_descriptor_and_refuses(self):
+        ref, folder, path = self.tree()
+        clock = [10.0]
+        with mock.patch.object(PK, '_now', lambda: clock[0]):
+            made = self.run_call(PK.UnlockSession, ref, project_id=PROJECT, installation_key_id=KID_INSTALL, deadline=20.0)
+            self.assertEqual(made[0], 'ok', made)
+            with mock.patch.object(PK, '_after_read', lambda: clock.__setitem__(0, 21.0)):
+                result = self.run_call(made[1].fresh_fd)
+        self.assert_clean_refusal(result, 'unlock_session_expired', path, folder)
+
+    def test_c1_02_a_session_constructor_whose_admission_finishes_after_the_original_deadline_refuses(self):
+        ref, folder, path = self.tree()
+        clock = [10.0]
+        with mock.patch.object(PK, '_now', lambda: clock[0]), mock.patch.object(PK, '_after_read', lambda: clock.__setitem__(0, 21.0)):
+            result = self.run_call(PK.UnlockSession, ref, project_id=PROJECT, installation_key_id=KID_INSTALL, deadline=20.0)
+        self.assert_clean_refusal(result, 'unlock_session_expired', path, folder)
+
+
 class Static(unittest.TestCase):
     """Source-level controls on project_key.py (these also hold for the skeleton)."""
 
