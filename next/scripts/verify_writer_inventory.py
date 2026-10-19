@@ -38,7 +38,7 @@ KNOWN_INPUT_FUNCTION_SHA256 = {
 # Every source change in a module that owns an exception requires a reviewed pin.
 KNOWN_INPUT_FILE_SHA256 = {
     'src/cortex_core/schema/seed.py': '025935e70671ff9df721680fb2ef2d36019c44680f4a151cc7ba6154c110232e',
-    'src/cortex_core/runtime/catalog.py': '7037ac84ecfa02a0e3655c9026336da874b37998fae9e88c8bf0c93e9df8c78f',
+    'src/cortex_core/runtime/catalog.py': '4a295b0a8cb02263469e30b126872d1416b2d4dd7e37d54ede7d152f4260a2b2',
     'src/cortex_core/coordination.py': '56c709da4e5caf8d5baceba92d08d60239d1aa07c85d61c1568bb74320d4a70b',
     'src/cortex_core/auth.py': 'cab6320af61cd8beff4923524460413ff3c48bc0ced61f9315919a7fb96567f0',
     'src/cortex_core/identity.py': 'aa5b4139e15a46d1eb161d84d23a3e9a2553e5126b110549d5bf839004a4ea1d',
@@ -65,8 +65,9 @@ EXEMPT_SYMBOL_FILES = {
 # scanner rows, not skip rules. Whole source bytes pin callers/authority as well
 # as the complete site identity. Any source or site drift requires new review.
 REVIEWED_WRITER_SOURCE_SHA256 = {
+    'src/cortex_core/runtime/tests/test_installer_composition.py': 'f54077e839e226bd94b7a577d19d355942ee107d7f4e3ec73aa7c559bda90858',
     'src/cortex_core/schema/seed.py': '8c438d982f17a67b74752b252db18bb4c8e84ab597ec17b71399eebe157211e8',
-    'src/cortex_core/runtime/resources.py': '750ffdd615a34a74a8bbd6f99e2f6265e9f0e8458ea52c0f01dd9d978e2516c7',
+    'src/cortex_core/runtime/resources.py': 'f3d908fb642c7d63d542e56bbf410a3f3855a912f772ded05d5e1928c3faccf9',
     'src/cortex_core/runtime/tests/test_resources.py': '528aaf90842109074290701ecb0d33c8f443b60e37edbe214039b0ddcbe19a61',
     'src/cortex_core/schema/tests/test_seed.py': '96754c5ef8cbd6e1e31a8126b558688529b92e64ead2e76b0161a80c2a00f11d',
     'schema/coordination/008-c09-external-v2.sql': '9147e294732af2aada64c75f0ff794cb2cd409ed754afa316bdc72755bb9db11',
@@ -83,6 +84,15 @@ REVIEWED_WRITER_SOURCE_SHA256 = {
 
 
 REVIEWED_WRITER_CLASSES = {
+    ('src/cortex_core/runtime/tests/test_installer_composition.py', 'NonsecretSQLFixture.rows', 'INSERT', 'auth.runtime_login_bindings', 0, '318ceab2fef673e36b6eb15aaa2a614248b16e70ad604eb86ac2bb3c5fcc8f23'): 'S3_below_driver_fixture_runtime_binding_literal_prefix_DATA; Python_list_state_only; no_SQL_execution_or_installed_credit',
+    ('src/cortex_core/runtime/tests/test_installer_composition.py', 'NonsecretSQLFixture.rows', 'INSERT', 'core.installations', 0, '33dc059d127f915476cb341af7d67ad5992a0c7d04a65841e42b0ed2b5a14b1b'): 'S3_below_driver_fixture_installation_literal_equality_DATA; Python_list_state_only; no_SQL_execution_or_installed_credit',
+    ('src/cortex_core/runtime/tests/test_installer_composition.py', 'NonsecretSQLFixture.rows', 'INSERT', 'core.projects', 0, '167c8613c525fa8d70be1e7a6cd0009e5734c7927db8c433e1ad1be8f8770d2c'): 'S3_below_driver_fixture_project_literal_equality_DATA; Python_list_state_only; no_SQL_execution_or_installed_credit',
+    ('src/cortex_core/runtime/tests/test_installer_composition.py', 'NonsecretSQLFixture.rows', 'INSERT', 'core.schema_migrations', 0, '01e0ada76b16aee82a66bd708ab8795ca2f2f5745bdc44534836a735e598d65b'): 'S3_below_driver_fixture_migration_ledger_literal_equality_DATA; Python_list_state_only; no_SQL_execution_or_installed_credit',
+    ('src/cortex_core/runtime/tests/test_installer_composition.py', 'NonsecretSQLFixture.rows', 'INSERT', 'core.tenants', 0, 'bf11c18c4541e4d01f7c49ef99381f5f5c217ca89303f4e7e8110473ebdaa259'): 'S3_below_driver_fixture_tenant_literal_equality_DATA; Python_list_state_only; no_SQL_execution_or_installed_credit',
+    ('src/cortex_core/runtime/tests/test_installer_composition.py', 'cross_file:apply_migrations', 'DYNAMIC', '<dynamic_or_unsupported>', 0, '4080708e3e8f2cd51e43d3b449dab3ab2a156c863b2614fa3e3f2f112795a48e'): 'S3_closed_profile_name_DATA; observe_real_migration_call_and_assert_once; no_SQL_execution_or_installed_credit',
+    ('src/cortex_core/runtime/tests/test_installer_composition.py', 'cross_file:apply_migrations', 'DYNAMIC', '<dynamic_or_unsupported>', 1, '4080708e3e8f2cd51e43d3b449dab3ab2a156c863b2614fa3e3f2f112795a48e'): 'S3_closed_profile_name_DATA; observe_real_migration_call_and_assert_once; no_SQL_execution_or_installed_credit',
+    ('src/cortex_core/runtime/tests/test_installer_composition.py', 'dynamic_name:setattr', 'DYNAMIC', '<dynamic_or_unsupported>', 0, 'd90681d9de3b69748bf6b7efb7f76e18cdc7297bff315d6b72cd68b55fe89836'): 'S3_closed_fixture_fault_flag_DATA; only_bad_flags_or_bad_ledger_True_False; no_SQL_execution_or_installed_credit',
+    ('src/cortex_core/runtime/tests/test_installer_composition.py', 'dynamic_name:setattr', 'DYNAMIC', '<dynamic_or_unsupported>', 1, '346a2fa76cb13b031cd16cb499e21df720c60e8fb400d74a083f1dfeeb5e23d7'): 'S3_closed_fixture_fault_flag_DATA; only_bad_flags_or_bad_ledger_True_False; no_SQL_execution_or_installed_credit',
     ('src/cortex_core/schema/seed.py', '_bind', 'INSERT', 'core.installations', 0, '33dc059d127f915476cb341af7d67ad5992a0c7d04a65841e42b0ed2b5a14b1b'): 'Day2_seed_serialized_bootstrap_binding; PREPARED_custody_before_four_exact_INSERT_sites; installer_only; native_HELD',
     ('src/cortex_core/schema/seed.py', '_bind', 'INSERT', 'core.tenants', 0, 'bf11c18c4541e4d01f7c49ef99381f5f5c217ca89303f4e7e8110473ebdaa259'): 'Day2_seed_serialized_bootstrap_binding; PREPARED_custody_before_four_exact_INSERT_sites; installer_only; native_HELD',
     ('src/cortex_core/schema/seed.py', '_bind', 'INSERT', 'core.projects', 0, '167c8613c525fa8d70be1e7a6cd0009e5734c7927db8c433e1ad1be8f8770d2c'): 'Day2_seed_serialized_bootstrap_binding; PREPARED_custody_before_four_exact_INSERT_sites; installer_only; native_HELD',
