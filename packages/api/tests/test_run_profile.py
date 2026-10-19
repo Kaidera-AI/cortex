@@ -261,3 +261,71 @@ async def test_foreign_scoped_identity_never_resolves_by_label(runtime):
         r = await c.get("/agents/worker@fixture-b/run-profile")
     assert r.status_code in {400, 403}, r.text
     assert db.writes == db.events == []
+
+
+@pytest.mark.asyncio
+async def test_project_registration_cannot_seed_bypass_profile(runtime):
+    module, db = runtime
+    async with client(module) as c:
+        r = await c.post("/projects", json={"project_key": "fixture-a", "repo_root": "/fixture/a",
+            "agents": [{"name": "worker", "capabilities": {"run_profile": {"revision": 99}}}]})
+    assert r.status_code == 422, r.text
+    assert db.writes == db.events == []
+
+
+@pytest.mark.asyncio
+async def test_corrupt_existing_profile_refuses_instead_of_overwrite(runtime):
+    module, db = runtime
+    db.rows[("fixture-a", "worker")]["capabilities"]["run_profile"] = {"revision": "bad"}
+    async with client(module) as c:
+        read = await c.get("/agents/worker/run-profile")
+        write = await put(c)
+    assert read.status_code == write.status_code == 409
+    assert read.json()["detail"]["code"] == write.json()["detail"]["code"] == "invalid_profile"
+    assert db.writes == db.events == []
+
+
+@pytest.mark.asyncio
+async def test_modes_do_not_turn_inherit_or_auto_into_fallback_settings(runtime):
+    module, db = runtime
+    async with client(module) as c:
+        r = await put(c, {"provider": {"mode": "inherit"}, "model": {"mode": "auto"}})
+        assert r.status_code == 200, r.text
+        assert r.json()["fields"]["provider"]["value"] is None
+        assert r.json()["fields"]["model"]["value"] is None
+        unset = await c.get("/agents/worker/run-profile")
+        assert unset.status_code == 409
+    assert len(db.writes) == 1
+
+
+@pytest.mark.parametrize("field", ["permission", "autonomy", "router_mode", "allowed"])
+@pytest.mark.asyncio
+async def test_router_cannot_choose_authority_fields(runtime, field):
+    module, db = runtime
+    async with client(module) as c:
+        r = await put(c, {field: {"mode": "auto"}})
+    assert r.status_code == 422
+    assert db.writes == db.events == []
+
+
+@pytest.mark.asyncio
+async def test_malformed_vault_profile_refuses_before_import_storage(runtime):
+    module, db = runtime
+    async with client(module) as c:
+        r = await c.post("/admin/projects/fixture-a/import", json={
+            "format": "kaidera.cortex-project.v1",
+            "source_project": {"project_key": "fixture-a", "project_id": "00000000-0000-0000-0000-000000000001"},
+            "tables": [{"schema_name": "public", "table_name": "agents", "rows": [{"name": "worker", "capabilities": {"run_profile": {"schema_version": 1, "revision": -1}}}]}]})
+    assert r.status_code == 422, r.text
+    assert db.writes == db.events == []
+
+
+@pytest.mark.parametrize("model,values", [
+    ("LogRequest", {"event_type": "run_profile_changed", "summary": "forged"}),
+    ("SyncEvent", {"event_type": "run_profile_changed", "summary": "forged", "agent_name": "worker"}),
+])
+def test_public_event_writers_cannot_forge_profile_audit(runtime, model, values):
+    from pydantic import ValidationError
+    module, db = runtime
+    with pytest.raises(ValidationError):
+        getattr(module, model)(**values)
