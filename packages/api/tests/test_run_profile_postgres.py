@@ -120,6 +120,24 @@ async def test_failed_audit_has_no_committed_profile(native):
 
 
 @pytest.mark.asyncio
+async def test_deactivation_preserves_history_but_refuses_active_profile_use(native):
+    module, pool = native
+    async with client(module) as c:
+        assert (await put(c)).status_code == 200
+        original = (await c.get("/agents/worker/run-profile/history")).json()
+        async with pool.acquire() as sql:
+            await sql.execute("UPDATE agents SET capabilities=capabilities || '{\"visibility\":\"history-only\"}'::jsonb WHERE project='fixture-a'")
+        history = await c.get("/agents/worker/run-profile/history")
+        assert history.status_code == 200, history.text
+        assert history.json() == original
+        for response in (await c.get("/agents/worker/run-profile"), await put(c, revision=1)):
+            assert response.status_code == 409
+            assert response.json()["detail"]["code"] == "worker_inactive"
+    async with pool.acquire() as sql:
+        assert await sql.fetchval("SELECT count(*) FROM team_events") == 1
+
+
+@pytest.mark.asyncio
 async def test_label_history_and_vault_export_restore_keep_one_identity(native):
     module, pool = native
     async with client(module) as c:
