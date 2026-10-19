@@ -104,3 +104,70 @@ policy; no new allocator, image/dependency installation or ambient DSN fallback.
 Vera independently reviews this authored proof. Kai credits the unit only after
 the implementation, source/cleanup, actual component and inherited-gate receipts
 are complete. Source preparation or a unit-test title supplies no such credit.
+
+
+## S4b accepted source accounting plan (2026-10-16, a342de79)
+
+Build on Nemo S4a08c75f18 only. CLOSED v2 is the accepted protocol; this slice
+changes only the existing benchmark/load, B02 offer/report tests and mutator,
+and this protocol. No product adapter, oracle, report implementation, Core,
+cache, provider, native controller, CI or admission manifest changes.
+
+1. Freeze17 deciding tests RED on Python3.12 and3.14 and commit before source.
+2. Add optional async load `before_measured(clients, warmup_records, config)`
+   after warmup workers drain, while eight clients are open and idle, before
+   measured origin. Default is no-op. Pass a private warmup snapshot; exceptions
+   and cancellation use the existing cleanup and prevent measured offers.
+3. Add `benchmark.attach_product_truth(run, prepared)` after cleanup. Compare
+   each retained OK response in both phases through the existing prepared.compare
+   seam. Bind row measurement to query/input/truth/serialized-response digests.
+   A refusal removes stale measurement and charges ERROR on that same offer;
+   retain response and all scheduling/dispatch/start/completion/queue times,
+   retain actual response elapsed time and apply existing deadline latency
+   penalty. Preserve earlier ERROR/TIMEOUT/MISSED rows byte for byte. Never
+   repair, renumber, omit or retime an invalid offer inventory.
+4. Add bounded async `benchmark.run_product(...)` library orchestration only:
+   validate config/budget, freeze input and full independent truth once before
+   any client, share it across eight actual C11 clients, call S4a preparation
+   in the phase hook, compare only after cleanup, reuse report.summarize.
+   Explicit owner read_port/scope_for are mandatory; no port/resource discovery
+   or alternate API/SQL/cache/provider implementation. Source diagnostics may
+   run; they cannot qualify public API, native or GTM performance.
+5. Current S4a preparation is a digest-bound NOT_RUN/UNAVAILABLE refusal, not
+   a state receipt. Check its current input/truth/config/warmup digest and
+   warmup-error count. READY/boolean, changed or reused evidence cannot admit
+   a native cell. Return all four OS warm/cold x query prefilled/empty cells
+   NOT_RUN, and sustained_all_miss NOT_RUN. Do not change cap, TTL or leases.
+6. Extend the existing mutation runner/classifier to new source faults, retain
+   inherited faults, exact executed-source/test hashes and full restoration.
+   Both Python suites, canonical receipt classifier controls and source scope
+   must pass before pushing only mike/qdrant-s4b-20261016. No merge.
+
+Native measured-t0 protocol stays CLOSED v2: warm/prefilled fills owned keys,
+then60s warmup and proves fresh entries/zero actual provider HTTP on hits;
+warm/empty does60s warmup then owned emptying and proves absence. Both cold
+arms finish truth/setup/opening and owned prefill or emptying before native
+cold proof; cold warmup is0 and no warming operations intervene before t0.
+Proof is per arm/repetition, never a digest or inherited warmup substitute.
+Record measured hits/misses and minute windows. An unproved state is NOT_RUN;
+Mac cold claims need the admitted exception. No current source fixture supplies
+those proofs. Sustained all-miss requires Kai's capacity-safe schedule and full
+transport-attempt/retry/failure budget; until then it stays NOT_RUN. Adapter
+embed calls are not HTTP or paid calls.512 scoped occupancy and1800s TTL are
+unchanged; distinct-key arithmetic is not capacity or paid-call authorization.
+
+Implementation detail: the returned run retains `preparation_warmup_records`
+as the exact timed snapshot bound by S4a preparation. `warmup_records` then
+receives offline annotations and any comparison refusal charges, so preparation
+cannot hide a later warmup comparison failure. Verify preparation hashes against
+the retained pre-comparison snapshot, not the annotated rows. Original responses
+carry actual cache-hit/provider-embed observations; report minute windows remain
+the existing offered schedule. No embed observation is promoted to HTTP/budget
+or state proof. The old SQL/proxy CLI remains its existing diagnostic.
+
+The existing mutation runner now discovers and verifies the full copied Python
+namespace package (including product_path) rather than its stale nine-module
+list. The frozen full baseline/restoration is60 tests:13 load,27 report,20 offer
+accounting, including all17 S4b controls; inherited23 recipes are retained and
+15 S4b recipes are added. Copies contain only source modules; product fixtures
+reuse unchanged pinned Core/contracts resources and deny IP sockets.

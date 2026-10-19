@@ -72,17 +72,73 @@ MUTATIONS = [
     ("benchmark.py", "blocking-resource-observer", 'target = await asyncio.to_thread(stack.owned_resource, "container")',
      'target = stack.owned_resource("container")',
      "test_b02_load.LoadTests.test_owned_resource_poll_does_not_block_the_arrival_loop", 1),
+    ("load.py", "s4-preparation-omitted",
+     'preparation = await before_measured(tuple(clients), copy.deepcopy(warmup), config)', 'preparation = None',
+     "test_b02_offer_accounting.MeasuredPreparationTests.test_preparation_runs_after_drain_before_new_origin_with_all_clients_open", 1),
+    ("load.py", "s4-warmup-custody-mutable",
+     'before_measured(tuple(clients), copy.deepcopy(warmup), config)', 'before_measured(tuple(clients), warmup, config)',
+     "test_b02_offer_accounting.MeasuredPreparationTests.test_preparation_receives_a_private_warmup_copy", 1),
+    ("load.py", "s4-preparation-error-swallowed",
+     '            preparation = await before_measured(tuple(clients), copy.deepcopy(warmup), config)',
+     '            try:\n                preparation = await before_measured(tuple(clients), copy.deepcopy(warmup), config)\n            except Exception:\n                preparation = None',
+     "test_b02_offer_accounting.MeasuredPreparationTests.test_preparation_failure_closes_clients_and_never_offers_measured_work", 1),
+    ("benchmark.py", "s4-first-response-reused",
+     'measurement = prepared.compare(row["query_id"], row["response"])',
+     'measurement = prepared.compare(row["query_id"], run[phase][0]["response"])',
+     "test_b02_report.S4bProductAccountingTests.test_each_retained_response_is_compared_offline_and_refusal_is_charged_without_retiming", 1),
+    ("benchmark.py", "s4-warmup-oracle-omitted",
+     'for phase in ("warmup_records", "records"):', 'for phase in ("records",):',
+     "test_b02_report.S4bProductAccountingTests.test_warmup_comparison_failure_and_earlier_error_both_survive", 1),
+    ("benchmark.py", "s4-earlier-errors-recompared",
+     '            if row["status"] != "OK":\n                continue', '            if False:\n                continue',
+     "test_b02_report.S4bProductAccountingTests.test_original_error_timeout_and_missed_rows_are_never_erased_or_recompared", 1),
+    ("benchmark.py", "s4-unsafe-comparison-admitted",
+     'if not isinstance(measurement, dict) or measurement.get("safe") is not True:', 'if False:',
+     "test_b02_report.S4bProductAccountingTests.test_unsafe_comparison_mapping_cannot_be_promoted_to_success", 1),
+    ("benchmark.py", "s4-refusal-penalty-omitted",
+     'latency_seconds=max(run["config"]["deadline_seconds"], row["latency_seconds"]))',
+     'latency_seconds=row["latency_seconds"])',
+     "test_b02_report.S4bProductAccountingTests.test_each_response_query_input_truth_and_bytes_binding_is_enforced", 1),
+    ("benchmark.py", "s4-comparison-rewrites-completion",
+     '                row.update(status="ERROR", error_class="OfflineComparisonRefusal",',
+     '                row["completed_at"] = row["scheduled_at"] + run["config"]["deadline_seconds"]\n                row.update(status="ERROR", error_class="OfflineComparisonRefusal",',
+     "test_b02_report.S4bProductAccountingTests.test_each_retained_response_is_compared_offline_and_refusal_is_charged_without_retiming", 1),
+    ("benchmark.py", "s4-measurement-binding-forged",
+     'binding = {key: row["response"][key] for key in', 'binding = {key: prepared.input_sha256 for key in',
+     "test_b02_report.S4bProductAccountingTests.test_each_retained_response_is_compared_offline_and_refusal_is_charged_without_retiming", 1),
+    ("benchmark.py", "s4-truth-recomputed-per-client",
+     'read_port=read_port, scope_for=scope_for, prepared=prepared)',
+     'read_port=read_port, scope_for=scope_for, prepared=None)',
+     "test_b02_report.S4bProductAccountingTests.test_source_driver_freezes_once_before_open_and_compares_only_after_all_clients_close", 1),
+    ("benchmark.py", "s4-preparation-ready-admitted",
+     'if (not isinstance(value, dict) or value != refusal\n                    or type(value.get("warmup_errors")) is not int):',
+     'if False:',
+     "test_b02_report.S4bProductAccountingTests.test_ready_boolean_cannot_promote_the_unavailable_s4a_preparation", 1),
+    ("benchmark.py", "s4-preparation-binding-ignored",
+     'if (not isinstance(value, dict) or value != refusal\n                    or type(value.get("warmup_errors")) is not int):',
+     'if (not isinstance(value, dict) or any(value.get(k) != v for k,v in refusal.items() if k not in ("input_sha256", "truth_sha256", "preparation_sha256", "warmup_errors"))):',
+     "test_b02_report.S4bProductAccountingTests.test_preparation_digest_binds_current_input_truth_config_and_exact_warmup", 5),
+    ("benchmark.py", "s4-native-cells-promoted",
+     'result["cells"] = [{"os_cache": os_cache, "query_cache": query_cache, "status": "NOT_RUN",',
+     'result["cells"] = [{"os_cache": os_cache, "query_cache": query_cache, "status": "PASS",',
+     "test_b02_report.S4bProductAccountingTests.test_source_driver_freezes_once_before_open_and_compares_only_after_all_clients_close", 1),
+    ("benchmark.py", "s4-sustained-miss-promoted",
+     'sustained_all_miss="NOT_RUN", provider_embed_calls_are_http_calls=False)',
+     'sustained_all_miss="PASS", provider_embed_calls_are_http_calls=False)',
+     "test_b02_report.S4bProductAccountingTests.test_source_driver_freezes_once_before_open_and_compares_only_after_all_clients_close", 1),
 ]
 
 CHILD = r'''
 import hashlib, importlib, json, os, pathlib, sys, unittest
 from test_receipts import AssertionResult, MARKER
-names = sys.argv[1:] or ["test_b02_load", "test_b02_report"]
+names = sys.argv[1:] or ["test_b02_load", "test_b02_report", "test_b02_offer_accounting"]
 suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(n) for n in names)
 result = unittest.TextTestRunner(verbosity=2, resultclass=AssertionResult).run(suite)
 sources = {}
-for name in ["load", "report", "benchmark", "corpus", "oracle", "postgres", "geometry", "qdrant", "qdrant_proxy"]:
-    module = importlib.import_module("vector_baseline." + name)
+package = importlib.import_module("vector_baseline")
+for source in sorted(pathlib.Path(next(iter(package.__path__))).glob("*.py")):
+    name = source.stem
+    module = package if name == "__init__" else importlib.import_module("vector_baseline." + name)
     path = pathlib.Path(module.__file__).resolve()
     sources[name + ".py"] = {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 print(MARKER + json.dumps({"tests_run":result.testsRun, "failures":result.assertions,
@@ -132,7 +188,7 @@ def main():
 
     original_hashes = {name: sha(raw) for name, raw in originals.items()}
     child, parsed = execute("baseline", NEXT / "src", expected_source=original_hashes)
-    if child.returncode or parsed["failures"] or parsed["errors"] or parsed["tests_run"] != 27:
+    if child.returncode or parsed["failures"] or parsed["errors"] or parsed["tests_run"] != 60:
         raise RuntimeError("B02 mutation baseline not clean")
     for filename, label, before, after, target, bodies in MUTATIONS:
         if originals[filename].decode().count(before) != 1:
@@ -165,13 +221,13 @@ def main():
         if {path.name: sha(path.read_bytes()) for path in source.glob("*.py")} != original_hashes:
             raise RuntimeError("original source drift")
     child, parsed = execute("restored", NEXT / "src", expected_source=original_hashes)
-    if child.returncode or parsed["failures"] or parsed["errors"] or parsed["tests_run"] != 27:
+    if child.returncode or parsed["failures"] or parsed["errors"] or parsed["tests_run"] != 60:
         raise RuntimeError("restored source not clean")
     (args.destination / "mutations.json").write_text(json.dumps({"mutations": results, "tests": tests,
                                                                  "recipe_file_sha256": recipe_hash,
-                                                                 "baseline_restored": 27,
+                                                                 "baseline_restored": 60,
                                                                  "source_hashes": original_hashes}, indent=2) + "\n")
-    print(json.dumps({"mutants": len(results), "actual_body_kills": len(results), "baseline_restored": 27}))
+    print(json.dumps({"mutants": len(results), "actual_body_kills": len(results), "baseline_restored": 60}))
 
 
 if __name__ == "__main__":

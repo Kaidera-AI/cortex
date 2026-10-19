@@ -1,6 +1,8 @@
 """Synthetic-only offered-load PG diagnostic, using the reviewed owned lifecycle."""
 import argparse
 import asyncio
+import copy
+from dataclasses import asdict
 import hashlib
 import json
 import math
@@ -24,6 +26,96 @@ def attach_truth(run, truth):
     for row in run["records"]:
         if row["status"] == "OK":
             row["measurement"] = oracle.measure(truth[row["query_id"]], row["response"]["ids"], "dense")
+
+
+def attach_product_truth(run, prepared):
+    """Join retained C11 bytes to frozen truth OFFLINE, after client cleanup.
+
+    Comparison refusal is a failure of the original offered request. Keep its
+    bytes and clocks, and charge the same deadline penalty as a timed error.
+    Existing failed offers and invalid inventories must never be repaired.
+    """
+    from .product_path import Refusal
+    for phase in ("warmup_records", "records"):
+        for row in run[phase]:
+            if row["status"] != "OK":
+                continue
+            row.pop("measurement", None)
+            row.pop("measurement_binding", None)
+            try:
+                measurement = prepared.compare(row["query_id"], row["response"])
+                if not isinstance(measurement, dict) or measurement.get("safe") is not True:
+                    raise Refusal("unsafe_offline_measurement")
+                binding = {key: row["response"][key] for key in
+                           ("query_id", "input_sha256", "truth_sha256", "response_sha256")}
+                row["measurement"] = measurement
+                row["measurement_binding"] = binding
+            except Exception:
+                row.update(status="ERROR", error_class="OfflineComparisonRefusal",
+                           response_elapsed_seconds=row["latency_seconds"],
+                           latency_seconds=max(run["config"]["deadline_seconds"], row["latency_seconds"]))
+
+
+async def run_product(root, spec, expected, *, source_root, read_port, scope_for,
+                      config=None, latency_budget_ms=100, clock=None, observer=None):
+    """Bounded SOURCE_FIXTURE orchestration over S4a's frozen C11 seam.
+
+    The caller owns every supplied port/resource. No allocator, credential
+    discovery or native state admission lives here. Current S4a preparation
+    refuses all native cells; source timing never upgrades that refusal.
+    """
+    from . import product_path
+    config = load.RunConfig() if config is None else config
+    config.validate()
+    if (type(latency_budget_ms) not in (int, float) or not math.isfinite(latency_budget_ms)
+            or latency_budget_ms <= 0):
+        raise ValueError("positive finite latency budget required before input access")
+    if read_port is None or not callable(scope_for):
+        raise product_path.Refusal("c11_request_scope_unbound")
+    frozen_spec = copy.deepcopy(spec)
+    prepared = product_path.prepare_input(root, frozen_spec, expected, source_root=source_root)
+    by_id = {q["id"]: q for q in frozen_spec["queries"]}
+    queries = [by_id[qid] for qid in frozen_spec["splits"]["held_out"]]
+
+    def factory(number):
+        return product_path.client(root, frozen_spec, expected, None, None, None,
+            source_root=source_root, read_port=read_port, scope_for=scope_for, prepared=prepared)
+
+    async def prepare(clients, warmup, run_config):
+        binding = {"input_sha256": prepared.input_sha256, "truth_sha256": prepared.truth_sha256,
+                   "config": asdict(run_config), "warmup_records": warmup}
+        refusal = {"status": "NOT_RUN", "reason": "owned_measured_state_and_provider_budget_unbound",
+                   "capability": "UNAVAILABLE", "sustained_all_miss": "NOT_RUN",
+                   "input_sha256": prepared.input_sha256, "truth_sha256": prepared.truth_sha256,
+                   "preparation_sha256": hashlib.sha256(product_path.canonical(binding)).hexdigest(),
+                   "warmup_errors": sum(row.get("status") != "OK" for row in warmup)}
+        evidence = []
+        for client in clients:
+            value = await client.prepare_measured(copy.deepcopy(warmup), run_config)
+            if (not isinstance(value, dict) or value != refusal
+                    or type(value.get("warmup_errors")) is not int):
+                raise product_path.Refusal("measured_preparation_unbound")
+            evidence.append(copy.deepcopy(value))
+        return evidence
+
+    run = await load.run(queries, factory, config, clock=clock, observer=observer, before_measured=prepare)
+    # Preparation binds timed warmup bytes, before offline annotations/penalties.
+    run["preparation_warmup_records"] = copy.deepcopy(run["warmup_records"])
+    attach_product_truth(run, prepared)
+    result = report.summarize(run, latency_budget_ms=latency_budget_ms,
+        bindings={"dataset": "synthetic", "boundary": "scheduled-arrival-to-serialized-C11-component-response",
+                  "input_sha256": prepared.input_sha256, "truth_sha256": prepared.truth_sha256,
+                  "heldout_query_ids": [q["id"] for q in queries], "scope": "SOURCE_FIXTURE"})
+    result.update(qualification="C11_SOURCE_FIXTURE_DIAGNOSTIC", source_fixture_only=True,
+                  native_qualified=False, api_qualified=False, whole_product_stack_complete=False,
+                  sustained_all_miss="NOT_RUN", provider_embed_calls_are_http_calls=False)
+    result["cells"] = [{"os_cache": os_cache, "query_cache": query_cache, "status": "NOT_RUN",
+                        "reason": "owned_measured_state_and_provider_budget_unbound",
+                        "input_sha256": prepared.input_sha256, "truth_sha256": prepared.truth_sha256}
+                       for os_cache in ("warm", "cold") for query_cache in ("prefilled", "empty")]
+    result["not_run"].extend(["OS-" + c["os_cache"] + "/query-" + c["query_cache"] for c in result["cells"]])
+    result["not_run"].append("sustained-all-miss")
+    return result
 
 
 class SQLClient:

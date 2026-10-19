@@ -154,3 +154,83 @@ class QueueTimingTests(unittest.IsolatedAsyncioTestCase):
         self.assertAlmostEqual(row["started_at"] - row["dispatched_at"], .025)
         self.assertAlmostEqual(row["queue_seconds"], .025)
         self.assertAlmostEqual(row["latency_seconds"], row["completed_at"] - row["scheduled_at"])
+
+
+class MeasuredPreparationTests(unittest.IsolatedAsyncioTestCase):
+    """S4b deciding controls: a drained warmup, live idle clients and a new t0."""
+    def require_hook(self):
+        import inspect
+        self.assertIn("before_measured", inspect.signature(load.run).parameters,
+                      "S4b requires an optional after-warmup preparation hook")
+
+    async def test_preparation_runs_after_drain_before_new_origin_with_all_clients_open(self):
+        self.require_hook()
+        import time
+        from test_b02_load import Client
+        clients = [Client(i, delay=.04) for i in range(8)]
+        marks = []
+        async def prepare(open_clients, warmup, config):
+            self.assertEqual(tuple(clients), open_clients)
+            self.assertTrue(all(c.opened and not c.closed for c in clients))
+            self.assertEqual(len(warmup), 1)
+            self.assertEqual(warmup[0]["status"], "OK")
+            self.assertEqual(sum(c.calls for c in clients), 1)
+            await asyncio.sleep(.04)
+            marks.append(time.monotonic())
+            return {"status": "fixture-preparation-only"}
+        value = await load.run([{"id": "q"}], lambda i: clients[i],
+                               load.RunConfig(duration_seconds=.025, warmup_seconds=.025),
+                               before_measured=prepare)
+        self.assertEqual(len(marks), 1)
+        self.assertGreaterEqual(value["measured_start"], marks[0])
+        self.assertEqual(value["preparation"], {"status": "fixture-preparation-only"})
+        self.assertEqual((len(value["records"]), sum(c.calls for c in clients)), (1, 2))
+        self.assertTrue(all(c.closed for c in clients))
+
+    async def test_preparation_receives_a_private_warmup_copy(self):
+        self.require_hook()
+        from test_b02_load import Client
+        async def prepare(clients, warmup, config):
+            warmup[0]["status"] = "ERROR"
+            warmup[0]["response"]["ids"].append("foreign")
+            warmup[0]["scheduled_at"] = -1
+        value = await load.run([{"id": "q"}], lambda i: Client(i),
+                               load.RunConfig(duration_seconds=.025, warmup_seconds=.025),
+                               before_measured=prepare)
+        row = value["warmup_records"][0]
+        self.assertEqual((row["status"], row["response"]["ids"]), ("OK", ["q"]))
+        self.assertGreater(row["scheduled_at"], 0)
+
+    async def test_preparation_failure_closes_clients_and_never_offers_measured_work(self):
+        self.require_hook()
+        from test_b02_load import Client
+        clients = [Client(i) for i in range(8)]
+        async def prepare(*args):
+            raise RuntimeError("fixture-preparation-failed")
+        with self.assertRaises(RuntimeError):
+            await load.run([{"id": "q"}], lambda i: clients[i],
+                           load.RunConfig(duration_seconds=.025, warmup_seconds=.025),
+                           before_measured=prepare)
+        self.assertEqual(sum(c.calls for c in clients), 1)
+        self.assertTrue(all(c.closed for c in clients))
+
+    async def test_cancellation_during_preparation_closes_all_clients(self):
+        self.require_hook()
+        from test_b02_load import Client
+        clients = [Client(i) for i in range(8)]
+        entered = asyncio.Event()
+        async def prepare(*args):
+            entered.set()
+            await asyncio.Event().wait()
+        task = asyncio.create_task(load.run([{"id": "q"}], lambda i: clients[i],
+            load.RunConfig(duration_seconds=.025, warmup_seconds=0), before_measured=prepare))
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        self.assertEqual(sum(c.calls for c in clients), 0)
+        self.assertTrue(all(c.closed for c in clients))

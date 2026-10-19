@@ -46,6 +46,39 @@ MUTATIONS = [
      "test_fixed_offers_and_receipt_preserve_errors_and_no_gtm_credit"),
 ]
 
+S4_TEST = 'test_b01_product_path.S4ProductPathTests.'
+S4_MUTATIONS = [
+    ('s4-timed-oracle', "principal = await self._read.principal(scope)",
+     "oracle.rank(self.frozen._corpus,q,modes=('dense',))\n            principal = await self._read.principal(scope)",
+     S4_TEST+'test_s4_no_truth_or_corpus_scan_inside_request'),
+    ('s4-bypass-c11', 'body = await self._read.search(principal,scope,None)',
+     "body = {'query':q['text'],'results':[]}",
+     S4_TEST+'test_s4_actual_c11_cache_qdrant_response_and_offline_truth'),
+    ('s4-bypass-cache-provider', 'cached = await cache.get(*args)',
+     "cached = __import__('cortex_core.embeddings.query_cache',fromlist=['CachedEmbedding']).CachedEmbedding(tuple(owner._query['vector']),False)",
+     S4_TEST+'test_s4_actual_c11_cache_qdrant_response_and_offline_truth'),
+    ('s4-provider-vector-unbound', "raise Refusal('provider_vector_unbound')", 'pass',
+     S4_TEST+'test_s4_unbound_provider_vector_has_no_c11_result_credit'),
+    ('s4-offer-substitution', "if canonical(query) != canonical(q): raise Refusal('offer_binding_changed')", 'if False: pass',
+     S4_TEST+'test_s4_changed_offer_cannot_substitute_frozen_query'),
+    ('s4-serializer-bypassed', 'await c11a._respond(send,200,body)',
+     "messages.extend([{'status':200},{'type':'http.response.body','body':canonical(body)}])",
+     S4_TEST+'test_s4_serialization_completes_before_return'),
+    ('s4-serialization-deadline-ignored', "check_deadline(scope['_cortex_deadline'])", 'pass',
+     S4_TEST+'test_s4_serialization_over_deadline_is_unfulfilled'),
+    ('s4-response-binding-ignored', "raise Refusal('response_binding_changed')", 'pass',
+     S4_TEST+'test_s4_response_input_truth_and_bytes_are_bound'),
+    ('s4-hit-source-ignored', "raise Refusal('hit_source_mismatch')", 'pass',
+     S4_TEST+'test_s4_offline_unknown_foreign_duplicate_kind_revision_and_identity_refuse'),
+    ('s4-duplicate-inventory-ignored', "if not measured['safe']: raise Refusal('unsafe_hit_inventory')", 'if False: pass',
+     S4_TEST+'test_s4_offline_unknown_foreign_duplicate_kind_revision_and_identity_refuse'),
+    ('s4-native-refusal-promoted', "return {'status':'NOT_RUN','reason':'owned_measured_state_and_provider_budget_unbound',",
+     "return {'status':'PASS','reason':'owned_measured_state_and_provider_budget_unbound',",
+     S4_TEST+'test_s4_prepare_refuses_unbound_native_state_and_miss_budget'),
+    ('s4-warmup-errors-erased', "'warmup_errors':sum(r.get('status') != 'OK' for r in warmup_records)", "'warmup_errors':0",
+     S4_TEST+'test_s4_preparation_is_bound_to_each_config_and_warmup_inventory'),
+]
+
 CHILD = r'''
 import hashlib, importlib, json, pathlib, sys, unittest
 from test_receipts import AssertionResult, MARKER
@@ -202,6 +235,9 @@ def main():
     with tempfile.TemporaryDirectory(prefix="b01-literal-source-") as directory:
         stage = Path(directory) / "src"
         shutil.copytree(NEXT / "src", stage)
+        # Exact existing resource bytes are required by the real C11/S2 imports.
+        for name in ("modules", "contracts"):
+            shutil.copytree(NEXT / name, stage.parent / name)
         candidate = stage / "vector_baseline/product_path.py"
         env = {key: os.environ[key] for key in ("PATH", "LANG", "LC_ALL", "TZ", "TMPDIR") if key in os.environ}
         env.update(PYTHONPATH=os.pathsep.join([str(stage), str(NEXT / "tests"),
@@ -220,25 +256,31 @@ def main():
                 and Path(value["executed_source"]["path"]).resolve() == candidate.resolve())
             return process, value, bound
 
-        baseline, value, bound = execute("baseline", original, TEST[:-1])
+        baseline, value, bound = execute("baseline", original, "test_b01_product_path")
         if not bound or baseline.returncode != 0: raise RuntimeError("Baseline is not qualified")
-        for name, before, after, method in MUTATIONS:
+        faults = [(name,before,after,TEST+method) for name,before,after,method in MUTATIONS] + S4_MUTATIONS
+        for name, before, after, target in faults:
             text = original.decode()
             if text.count(before) != 1: raise RuntimeError("Literal source point is not unique: " + name)
             mutated = text.replace(before, after).encode()
-            process, value, bound = execute(name, mutated, TEST + method)
-            verdict = classify(process, [TEST + method]) if bound else "inconclusive"
-            rows.append({"name": name, "target": TEST + method, "source_sha256": sha(mutated),
+            process, value, bound = execute(name, mutated, target)
+            verdict = classify(process, [target]) if bound else "inconclusive"
+            rows.append({"name": name, "target": target, "source_sha256": sha(mutated),
                 "source_bound": bound, "exit": process.returncode, "verdict": verdict,
                 "tests": value["tests_run"] if value else None,
                 "body_failures": len(value["failures"]) if value else None,
                 "errors": len(value["errors"]) if value else None})
-        restored, value, bound = execute("restored", original, TEST[:-1])
+        restored, value, bound = execute("restored", original, "test_b01_product_path")
         if not bound or restored.returncode != 0: raise RuntimeError("Restoration is not qualified")
     if source.read_bytes() != original or (NEXT / "tests/benchmarks/test_b01_product_path.py").read_bytes() != frozen:
         raise RuntimeError("Original source/test bytes changed")
     receipt = {"scope": "UNIT_PORTS_WITH_REAL_HOSTED_MOCK_TRANSPORT", "source_sha256": sha(original),
-               "frozen_test_sha256": sha(frozen), "native": "NOT_RUN", "mutations": rows,
+               "frozen_test_sha256": sha(frozen),
+               "shared_s3_fixture_sha256": sha((NEXT / "tests/receipt/test_c09_qdrant.py").read_bytes()),
+               "shared_s3b_fixture_sha256": sha((NEXT / "tests/receipt/test_c09_qdrant_s3b.py").read_bytes()),
+               "copied_resource_sha256": {str(p.relative_to(NEXT)): sha(p.read_bytes())
+                   for name in ("modules", "contracts") for p in sorted((NEXT / name).rglob("*")) if p.is_file()},
+               "native": "NOT_RUN", "mutations": rows,
                "restoration": "exact source/test bytes; unchanged full suite GREEN"}
     (args.destination / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
     print(json.dumps({"tests": value["tests_run"], "mutations": len(rows),
