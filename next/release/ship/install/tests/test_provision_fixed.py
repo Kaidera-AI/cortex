@@ -337,9 +337,15 @@ CHILD = """
 import importlib.util, json, sys
 from types import SimpleNamespace
 install_dir, tests_dir, src_dir, with_core, spec = sys.argv[1:6]
-sys.path[:0] = [install_dir, tests_dir] + ([src_dir] if with_core == 'yes' else [])
+sys.path[:0] = [install_dir, tests_dir] + ([src_dir] if with_core in ('yes', 'path') else [])
 absent = importlib.util.find_spec('cortex_core') is None
 import provision as P
+probe = {}
+if with_core == 'path':
+    import cortex_core
+    probe['root'] = cortex_core.__file__
+    for module, name in P._Core._NAMES:
+        probe[module + ':' + name] = hasattr(importlib.import_module(module), name)
 cfg = json.loads(spec)
 config = SimpleNamespace(mode=cfg['mode'], role_logins=cfg['role_logins'], vault_root=cfg['vault_root'], database=cfg['database'], installation_id=cfg['installation_id'])
 events = []
@@ -348,7 +354,7 @@ try:
     outcome = ['ok', repr(P.provision_sequence(config, custody=custody, deadline=9.0e9, operation_key=cfg['operation_key']))]
 except Exception as error:
     outcome = [type(error).__name__, getattr(error, 'reason', str(error)[:50])]
-print(json.dumps({'core_absent': absent, 'outcome': outcome, 'events': events}))
+print(json.dumps({'core_absent': absent, 'outcome': outcome, 'events': events, 'probe': probe}))
 """
 
 
@@ -356,12 +362,12 @@ class CoreMissing(unittest.TestCase):
     """REAL provision module, no doubles, in a CHILD interpreter whose import path genuinely has no Core package (nothing is deleted or faked in this process, where the composed Core is present): the
     call must be a typed non-success with no effect, never a stub or a fallback. A second control runs the SAME child with the Core package present and proves the first is not vacuous."""
 
-    def run_child(self, with_core):
+    def run_child(self, with_core, src=None):
         import json
         import subprocess
         c = install_config()
         spec = json.dumps({'mode': c.mode, 'role_logins': c.role_logins, 'vault_root': c.vault_root, 'database': c.database, 'installation_id': c.installation_id, 'operation_key': OPKEY})
-        done = subprocess.run([sys.executable, '-I', '-B', '-c', CHILD, str(HERE.parent), str(HERE), str(HERE.parents[3] / 'src'), 'yes' if with_core else 'no', spec],
+        done = subprocess.run([sys.executable, '-I', '-B', '-c', CHILD, str(HERE.parent), str(HERE), str(src or HERE.parents[3] / 'src'), with_core if isinstance(with_core, str) else ('yes' if with_core else 'no'), spec],
                               capture_output=True, text=True, timeout=60)
         self.assertEqual(done.returncode, 0, done.stderr[-300:])
         return json.loads(done.stdout.strip().splitlines()[-1])
@@ -372,6 +378,43 @@ class CoreMissing(unittest.TestCase):
         outcome = tuple(result['outcome'])
         self.assertEqual(outcome, ('RoleRefusal', 'provision_core_missing'))
         self.assertEqual(result['events'], [])
+
+    REQUIRED = (('cortex_core.runtime.custody', '_installer_phase'), ('cortex_core.runtime.custody', '_installer_password'),
+                ('cortex_core.runtime.resources', 'open_bootstrap_resources'), ('cortex_core.runtime.resources', 'open_migration_resources'),
+                ('cortex_core.runtime.resources', 'open_seed_resources'), ('cortex_core.runtime.operator', '_reload_seed_receipt'),
+                ('cortex_core.schema.seed', 'seed_runtime_bindings'))
+
+    def older_core(self, omit):
+        """A Core PACKAGE that is genuinely present and importable but lacks ONE required private name: every module exists, every other required callable exists (each raises if reached), the omitted
+        name is never defined. Written to a private temp directory; nothing is deleted or patched on a live module."""
+        import tempfile
+        root = Path(tempfile.mkdtemp(prefix='older-core-'))
+        self.addCleanup(__import__('shutil').rmtree, root, True)
+        modules = {}
+        for module, name in self.REQUIRED:
+            modules.setdefault(module, [])
+            if (module, name) != omit:
+                modules[module].append(name)
+        for package in ('cortex_core', 'cortex_core/runtime', 'cortex_core/schema'):
+            (root / package).mkdir(parents=True, exist_ok=True)
+            (root / package / '__init__.py').write_text('')
+        for module, names in modules.items():
+            body = ''.join(f"def {n}(*a, **k):\n    raise RuntimeError('older-core stub reached: {n}')\n" for n in names) or 'pass\n'
+            (root / (module.replace('.', '/') + '.py')).write_text(body)
+        return root
+
+    def test_the_required_private_names_are_exactly_the_ones_provision_resolves(self):
+        self.assertEqual(self.REQUIRED, P._Core._NAMES)
+
+    def test_a_core_package_that_is_present_but_lacks_one_private_join_name_refuses_typed_and_touches_nothing(self):
+        for omit in self.REQUIRED:
+            with self.subTest(missing=omit[1]):
+                result = self.run_child('path', src=self.older_core(omit))
+                probe = result['probe']
+                self.assertFalse(result['core_absent'], 'the Core package must be present in this control')
+                self.assertEqual({k: v for k, v in probe.items() if k != 'root'}, {m + ':' + n: (m, n) != omit for m, n in self.REQUIRED})
+                self.assertEqual(tuple(result['outcome']), ('RoleRefusal', 'provision_core_missing'))
+                self.assertEqual(result['events'], [])
 
     def test_the_same_child_with_the_core_package_present_does_not_report_a_missing_core(self):
         result = self.run_child(with_core=True)
