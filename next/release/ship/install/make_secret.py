@@ -1,4 +1,5 @@
-"""S1 make_secret: INTERFACE ONLY (day 3, corrected for HALE-S1-LIFETIME-002; intentional RED). There is no implementation here and no effect: the body refuses `install_not_wired:make_secret`.
+"""S1 make_secret (day 3, J1 effect gap on the HALE-S1-LIFETIME-002 interface). COMPONENT-IMPLEMENTED: the admission, producer, validation, import and fixed-receiver sequence below is real and is tested over named doubles; the three resolvers
+(`_owner_type`, `_core`, `_receiver`) stay UNBOUND at this base, so production still refuses `custody_owner_unbound` until the actual Core and S4 join lands (not in this tree).
 
   make_secret(owner, *, producer, deadline) -> {"imported": [five purposes in the frozen order], "bootstrap_delivered": True}
 
@@ -34,8 +35,12 @@ each) -> validate all five (type bytes, length >= roles.MIN_SECRET, pairwise dis
 installer_enrollment) -> admit with all five held -> receiver(owner, the bootstrap bytes), once -> admit -> return names only. Nothing is stored after the call, written, printed, logged or put in an
 exception; an exception raised by a callback is replaced by the typed refusal and never chained.
 REFUSALS (`MakeSecretRefusal.reason`): custody_owner_unbound, custody_owner_type, bootstrap_receiver_unbound, j06_producer_undefined, deadline_invalid, deadline_expired, deadline_not_original,
-custody_context, make_secret_reentered, producer_failed:<purpose>, secret_invalid:<purpose>, secret_reused, import_failed:<purpose>, bootstrap_receiver_failed; this skeleton alone returns
-install_not_wired:make_secret. `bootstrap_sink_failed` of the first interface is retired with the sink."""
+custody_context, make_secret_reentered, producer_failed:<purpose>, secret_invalid:<purpose>, secret_reused, import_failed:<purpose>, bootstrap_receiver_failed.
+`bootstrap_sink_failed` of the first interface is retired with the sink."""
+import contextvars
+import math
+import time
+
 try:
     from . import roles as R  # packaged layout: cortex_ship.install
 except ImportError:
@@ -69,5 +74,122 @@ def _receiver():
     return None
 
 
+_ACTIVE = contextvars.ContextVar('make_secret_active', default=None)
+
+
+class _Guard:
+    """One call's view of the owner. `admit` is the private same-context admission (Core's `_current_installer`, the stage/flag slots, the original deadline and the imported set); `refusal`
+    invalidates the owner through Core's existing fail path FIRST and then returns the typed refusal for the caller to raise. It never writes an owner slot."""
+
+    def __init__(self, owner, core, original):
+        self.owner, self.core, self.original = owner, core, original
+
+    def fail(self):
+        try:
+            self.core._installer_fail(self.owner)
+        except Exception:
+            pass
+
+    def refusal(self, reason):
+        self.fail()
+        return MakeSecretRefusal(reason)
+
+    def admit(self, imported):
+        reason, owner = None, self.owner
+        try:
+            if owner._deadline is not self.original:
+                reason = 'deadline_not_original'
+            else:
+                current = self.core._current_installer(owner._config, owner._vault, self.original)
+                if current is not owner or owner._stage != 'IMPORT' or owner._closed or owner._tainted or owner._busy:
+                    reason = 'custody_context'
+                elif time.monotonic() >= self.original:
+                    reason = 'deadline_expired'
+                elif owner._imported != imported:
+                    reason = 'custody_context'
+        except Exception as error:
+            reason = 'deadline_expired' if getattr(error, 'reason', None) == 'installer_deadline' else 'custody_context'
+        if reason is not None:
+            raise self.refusal(reason) from None
+
+
 def make_secret(owner, *, producer, deadline):
-    raise MakeSecretRefusal('install_not_wired:make_secret')
+    owner_type, core, receiver = _owner_type(), _core(), _receiver()
+    if owner_type is None or core is None:
+        raise MakeSecretRefusal('custody_owner_unbound')
+    if receiver is None:
+        raise MakeSecretRefusal('bootstrap_receiver_unbound')
+    if type(owner) is not owner_type:
+        raise MakeSecretRefusal('custody_owner_type')
+    if producer is None or not callable(getattr(producer, 'bytes_for', None)):
+        raise MakeSecretRefusal('j06_producer_undefined')
+    if type(deadline) not in (int, float) or not math.isfinite(deadline):
+        raise MakeSecretRefusal('deadline_invalid')
+    if time.monotonic() >= deadline:
+        raise MakeSecretRefusal('deadline_expired')
+    active = _ACTIVE.get()
+    if active is not None:
+        try:
+            core._installer_fail(active)
+        except Exception:
+            pass
+        raise MakeSecretRefusal('make_secret_reentered')
+    token = _ACTIVE.set(owner)
+    values = {}
+    try:
+        try:
+            original = owner._deadline
+        except Exception:
+            original = None
+        guard = _Guard(owner, core, original)
+        if type(deadline) is not type(original) or deadline != original:
+            raise guard.refusal('deadline_not_original')
+        guard.admit(frozenset())
+        for purpose in PURPOSES:
+            status = None
+            try:
+                raw = producer.bytes_for(purpose)
+            except Exception:
+                status = 'producer_failed:' + purpose
+            except BaseException:
+                guard.fail()
+                raise
+            if status is not None:
+                raise guard.refusal(status)
+            guard.admit(frozenset())
+            values[purpose] = raw
+        for purpose in PURPOSES:
+            if type(values[purpose]) is not bytes or len(values[purpose]) < MIN_SECRET:
+                raise guard.refusal('secret_invalid:' + purpose)
+        if len(set(values.values())) != len(PURPOSES):
+            raise guard.refusal('secret_reused')
+        done = frozenset()
+        for purpose in PURPOSES:
+            guard.admit(done)
+            status = None
+            try:
+                owner.import_credential(purpose, values[purpose])
+            except Exception:
+                status = 'import_failed:' + purpose
+            except BaseException:
+                guard.fail()
+                raise
+            if status is not None:
+                raise guard.refusal(status)
+            done = done | {purpose}
+        guard.admit(done)
+        status = None
+        try:
+            receiver(owner, values['bootstrap'])
+        except Exception:
+            status = 'bootstrap_receiver_failed'
+        except BaseException:
+            guard.fail()
+            raise
+        if status is not None:
+            raise guard.refusal(status)
+        guard.admit(done)
+        return {'imported': list(PURPOSES), 'bootstrap_delivered': True}
+    finally:
+        values.clear()
+        _ACTIVE.reset(token)
