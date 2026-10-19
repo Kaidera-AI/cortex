@@ -3,6 +3,7 @@
 **
 
 !main.py
+!run_profile.py
 !mcp_server.py
 !observability.py
 !openkai_provider_env.py
