@@ -146,6 +146,16 @@ async def test_exact_selection_false_off_and_server_attribution_roundtrip(runtim
 
 
 @pytest.mark.asyncio
+async def test_catalogue_context_suffix_is_preserved_without_normalizing_model(runtime):
+    module, _ = runtime
+    async with client(module) as c:
+        response = await put(c, selection(harness="claude-code", model="claude-opus-4-8[1m]"))
+        assert response.status_code == 200, response.text
+        saved = (await c.get("/agents/worker/run-profile")).json()
+    assert saved["fields"]["model"]["value"] == "claude-opus-4-8[1m]"
+
+
+@pytest.mark.asyncio
 async def test_cas_preserves_fields_and_rejects_stale_write(runtime):
     module, db = runtime
     async with client(module) as c:
