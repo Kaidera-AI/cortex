@@ -251,5 +251,191 @@ class Resolvers(unittest.TestCase):
 
 
 
+class S4Join(unittest.TestCase):
+    """J1 ACTUAL CORE + ACTUAL S4 JOIN (refusal side): make_secret with its REAL resolvers inside Bob's REAL finite_bootstrap (render.py, composed head), over Core's real owner and vault. The fixed
+    receiver is resolved by make_secret._receiver() through the packaged name cortex_ship.run.render, aliased to the SAME loaded render module so its context variable is shared (the one test-layout
+    step, as in Finn's committed positive join). NOT substituted: _owner_type, _core, _receiver, the owner, S4's receive_bootstrap and finite_bootstrap. NAMED NONSECRET doubles below the production
+    boundary only (S4's own _bootstrap_stage: adapters, SQL rows, engine, clock) and the J06 producer. Needs the CI test dependencies (pytest) because it reuses Bob's harness modules.
+    NOT RUN: real AESGCM/unlock descriptor, PostgreSQL, Podman, native isolation."""
+
+    @classmethod
+    def setUpClass(cls):
+        run_tests = str(INSTALL.parent / 'run' / 'tests')
+        if run_tests not in sys.path:
+            sys.path.insert(0, run_tests)
+        import _bootstrap_stage as stage
+        import test_lifecycle_deciding as lifecycle
+        import test_lifecycle_record_deciding as recording
+        import test_render as render_tests
+        cls.S, cls.lifecycle, cls.recording, cls.TR = stage, lifecycle, recording, render_tests
+
+    def inputs(self):
+        import os
+        import tempfile
+        TR = self.TR
+        root = Path(os.path.realpath(tempfile.mkdtemp(prefix='s4join-')))
+        self.addCleanup(__import__('shutil').rmtree, root, True)
+        conf = root / 'core-conf'
+        (conf / 'sql').mkdir(parents=True)
+        for name in ('postgresql.conf', 'pg_hba.conf'):
+            (conf / name).write_text('# fixture\n')
+        for step in ('pre', 'post', 'close'):
+            (conf / 'sql' / f'roles-{step}.sql').write_text('-- fixture\n')
+        vault = root / 'vault'
+        (vault / 'config').mkdir(parents=True)
+        paths = {'config': vault / 'config' / 'cortex.json', 'release': root / 'release.json', 'operations': root / 'ops.json', 'core_conf': conf,
+                 'out': root / 'out', 'vault': vault, 'root': root}
+        TR.write_config(paths, TR.base_config(str(vault)))
+        paths['release'].write_text(json.dumps(TR.base_release()))
+        paths['operations'].write_bytes(TR.OPERATIONS.read_bytes())
+        return paths
+
+    def world(self, run_exit=0):
+        S = self.S
+        self.render, self.rec = self.lifecycle.load_render(), self.recording.load_record()
+        paths = self.inputs()
+        self.TR.write_config(paths, S.install_config(str(paths['vault'])))
+        _serve, self.plan, _inventory = self.TR.rendered(paths)
+        self.paths = paths
+        self.config = decode_config(paths['config'].read_bytes(), mode='install')
+        prefix = paths['root'] / 'prefix'
+        prefix.mkdir(mode=0o700)
+        self.prefix = prefix
+        self.record = self.render.InstallRecord(prefix, self.recording.RELEASE)
+        self.events = []
+        self.engine = S.BootstrapEngine(self.events, run_exit=run_exit)
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        self.doubles = stack.enter_context(S.composed(self.render, self.config))
+        stack.enter_context(mock.patch.dict(sys.modules, {'cortex_ship.run.render': self.render}))
+        stack.enter_context(mock.patch.object(time, 'monotonic', lambda: self.doubles.adapters.clock))
+        self.asked = []
+
+    def producer(self, hooks=None):
+        S, asked, hooks = self.S, self.asked, hooks or {}
+
+        class Producer:
+            def bytes_for(self, purpose):
+                asked.append(purpose)
+                if purpose in hooks:
+                    hooks[purpose]()
+                return S.password(purpose)
+        return Producer()
+
+    def block(self):
+        return self.render.finite_bootstrap(self.paths['config'], plan=self.plan, unlock_fd=self.S.UNLOCK, key_id=self.S.KEY_ID, operation_key=self.S.OPERATION,
+                                           record=self.record, engine=self.engine, deadline=self.S.DEADLINE)
+
+    def effects(self):
+        return [e for e in self.events if e[0] in ('run', 'create', 'start', 'remove')]
+
+    def completion_recorded(self):
+        doc = self.rec.read_record(str(self.prefix))
+        return bool(doc and any(o.get('kind') == 'bootstrap' for o in doc.get('objects', [])))
+
+    def attempt(self, producer, *, swallow=True):
+        """Run make_secret inside the real block. Returns (make_secret outcome, the Refusal S4 raised at block exit or None)."""
+        outcome, exit_refusal = [], None
+        try:
+            with self.block() as owner:
+                self.owner = owner
+                self.assertIs(M._receiver(), self.render.receive_bootstrap, 'the resolver must bind the actual S4 receiver')
+                self.assertIs(M._owner_type(), custody.InstallerCustody)
+                try:
+                    outcome.append(('ok', M.make_secret(owner, producer=producer, deadline=self.S.DEADLINE)))
+                except M.MakeSecretRefusal as refusal:
+                    outcome.append(('refused', refusal.reason))
+                    if not swallow:
+                        raise
+        except custody.Refusal as refusal:
+            exit_refusal = refusal
+        return outcome[0] if outcome else None, exit_refusal
+
+    def assert_unwound(self, *, delivered):
+        with self.subTest('owner tainted through the real fail path and never run'):
+            self.assertTrue(self.owner._tainted)
+            self.assertFalse([e for e in self.events if e[:3] == ('call', 'run', 'custody.py')])
+        with self.subTest('no completion object, nothing left in the engine'):
+            self.assertFalse(self.completion_recorded())
+            self.assertEqual(self.engine.objects, {})
+        if not delivered:
+            with self.subTest('pre-effect: the engine was never touched and core-init got no bytes'):
+                self.assertEqual((self.effects(), self.engine.inputs), ([], []))
+
+    def test_a_failing_prelude_inside_the_real_receiver_is_a_typed_failure_and_the_real_block_unwinds(self):
+        self.world(run_exit=1)
+        outcome, exit_refusal = self.attempt(self.producer())
+        with self.subTest('make_secret outcome'):
+            self.assertEqual(outcome, ('refused', 'bootstrap_receiver_failed'))
+        with self.subTest('S4 block refuses at exit because the owner is tainted'):
+            self.assertIsNotNone(exit_refusal)
+        with self.subTest('the five imports happened, the receiver ran once'):
+            self.assertEqual(self.asked, list(self.S.PURPOSES))
+            self.assertEqual(len(self.engine.inputs), 1)
+        self.assert_unwound(delivered=True)
+
+    def test_a_deadline_passed_during_production_refuses_before_any_import_or_engine_effect(self):
+        self.world()
+        outcome, exit_refusal = self.attempt(self.producer({'probe': lambda: setattr(self.doubles.adapters, 'clock', self.S.DEADLINE + 5.0)}))
+        with self.subTest('make_secret outcome'):
+            self.assertEqual(outcome, ('refused', 'deadline_expired'))
+        with self.subTest('S4 block refuses at exit'):
+            self.assertIsNotNone(exit_refusal)
+        self.assert_unwound(delivered=False)
+
+    def test_a_producer_that_taints_the_real_owner_stops_before_any_import_or_engine_effect(self):
+        self.world()
+        outcome, exit_refusal = self.attempt(self.producer({'migrator': lambda: custody._installer_fail(self.owner)}))
+        with self.subTest('make_secret outcome'):
+            self.assertEqual(outcome, ('refused', 'custody_context'))
+        with self.subTest('S4 block refuses at exit'):
+            self.assertIsNotNone(exit_refusal)
+        self.assert_unwound(delivered=False)
+
+    def test_a_reentrant_call_from_the_producer_is_refused_and_nothing_reaches_the_engine(self):
+        self.world()
+        inner = []
+
+        def reenter():
+            try:
+                inner.append(M.make_secret(self.owner, producer=self.producer(), deadline=self.S.DEADLINE))
+            except M.MakeSecretRefusal as refusal:
+                inner.append(('refused', refusal.reason))
+        outcome, exit_refusal = self.attempt(self.producer({'migrator': reenter}))
+        with self.subTest('the reentered call'):
+            self.assertEqual(inner, [('refused', 'make_secret_reentered')])
+        with self.subTest('make_secret outcome'):
+            self.assertEqual(outcome, ('refused', 'custody_context'))
+        self.assert_unwound(delivered=False)
+
+    def test_a_second_call_after_the_bootstrap_was_delivered_is_refused_without_a_second_delivery_and_taints_the_block(self):
+        self.world()
+        second = []
+
+        def again():
+            try:
+                M.make_secret(self.owner, producer=self.producer(), deadline=self.S.DEADLINE)
+            except M.MakeSecretRefusal as refusal:
+                second.append(refusal.reason)
+        first_asked, first = self.asked, []
+        with self.assertRaises(custody.Refusal):
+            with self.block() as owner:
+                self.owner = owner
+                try:
+                    first.append(('ok', M.make_secret(owner, producer=self.producer(), deadline=self.S.DEADLINE)['bootstrap_delivered']))
+                except M.MakeSecretRefusal as refusal:
+                    first.append(('refused', refusal.reason))
+                again()
+        with self.subTest('first call delivered'):
+            self.assertEqual(first, [('ok', True)])
+        with self.subTest('second attempt refused by make_secret itself'):
+            self.assertEqual(second, ['custody_context'])
+        with self.subTest('exactly one delivery to core-init'):
+            self.assertEqual(len(self.engine.inputs), 1)
+        with self.subTest('no completion object after the tainted block'):
+            self.assertFalse(self.completion_recorded())
+        self.assertEqual(self.asked, first_asked)
+
+
 if __name__ == '__main__':
     unittest.main()
