@@ -16,7 +16,7 @@ MODE_PURPOSES = MappingProxyType({
     'serve': ('api_request', 'probe'), 'migrate': ('migrator',),
     'seed': ('bootstrap', 'installer_enrollment', 'api_request'),
     # Install retains metadata below; it grants no public credential resolution.
-    'status': (), 'client': (), 'install': (),
+    'status': (), 'client': (), 'install': (), 'project': (),
 })
 ROLE_NAMES = frozenset({'bootstrap', 'migrator', 'api_request', 'probe', 'installer_enrollment'})
 NAME = re.compile(r'[a-zA-Z_][a-zA-Z_0-9-]{0,62}\Z')
@@ -46,6 +46,7 @@ class BootstrapConfig:
     client_ref: str | None = None
     source_sha256: str = ''
     role_logins: object = None
+    custody_unlock: object = None
 
 
 def _shape(value, keys):
@@ -76,6 +77,25 @@ def _uuid(value):
         raise Refusal('config_identity') from None
 
 
+def _custody_unlock(value, *, project_id, vault_root):
+    """Nonsecret carrier only; Nix's fixed opener owns actual OS admission."""
+    _shape(value, {'kind', 'path', 'key_id', 'identity', 'project_id'})
+    path, key_id, identity = value['path'], value['key_id'], value['identity']
+    if (value['kind'] != 'project-key-file' or type(value['kind']) is not str
+            or type(key_id) is not str or re.fullmatch(r'[A-Za-z0-9_-]{1,64}', key_id) is None
+            or type(identity) is not str or re.fullmatch(r'[A-Za-z_][A-Za-z0-9._-]{0,62}', identity) is None
+            or type(path) is not str or not 2 <= len(path.encode('utf-8', 'surrogatepass')) <= 4096
+            or not path.startswith('/') or path.startswith('//') or '\x00' in path
+            or str(PurePosixPath(path)) != path or '..' in PurePosixPath(path).parts
+            or PurePosixPath(path).name != key_id + '.key'
+            or path == vault_root or path.startswith(vault_root + '/')):
+        raise Refusal('config_custody_unlock')
+    _uuid(value['project_id'])
+    if value['project_id'] != project_id:
+        raise Refusal('config_custody_unlock')
+    return MappingProxyType(dict(value))
+
+
 def _listener(value, *, loopback):
     _shape(value, {'host', 'port'})
     _integer(value['port'], 1, 65535)
@@ -93,8 +113,11 @@ def _listener(value, *, loopback):
 def validate_bootstrap(value, *, mode):
     if type(mode) is not str or mode not in MODE_PURPOSES:
         raise Refusal('config_mode')
-    _shape(value, {'version', 'installation_id', 'tenant_id', 'project_id', 'project_names',
-                   'ai_mode', 'vault_root', 'bind', 'publish', 'client', 'database', 'roles', 'limits'})
+    keys = {'version', 'installation_id', 'tenant_id', 'project_id', 'project_names',
+            'ai_mode', 'vault_root', 'bind', 'publish', 'client', 'database', 'roles', 'limits'}
+    if type(value) is dict and 'custody_unlock' in value:
+        keys.add('custody_unlock')
+    _shape(value, keys)
     if type(value['version']) is not int or value['version'] != 1:
         raise Refusal('config_version')
     if value['ai_mode'] != 'off':
@@ -117,6 +140,10 @@ def validate_bootstrap(value, *, mode):
             or str(PurePosixPath(root)) != root
             or '..' in PurePosixPath(root).parts):
         raise Refusal('config_vault')
+    unlock = (_custody_unlock(value['custody_unlock'], project_id=value['project_id'], vault_root=root)
+              if 'custody_unlock' in value else None)
+    if mode == 'project' and unlock is None:
+        raise Refusal('config_custody_unlock')
     bind = _listener(value['bind'], loopback=False)
     publish = _listener(value['publish'], loopback=True)
     client = value['client']; _shape(client, {'credential_ref'}); _reference(client['credential_ref'])
@@ -158,7 +185,7 @@ def validate_bootstrap(value, *, mode):
                            MappingProxyType({**database, 'tls': MappingProxyType(dict(tls))}),
                            admitted, MappingProxyType(dict(limits)), mode,
                            client['credential_ref'], hashlib.sha256(canonical_bytes(value)).hexdigest(),
-                           MappingProxyType({name: role['login'] for name, role in roles.items()}))
+                           MappingProxyType({name: role['login'] for name, role in roles.items()}), unlock)
 
 
 def decode_config(raw, *, mode):

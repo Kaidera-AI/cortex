@@ -130,3 +130,52 @@ partial dependency publication; no placeholder permits them.
 
 Day-2 raw catalog reader (source stage): SeedResources.observe_catalog observes its actual bootstrap connection in one read-only repeatable snapshot; actual authenticated session OID comes from pg_stat_activity. It retains incident memberships, full protected binding rows and schema/relation owners for the sole Nix validator. No revisions/authority are synthesized and no policy binder is duplicated. SeedResources.transaction admits only its three purposes, refreshes statement/lock timeout from the SAME original absolute deadline, checks completion and suppresses driver details. A configured purpose/mode or source fixture supplies no installed authority. Fixed Nix validation, revision agreement and real PG/TLS proof remain open until separately pinned and measured.
 Failed SQL stages permanently taint their carrier; later stage access requires a fresh complete resource context. The private POSIX deadline signal repeats at50ms after expiration while transaction unwinding is still owned, preventing a one-shot timeout from leaving rollback unbounded in Python-visible driver code. This is source evidence; actual libpq/TLS/commit ambiguity behavior still requires real engine proof.
+
+### J1 project custody source interface
+
+The same closed decoder now carries an optional nonsecret `custody_unlock`
+object with exactly `kind`, `path`, `key_id`, `identity`, and `project_id`.
+`kind` is `project-key-file`; the canonical absolute path ends in `<key_id>.key`
+and lies outside the vault root. The project UUID must match the config.
+The reference is immutable and included in the existing canonical config hash.
+Legacy configs keep their shape and role admission. New `mode='project'`
+requires this reference and admits **no database role purpose**.
+
+The trusted fixed consumer uses Nix's `project_key.open_unlock` or
+`UnlockSession.fresh_fd` to admit the execution identity and key file, then calls
+`open_project_custody(config, unlock_fd=..., key_id=...,
+installation_key_id=..., deadline=...)`. The caller closes its fresh borrowed
+descriptor. Core checks the selected reference/key id and refuses the distinct
+installation key id being reused as the project key id. It does not discover/open a key
+path, generate a key, or provide an OS isolation boundary. Actual project and
+installation roots must be independently keyed and privately admitted; comparing
+nonsecret ids alone is not native proof of key separation.
+
+The returned exact `ProjectCustody` owner holds one actual `CustodyVault`, the
+original config/context/process/deadline, and at most one active record handle.
+`owner.record(purpose, subject_id=UUID)` admits only `project_enrollment`,
+`project_lead`, or `project_worker`. Enrollment's subject is the config project;
+lead/worker subjects are stable canonical UUIDs. The fixed reference is derived
+as `secrets/cortex/<purpose>_<subject_id>`; callers cannot choose a path.
+Installation role/seed/client purposes, copied context/process, nested record,
+expired owner, retained record and closed owner refuse before record IO.
+Separate installation and project owners retain separate keys and authority;
+neither grants or substitutes the other's unlock.
+
+The existing encrypted envelope/AAD and `_SeedRecord` lifecycle are reused.
+Project records use payload schema `cortex.project-custody.v1` and bind the
+intent's installation/tenant/project, purpose, subject, operation key and
+SHA-256 credential digest to the encrypted preimage. `create` durably prepares;
+`load` reconciles; `commit` additionally requires the same complete intent and
+its canonical `intent_sha256` in the receipt. The J2/J3 caller must separately
+validate its exact authoritative SQL/audit receipt before asking storage to
+commit. A memory fixture or a matching caller dictionary is not server success.
+Every next IO/decrypt re-admits the original owner and deadline; a failed record
+scope taints the owner. Closing the owner closes the sole adapter and clears its
+cipher. No claim of process-memory zeroization is made.
+
+This publication binds no HTTP handler, SQL claim authority, installer claim ACK,
+worker launch, native host/identity, or restart path. J2 effects and J3 remain
+behind their explicit accepted-receipt gates. Source controls use named memory,
+clock and noncryptographic cipher doubles; their success earns zero native or
+installed isolation credit.

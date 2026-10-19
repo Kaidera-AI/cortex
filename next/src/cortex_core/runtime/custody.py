@@ -10,16 +10,19 @@ import re
 import time
 
 from cortex_core.release.codec import canonical_bytes
-from .bootstrap_config import BootstrapConfig, MODE_PURPOSES, ROLE_NAMES
+from .bootstrap_config import BootstrapConfig, MODE_PURPOSES, ROLE_NAMES, _uuid
 from .contracts import decode
 from . import custody_fs
 from .signed_member import Refusal
 
 _SCHEMA = 'cortex.custody.v1'
 _SEED = 'cortex.seed-custody.v1'
+_PROJECT_RECORD = 'cortex.project-custody.v1'
+_PROJECT_PURPOSES = frozenset({'project_enrollment', 'project_lead', 'project_worker'})
 _KEY_ID = re.compile(r'[A-Za-z0-9_-]{1,64}\Z')
 _SECRET = re.compile(rb'[0-9a-f]{64}\Z')
 _INSTALLER = ContextVar('cortex_installer_custody', default=None)
+_PROJECT = ContextVar('cortex_project_custody', default=None)
 _INSTALLER_PHASES = ('PRE', 'MIGRATE', 'POST', 'LEDGER', 'SEED', 'ACK', 'CLOSE')
 
 
@@ -84,7 +87,7 @@ class CustodyVault:
         # Install is born only inside open_installer_custody, never by widening
         # this public constructor or accepting a caller-supplied birth token.
         if (type(config) is not BootstrapConfig or config.mode not in MODE_PURPOSES
-                or config.mode == 'install'
+                or config.mode in ('install', 'project')
                 or type(key_id) is not str or _KEY_ID.fullmatch(key_id) is None):
             raise Refusal('custody_locked')
         _unlock_vault(self, config, unlock_fd=unlock_fd, key_id=key_id)
@@ -100,6 +103,8 @@ class CustodyVault:
             owner = _current_installer(self._config, self, binding[3] if binding else None)
             if owner._stage not in ('IMPORT', *_INSTALLER_PHASES):
                 raise Refusal('installer_context')
+        elif self._config.mode == 'project':
+            _current_project(self._config, self)
         self._directory.check()
 
     def _reference(self, purpose):
@@ -168,6 +173,36 @@ class CustodyVault:
             if value['intent'].get(key) != expected:
                 raise Refusal('custody_invalid')
         return SeedMaterial(value, generation)
+
+    def _project_payload(self, value, generation, purpose, subject_id):
+        if (type(value) is not dict or set(value) != {'schema', 'intent', 'credential', 'state', 'receipt'}
+                or value['schema'] != _PROJECT_RECORD or type(value['intent']) is not dict
+                or value['state'] not in ('prepared', 'committed')
+                or (value['state'] == 'prepared' and value['receipt'] is not None)
+                or (value['state'] == 'committed' and type(value['receipt']) is not dict)):
+            raise Refusal('custody_invalid')
+        credential = _unbase(value['credential'], maximum=4096)
+        if _SECRET.fullmatch(credential) is None:
+            raise Refusal('custody_invalid')
+        config = self._config
+        expected = dict(installation_id=config.installation_id, tenant_id=config.tenant_id,
+            project_id=config.project_id, purpose=purpose, subject_id=subject_id,
+            credential_sha256=hashlib.sha256(credential).hexdigest())
+        if any(value['intent'].get(key) != item for key, item in expected.items()):
+            raise Refusal('custody_invalid')
+        operation = value['intent'].get('operation_key')
+        if type(operation) is not str or not 1 <= len(operation) <= 128:
+            raise Refusal('custody_invalid')
+        if value['state'] == 'committed':
+            self._project_receipt(value['intent'], value['receipt'])
+        return SeedMaterial(value, generation)
+
+    def _project_receipt(self, intent, receipt):
+        # The J2/J3 caller must first validate its authoritative SQL/audit receipt.
+        # Storage additionally refuses any different intent/preimage/scope.
+        if (type(receipt) is not dict or any(receipt.get(key) != item for key, item in intent.items())
+                or receipt.get('intent_sha256') != hashlib.sha256(canonical_bytes(intent)).hexdigest()):
+            raise Refusal('custody_invalid')
 
     @contextmanager
     def seed_record(self):
@@ -322,6 +357,8 @@ def _unlock_vault(vault, config, *, unlock_fd, key_id):
         if type(binding) is not tuple or len(binding) != 4:
             raise Refusal('installer_private')
         _bound_installer(config, vault, binding[3], opening=True)
+    elif config.mode == 'project':
+        _current_project(config, vault, opening=True)
     vault._closed, vault._directory, vault._cipher = True, None, None
     key = custody_fs.read_unlock(unlock_fd)
     try:
@@ -618,45 +655,194 @@ def open_installer_custody(config, *, unlock_fd, key_id, deadline):
             raise Refusal('installer_cleanup') from None
 
 
-class _SeedRecord:
-    __slots__ = ('_vault','_reference','_active','_material','_snapshot','_tainted')
+def _current_project(config, vault, *, opening=False):
+    binding = _PROJECT.get()
+    if type(binding) is not tuple or len(binding) != 3:
+        raise Refusal('project_context')
+    owner, original_config, original_deadline = binding
+    if (type(owner) is not ProjectCustody or type(config) is not BootstrapConfig
+            or config is not original_config or config.mode != 'project'
+            or type(vault) is not CustodyVault or vault is not owner._vault
+            or vault._config is not config or vault._closed != opening
+            or owner._config is not config or owner._deadline is not original_deadline
+            or owner._closed or owner._tainted or owner._pid != os.getpid()):
+        raise Refusal('project_context')
+    _project_deadline(original_deadline)
+    try:
+        _PROJECT.reset(owner._token)
+    except (ValueError, RuntimeError):
+        raise Refusal('project_context') from None
+    object.__setattr__(owner, '_token', _PROJECT.set(binding))
+    return owner
 
-    def __init__(self, vault, reference):
+
+def _project_deadline(deadline):
+    try:
+        if (type(deadline) not in (int, float) or not math.isfinite(deadline)
+                or deadline <= time.monotonic()):
+            raise Refusal('project_deadline')
+    except OverflowError:
+        raise Refusal('project_deadline') from None
+
+
+class ProjectCustody:
+    """Finite trusted-code owner, not an OS isolation boundary or DB authority."""
+    __slots__ = ('_config', '_vault', '_deadline', '_pid', '_token', '_closed', '_tainted', '_record')
+
+    def __new__(cls, *args, **kwargs):
+        raise Refusal('project_private')
+
+    def __setattr__(self, name, value):
+        raise AttributeError('private immutable project owner')
+
+    def __repr__(self):
+        return '<ProjectCustody private>'
+
+    def __reduce_ex__(self, protocol):
+        raise Refusal('project_private')
+
+    @contextmanager
+    def record(self, purpose, *, subject_id):
+        # A fixed purpose+canonical UUID derives the reference; no caller path.
+        if type(purpose) is not str or purpose not in _PROJECT_PURPOSES:
+            raise Refusal('purpose_not_admitted')
+        _uuid(subject_id)
+        if purpose == 'project_enrollment' and subject_id != self._config.project_id:
+            raise Refusal('purpose_not_admitted')
+        _current_project(self._config, self._vault)
+        if self._record is not None:
+            object.__setattr__(self, '_tainted', True)
+            raise Refusal('project_reentry')
+        reference = 'secrets/cortex/' + purpose + '_' + subject_id
+        record = _SeedRecord(self._vault, reference, purpose=purpose, subject_id=subject_id)
+        object.__setattr__(self, '_record', record)
+        try:
+            self._vault._live()
+            with custody_fs.record_lock(self._vault._directory, reference.rsplit('/', 1)[1]):
+                _current_project(self._config, self._vault)
+                yield record
+        except BaseException:
+            object.__setattr__(self, '_tainted', True)
+            raise
+        finally:
+            record._active = False
+            object.__setattr__(self, '_record', None)
+
+
+@contextmanager
+def open_project_custody(config, *, unlock_fd, key_id, installation_key_id, deadline):
+    if (type(config) is not BootstrapConfig or config.mode != 'project'
+            or config.custody_unlock is None or config.roles
+            or type(key_id) is not str or key_id != config.custody_unlock['key_id']
+            or type(installation_key_id) is not str or _KEY_ID.fullmatch(installation_key_id) is None
+            or key_id == installation_key_id or type(unlock_fd) is not int or unlock_fd < 3):
+        raise Refusal('project_config')
+    _project_deadline(deadline)
+    if _PROJECT.get() is not None:
+        raise Refusal('project_nested')
+    owner, vault = object.__new__(ProjectCustody), object.__new__(CustodyVault)
+    vault._config = config
+    vault._closed, vault._directory, vault._cipher = True, None, None
+    for name, value in [('_config', config), ('_vault', vault), ('_deadline', deadline),
+                        ('_pid', os.getpid()), ('_closed', False), ('_tainted', False), ('_record', None)]:
+        object.__setattr__(owner, name, value)
+    object.__setattr__(owner, '_token', _PROJECT.set((owner, config, deadline)))
+    try:
+        _unlock_vault(vault, config, unlock_fd=unlock_fd, key_id=key_id)
+        _current_project(config, vault)
+        yield owner
+    except BaseException:
+        object.__setattr__(owner, '_tainted', True)
+        raise
+    finally:
+        object.__setattr__(owner, '_closed', True)
+        cleanup_failed = False
+        try:
+            vault.close()
+        except BaseException:
+            cleanup_failed = True
+        finally:
+            try:
+                _PROJECT.reset(owner._token)
+            except (ValueError, RuntimeError):
+                cleanup_failed = True
+            object.__setattr__(owner, '_token', None)
+        if cleanup_failed:
+            raise Refusal('project_cleanup') from None
+
+
+class _SeedRecord:
+    __slots__ = ('_vault','_reference','_active','_material','_snapshot','_tainted','_purpose','_subject_id')
+
+    def __init__(self, vault, reference, *, purpose='seed', subject_id=None):
         self._vault, self._reference, self._active = vault, reference, True
         self._material = self._snapshot = None
         self._tainted = False
+        self._purpose, self._subject_id = purpose, subject_id
 
     def __repr__(self):
         return '<SeedRecord private>'
 
     def _live(self):
+        if not self._active or self._tainted:
+            raise Refusal('custody_closed')
         if self._vault._config.mode == 'install':
             # Retained seed handles cannot cross a phase or active resource scope.
             _installer_seed_owner(self._vault)
+        elif self._vault._config.mode == 'project':
+            owner = _current_project(self._vault._config, self._vault)
+            if owner._record is not self:
+                raise Refusal('project_context')
         self._vault._live()
-        if not self._active or self._tainted:
-            raise Refusal('custody_closed')
+
+    def _payload(self, value, generation):
+        if self._purpose == 'seed':
+            return self._vault._seed_payload(value, generation)
+        return self._vault._project_payload(value, generation, self._purpose, self._subject_id)
+
+    def _failed(self):
+        self._tainted = True
+        binding = _PROJECT.get()
+        if (self._vault._config.mode == 'project' and type(binding) is tuple and len(binding) == 3
+                and type(binding[0]) is ProjectCustody and binding[0]._vault is self._vault):
+            object.__setattr__(binding[0], '_tainted', True)
+
+    def _read(self):
+        self._live()
+        try:
+            result = custody_fs.read_record(self._vault._directory, self._reference.rsplit('/', 1)[1])
+            self._live()
+            return result
+        except BaseException:
+            self._failed()
+            raise
 
     def load(self):
-        self._live()
-        result = custody_fs.read_record(self._vault._directory, self._reference.rsplit('/',1)[1])
+        result = self._read()
         if result is None:
             self._material = self._snapshot = None
             return None
-        value, generation = self._vault._open(result[0], self._reference, 'seed')
-        self._material = self._vault._seed_payload(value, generation)
+        try:
+            value, generation = self._vault._open(result[0], self._reference, self._purpose)
+            self._live()
+            self._material = self._payload(value, generation)
+        except BaseException:
+            self._failed()
+            raise
         self._snapshot = result[1]
         return self._material
 
     def _write(self, payload, generation, expected):
         self._live()
-        material = self._vault._seed_payload(payload, generation)
-        raw = self._vault._seal(payload, self._reference, 'seed', generation)
+        material = self._payload(payload, generation)
         try:
+            raw = self._vault._seal(payload, self._reference, self._purpose, generation)
+            self._live()
             snapshot = custody_fs.write_record(self._vault._directory,
                 self._reference.rsplit('/',1)[1], raw, expected=expected)
+            self._live()
         except BaseException:
-            self._tainted = True
+            self._failed()
             raise
         self._snapshot, self._material = snapshot, material
         return material
@@ -665,23 +851,27 @@ class _SeedRecord:
         self._live()
         if type(intent) is not dict or type(credential) is not bytes:
             raise Refusal('custody_invalid')
-        if custody_fs.read_record(self._vault._directory, self._reference.rsplit('/',1)[1]) is not None:
+        if self._read() is not None:
             raise Refusal('custody_changed')
-        return self._write(dict(schema=_SEED,intent=intent,credential=_encoded(credential),
+        return self._write(dict(schema=_SEED if self._purpose == 'seed' else _PROJECT_RECORD,
+                                intent=intent,credential=_encoded(credential),
                                 state='prepared',receipt=None), 0, None)
 
     def commit(self, *, receipt):
         self._live()
         if self._material is None or type(receipt) is not dict or not receipt:
             raise Refusal('custody_invalid')
+        if self._purpose != 'seed':
+            self._vault._project_receipt(self._material.intent, receipt)
         if self._material.state == 'committed':
             if self._material.receipt != receipt:
                 raise Refusal('custody_changed')
-            current = custody_fs.read_record(self._vault._directory, self._reference.rsplit('/',1)[1])
+            current = self._read()
             if current is None or current[1] != self._snapshot:
                 raise Refusal('custody_changed')
             return self._material
-        return self._write(dict(schema=_SEED,intent=self._material.intent,
+        return self._write(dict(schema=_SEED if self._purpose == 'seed' else _PROJECT_RECORD,
+            intent=self._material.intent,
             credential=_encoded(self._material.credential),state='committed',receipt=receipt),
             self._material.generation+1, self._snapshot)
 
