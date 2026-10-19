@@ -14,7 +14,7 @@ FIELDS = frozenset({"harness", "provider", "model", "effort", "fast", "permissio
                     "autonomy", "router_mode", "allowed"})
 TUPLE_FIELDS = FIELDS - {"router_mode", "allowed"}
 PROTECTED_CAPABILITIES = frozenset({"run_profile", "display_name"})
-_IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,191}\Z")
+_IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@+\[\]-]{0,191}\Z")
 
 
 class FieldInput(BaseModel):
