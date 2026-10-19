@@ -233,9 +233,10 @@ def _walk(path, euid, closer):
             raise KeyRefusal('unlock_path_unsafe') from None
         closer.append(opened)
         st = os.fstat(opened)
-        if not _dir_safe(st, euid, private=index == len(parts) - 2):
+        private = index == len(parts) - 2
+        if not _dir_safe(st, euid, private=private):
             raise KeyRefusal('unlock_path_unsafe')
-        edges.append((current, name, opened, (st.st_dev, st.st_ino)))
+        edges.append((current, name, opened, (st.st_dev, st.st_ino), private))
         current = opened
     raise KeyRefusal('unlock_reference_invalid')
 
@@ -285,9 +286,14 @@ def open_unlock(ref, *, project_id, installation_key_id):
             now = os.stat(name, dir_fd=parent, follow_symlinks=False)
             if (now.st_dev, now.st_ino, now.st_nlink) != (st.st_dev, st.st_ino, 1):
                 raise KeyRefusal('unlock_key_unsafe')
-            for above, label, held, identity in edges:
-                seen = os.stat(label, dir_fd=above, follow_symlinks=False)
-                if (seen.st_dev, seen.st_ino) != identity or (os.fstat(held).st_dev, os.fstat(held).st_ino) != identity:
+            # Re-admit with the SAME predicates: what changed after the read (mode, owner, links, size, an ACL, a directory's mode or owner) must still pass before a descriptor leaves.
+            if not _leaf_safe(os.fstat(leaf), euid):
+                raise KeyRefusal('unlock_key_unsafe')
+            if _acl_present(leaf):
+                raise KeyRefusal('unlock_acl_present')
+            for above, label, held, identity, private in edges:
+                seen, held_now = os.stat(label, dir_fd=above, follow_symlinks=False), os.fstat(held)
+                if (seen.st_dev, seen.st_ino) != identity or (held_now.st_dev, held_now.st_ino) != identity or not _dir_safe(held_now, euid, private=private):
                     raise KeyRefusal('unlock_path_unsafe')
             os.lseek(leaf, 0, os.SEEK_SET)
         except OSError:
@@ -313,6 +319,8 @@ class UnlockSession:
             raise KeyRefusal('unlock_session_expired')
         admitted = validate_reference(ref, project_id=project_id)
         os.close(open_unlock(admitted, project_id=project_id, installation_key_id=installation_key_id))
+        if _now() >= deadline:  # slow admission may finish after the ORIGINAL deadline
+            raise KeyRefusal('unlock_session_expired')
         object.__setattr__(self, '_ref', admitted)
         object.__setattr__(self, '_project', project_id)
         object.__setattr__(self, '_installation', installation_key_id)
@@ -342,7 +350,11 @@ class UnlockSession:
             raise KeyRefusal('unlock_session_foreign_process')
         if _now() >= self._deadline:
             raise KeyRefusal('unlock_session_expired')
-        return open_unlock(self._ref, project_id=self._project, installation_key_id=self._installation)
+        fd = open_unlock(self._ref, project_id=self._project, installation_key_id=self._installation)
+        if _now() >= self._deadline:  # the operation finished after the ORIGINAL deadline: close and refuse, never issue the capability
+            os.close(fd)
+            raise KeyRefusal('unlock_session_expired')
+        return fd
 
     def close(self):
         object.__setattr__(self, '_closed', True)
