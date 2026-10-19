@@ -5,6 +5,42 @@ on:
   push: { branches: [main] }
   pull_request:
 jobs:
+  run-profile:
+    name: Run profile / storage A
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.14.0'
+      - name: Locked API dependencies and deciding test tools
+        run: |
+          python -m pip install --only-binary=:all: --require-hashes -r packages/api/requirements.lock
+          python -m pip install --only-binary=:all: pytest==8.4.2 pytest-asyncio==1.2.0
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-16
+      - name: HTTP authority, private PostgreSQL races and vault restore
+        env:
+          PYTHONPATH: packages/api
+          CORTEX_ADMIN_TOKEN: profile-ci-unused
+          CORTEX_API_URL: http://127.0.0.1:1
+          CORTEX_PROFILE_PG_BIN: /usr/lib/postgresql/16/bin
+        run: |
+          python -m pytest --strict-markers -q \
+            packages/api/tests/test_run_profile.py packages/api/tests/test_run_profile_postgres.py \
+            packages/api/tests/test_service_auth_policy.py packages/api/tests/test_project_scope_contract.py \
+            packages/api/tests/test_appdb_boundary.py --junitxml=output/run-profile.xml
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: run-profile-receipt
+          path: output/run-profile.xml
+          if-no-files-found: error
+          retention-days: 7
   pytest-pg:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
