@@ -333,19 +333,51 @@ class Denials(Base):
         self.assertTrue({'SEED', 'ACK', 'CLOSE'}.isdisjoint(self.phases()))
 
 
+CHILD = """
+import importlib.util, json, sys
+from types import SimpleNamespace
+install_dir, tests_dir, src_dir, with_core, spec = sys.argv[1:6]
+sys.path[:0] = [install_dir, tests_dir] + ([src_dir] if with_core == 'yes' else [])
+absent = importlib.util.find_spec('cortex_core') is None
+import provision as P
+cfg = json.loads(spec)
+config = SimpleNamespace(mode=cfg['mode'], role_logins=cfg['role_logins'], vault_root=cfg['vault_root'], database=cfg['database'], installation_id=cfg['installation_id'])
+events = []
+custody = SimpleNamespace(resolve=lambda purpose: events.append(purpose))
+try:
+    outcome = ['ok', repr(P.provision_sequence(config, custody=custody, deadline=9.0e9, operation_key=cfg['operation_key']))]
+except Exception as error:
+    outcome = [type(error).__name__, getattr(error, 'reason', str(error)[:50])]
+print(json.dumps({'core_absent': absent, 'outcome': outcome, 'events': events}))
+"""
+
+
 class CoreMissing(unittest.TestCase):
-    """REAL modules, no doubles: at this base Core's private join (Core2) does not exist, so the call must be a typed non-success with no effect, never a stub or a fallback."""
+    """REAL provision module, no doubles, in a CHILD interpreter whose import path genuinely has no Core package (nothing is deleted or faked in this process, where the composed Core is present): the
+    call must be a typed non-success with no effect, never a stub or a fallback. A second control runs the SAME child with the Core package present and proves the first is not vacuous."""
+
+    def run_child(self, with_core):
+        import json
+        import subprocess
+        c = install_config()
+        spec = json.dumps({'mode': c.mode, 'role_logins': c.role_logins, 'vault_root': c.vault_root, 'database': c.database, 'installation_id': c.installation_id, 'operation_key': OPKEY})
+        done = subprocess.run([sys.executable, '-I', '-B', '-c', CHILD, str(HERE.parent), str(HERE), str(HERE.parents[3] / 'src'), 'yes' if with_core else 'no', spec],
+                              capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr[-300:])
+        return json.loads(done.stdout.strip().splitlines()[-1])
 
     def test_without_the_core2_private_join_the_call_refuses_typed_and_touches_nothing(self):
-        self.assertFalse(hasattr(CUSTODY_MOD, '_installer_phase'), 'this control is only meaningful while Core2 is absent from the tree under test')
-        events = []
-        custody = SimpleNamespace(resolve=lambda purpose: events.append(purpose))
-        try:
-            outcome = ('ok', P.provision_sequence(install_config(), custody=custody, deadline=9.0e9, operation_key=OPKEY))
-        except Exception as error:
-            outcome = (type(error).__name__, getattr(error, 'reason', str(error)[:50]))
+        result = self.run_child(with_core=False)
+        self.assertTrue(result['core_absent'], 'this control is only meaningful while the Core package is genuinely absent from the interpreter under test')
+        outcome = tuple(result['outcome'])
         self.assertEqual(outcome, ('RoleRefusal', 'provision_core_missing'))
-        self.assertEqual(events, [])
+        self.assertEqual(result['events'], [])
+
+    def test_the_same_child_with_the_core_package_present_does_not_report_a_missing_core(self):
+        result = self.run_child(with_core=True)
+        self.assertFalse(result['core_absent'])
+        self.assertNotEqual(tuple(result['outcome']), ('RoleRefusal', 'provision_core_missing'))
+        self.assertEqual(result['events'], [])
 
 
 if __name__ == '__main__':
