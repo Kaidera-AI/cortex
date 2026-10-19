@@ -76,18 +76,9 @@ EOF2
   if [ "$a" -lt 6 ] || { [ "$a" -eq 6 ] && [ "$b" -eq 0 ] && [ "$c" -lt 2 ]; }; then refuse "podman_too_old:$found"; fi
 }
 
-record_object() {  # append-or-replace one object of OURS in the install record (python3 only writes JSON)
+record_object() {  # delegates to the ONE record module: no second writer or parser lives here. The prefix itself is created private by this shell, never followed by the module.
   mkdir -p "$prefix" && chmod 700 "$prefix"
-  python3 -I - "$prefix/install-record.json" "$release_id" "$1" "$2" "$3" <<'PY'
-import json, os, sys
-path, release, kind, name, ident = sys.argv[1:6]
-doc = json.load(open(path)) if os.path.exists(path) else {'release_id': release, 'objects': []}
-doc['release_id'] = release
-doc['objects'] = [o for o in doc['objects'] if o['name'] != name] + [{'kind': kind, 'name': name, 'id': ident}]
-doc['objects'].sort(key=lambda o: o['name'])
-open(path + '.tmp', 'w').write(json.dumps(doc, sort_keys=True, indent=1) + '\n')
-os.replace(path + '.tmp', path)
-PY
+  python3 -I -B "$HERE/record.py" record --prefix "$prefix" --release-id "$release_id" --kind "$1" --name "$2" --id "$3" || exit 2
 }
 
 load_images() {  # E1: this platform's two archives only, tagged by id, recorded the moment they exist
